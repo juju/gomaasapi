@@ -3,11 +3,20 @@
 
 package gomaasapi
 
+import (
+	"encoding/json"
+)
+
 type Server struct {
 	URL    string
 	client *Client
 }
 
 func (server *Server) listNodes() []Node {
-	panic("Not implemented yet")
+	// Do something like (warning, completely untested code):
+	listURL := server.URL + "nodes/"
+	result, _ := (*server.client).Get(listURL, nil)
+	var nodeList []Node
+	_ = json.Unmarshal(result, &nodeList)
+	return nodeList
 }
