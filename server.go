@@ -3,16 +3,11 @@
 
 package gomaasapi
 
-import (
-	. "launchpad.net/gocheck"
-	"testing"
-)
-
-func Test(t *testing.T) {
-	TestingT(t)
+type Server struct {
+	URL    string
+	client *Client
 }
 
-type GomaasapiTestSuite struct {
+func (server *Server) listNodes() []Node {
+	panic("Not implemented yet")
 }
-
-var _ = Suite(&GomaasapiTestSuite{})
