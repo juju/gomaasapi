@@ -1,0 +1,8 @@
+.. -*- mode: rst -*-
+
+******************************
+MAAS API client library for Go
+******************************
+
+This library serves as a minimal client for communicating with the MAAS web
+API in Go programs.
