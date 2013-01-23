@@ -11,21 +11,17 @@ import (
 )
 
 type Client interface {
-	Get(URL string, parameters map[string]string) (response []byte, err error)
-	Post(URL string, parameters map[string]string) (response []byte, err error)
-	Put(URL string, parameters map[string]string) (response []byte, err error)
-	Delete(URL string, parameters map[string]string) error
+	Get(URL string, parameters url.Values) (response []byte, err error)
+	Post(URL string, parameters url.Values) (response []byte, err error)
+	Put(URL string, parameters url.Values) (response []byte, err error)
+	Delete(URL string, parameters url.Values) error
 }
 
 type genericClient struct{}
 
-func (client *genericClient) Get(URL string, parameters map[string]string) ([]byte, error) {
-	urlValues := url.Values{}
-	for key, value := range parameters {
-		urlValues.Add(key, value)
-	}
+func (client *genericClient) Get(URL string, parameters url.Values) ([]byte, error) {
 	// TODO: do a proper url.join here.
-	queryUrl := URL + urlValues.Encode()
+	queryUrl := URL + parameters.Encode()
 	request, err := http.NewRequest("GET", queryUrl, nil)
 	if err != nil {
 		log.Println(err)
@@ -47,15 +43,15 @@ func (client *genericClient) Get(URL string, parameters map[string]string) ([]by
 	return body, nil
 }
 
-func (client *genericClient) Post(URL string, parameters map[string]string) ([]byte, error) {
+func (client *genericClient) Post(URL string, parameters url.Values) ([]byte, error) {
 	// Not implemented.
 	return []byte{}, nil
 }
-func (client *genericClient) Put(URL string, parameters map[string]string) ([]byte, error) {
+func (client *genericClient) Put(URL string, parameters url.Values) ([]byte, error) {
 	// Not implemented.
 	return []byte{}, nil
 }
-func (client *genericClient) Delete(URL string, parameters map[string]string) error {
+func (client *genericClient) Delete(URL string, parameters url.Values) error {
 	// Not implemented.
 	return nil
 }
