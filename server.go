@@ -4,7 +4,7 @@
 package gomaasapi
 
 import (
-	"encoding/json"
+	"log"
 )
 
 type Server struct {
@@ -12,11 +12,18 @@ type Server struct {
 	client *Client
 }
 
-func (server *Server) listNodes() []Node {
+func (server *Server) listNodes() ([]*MAASObject, error) {
 	// Do something like (warning, completely untested code):
 	listURL := server.URL + "nodes/"
-	result, _ := (*server.client).Get(listURL, nil)
-	var nodeList []Node
-	_ = json.Unmarshal(result, &nodeList)
-	return nodeList
+	result, err := (*server.client).Get(listURL, nil)
+	if err != nil {
+		log.Println(err)
+		return nil, err
+	}
+	list, errJson := NewMAASObjectList(result)
+	if errJson != nil {
+		log.Println(errJson)
+		return nil, errJson
+	}
+	return list, nil
 }

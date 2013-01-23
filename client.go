@@ -14,7 +14,7 @@ type Client interface {
 	Get(URL string, parameters map[string]string) (response []byte, err error)
 	Post(URL string, parameters map[string]string) (response []byte, err error)
 	Put(URL string, parameters map[string]string) (response []byte, err error)
-	Delete(URL string, parameters map[string]string) (response []byte, err error)
+	Delete(URL string, parameters map[string]string) error
 }
 
 type genericClient struct{}
@@ -55,9 +55,9 @@ func (client *genericClient) Put(URL string, parameters map[string]string) ([]by
 	// Not implemented.
 	return []byte{}, nil
 }
-func (client *genericClient) Delete(URL string, parameters map[string]string) ([]byte, error) {
+func (client *genericClient) Delete(URL string, parameters map[string]string) error {
 	// Not implemented.
-	return []byte{}, nil
+	return nil
 }
 
 // Trick to ensure *genericClient implements the Client interface.
