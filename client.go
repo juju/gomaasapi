@@ -4,90 +4,82 @@
 package gomaasapi
 
 import (
+	"errors"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
-type Client interface {
-	Get(URL string, parameters url.Values) (response []byte, err error)
-	Post(URL string, parameters url.Values) (response []byte, err error)
-	Put(URL string, parameters url.Values) (response []byte, err error)
-	Delete(URL string, parameters url.Values) error
+type Client struct {
+	Signer OAuthSigner
 }
 
-type genericClient struct{}
-
-func (client *genericClient) Get(URL string, parameters url.Values) ([]byte, error) {
-	// TODO: do a proper url.join here.
-	queryUrl := URL + parameters.Encode()
-	request, err := http.NewRequest("GET", queryUrl, nil)
+func (client Client) dispatchRequest(request *http.Request) ([]byte, error) {
+	client.Signer.OAuthSign(request)
+	httpClient := http.Client{}
+	response, err := httpClient.Do(request)
 	if err != nil {
-		log.Println(err)
 		return nil, err
 	}
-	client.Sign(request)
-	httpClient := http.Client{}
-	response, reqErr := httpClient.Do(request)
-	if reqErr != nil {
-		log.Println(reqErr)
-		return nil, reqErr
+	body, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return nil, err
 	}
-
-	body, parseErr := ioutil.ReadAll(response.Body)
-	if parseErr != nil {
-		log.Println(parseErr)
-		return nil, parseErr
+	if response.StatusCode/100 != 2 {
+		return body, errors.New("Error requesting the MAAS server: " + response.Status + ".")
 	}
 	return body, nil
 }
 
-func (client *genericClient) Post(URL string, parameters url.Values) ([]byte, error) {
+func (client Client) Get(URL string, parameters url.Values) ([]byte, error) {
+	queryUrl := URL + "?" + parameters.Encode()
+	request, err := http.NewRequest("GET", queryUrl, nil)
+	if err != nil {
+		return nil, err
+	}
+	return client.dispatchRequest(request)
+}
+
+func (client Client) Post(URL string, parameters url.Values) ([]byte, error) {
 	// Not implemented.
 	return []byte{}, nil
 }
-func (client *genericClient) Put(URL string, parameters url.Values) ([]byte, error) {
+func (client Client) Put(URL string, parameters url.Values) ([]byte, error) {
 	// Not implemented.
 	return []byte{}, nil
 }
-func (client *genericClient) Delete(URL string, parameters url.Values) error {
+func (client Client) Delete(URL string, parameters url.Values) error {
 	// Not implemented.
 	return nil
 }
 
-// Trick to ensure *genericClient implements the Client interface.
-var _ Client = (*genericClient)(nil)
+type anonSigner struct{}
 
-// Sign does not do anything but is here to let children implement it.
-func (client *genericClient) Sign(request *http.Request) error {
+func (signer anonSigner) OAuthSign(request *http.Request) error {
 	return nil
 }
 
-// AnonymousClient implements a client which performs non-authenticated
-// requests.
-type AnonymousClient struct {
-	genericClient
+// NewAnonymousClient creates a client that issues anonymous requests.
+func NewAnonymousClient() (*Client, error) {
+	return &Client{Signer: &anonSigner{}}, nil
 }
 
-// AuthenticatedClient implements a client which performs OAuth-authenticated
-// requests.
-type AuthenticatedClient struct {
-	genericClient
-	consumerKey    string
-	consumerSecret string
-	tokenKey       string
-	tokenSecret    string
-}
-
-func NewAuthenticatedClient(apiKey string) *AuthenticatedClient {
-	// Parse MAAS API key and create an OAuthClient.
-	// Not implemented.
-	return nil
-}
-
-func (client *AuthenticatedClient) Sign(request *http.Request) error {
-	// Sign the request with OAuth signature.
-	// Not implemented.
-	return nil
+// NewAuthenticatedClient parses the given MAAS API key into the individual
+// OAuth tokens and creates an Client that will use these tokens to sign the
+// requests it issues.
+func NewAuthenticatedClient(apiKey string) (*Client, error) {
+	elements := strings.Split(apiKey, ":")
+	if len(elements) != 3 {
+		errString := "Invalid API key. The format of the key must be \"<consumer secret>:<token key>:<token secret>\"."
+		err := errors.New(errString)
+		return nil, err
+	}
+	// The consumer secret is the empty string in MAAS' authentication.
+	token := &OAuthToken{ConsumerKey: elements[0], ConsumerSecret: "", TokenKey: elements[1], TokenSecret: elements[2]}
+	signer, err := NewPLAINTEXTOAuthSigner(token, "MAAS API")
+	if err != nil {
+		return nil, err
+	}
+	return &Client{Signer: signer}, nil
 }
