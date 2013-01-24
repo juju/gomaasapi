@@ -60,6 +60,9 @@ func (signer anonSigner) OAuthSign(request *http.Request) error {
 	return nil
 }
 
+// Trick to ensure *anonSigner implements the OAuthSigner interface.
+var _ OAuthSigner = (*anonSigner)(nil)
+
 // NewAnonymousClient creates a client that issues anonymous requests.
 func NewAnonymousClient() (*Client, error) {
 	return &Client{Signer: &anonSigner{}}, nil

@@ -37,6 +37,9 @@ type OAuthToken struct {
 	TokenSecret    string
 }
 
+// Trick to ensure *pLAINTEXTOAuthSigner implements the OAuthSigner interface.
+var _ OAuthSigner = (*pLAINTEXTOAuthSigner)(nil)
+
 type pLAINTEXTOAuthSigner struct {
 	token *OAuthToken
 	realm string
