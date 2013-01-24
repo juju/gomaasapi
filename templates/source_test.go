@@ -9,6 +9,6 @@ import (
 
 
 // TODO: Replace with real test functions.  Give them real names.
-func (suite *USSOTestSuite) TestXXX(c *gocheck.C) {
+func (suite *GomaasapiTestSuite) TestXXX(c *gocheck.C) {
 	c.Check(2 + 2, gocheck.Equals, 4)
 }
