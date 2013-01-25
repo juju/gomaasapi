@@ -4,26 +4,25 @@
 package gomaasapi
 
 import (
-	"log"
+	"net/url"
 )
 
 type Server struct {
 	URL    string
-	client *Client
+	Client *Client
 }
 
-func (server *Server) listNodes() ([]*MAASObject, error) {
-	// Do something like (warning, completely untested code):
-	listURL := server.URL + "nodes/"
-	result, err := (*server.client).Get(listURL, nil)
+func (server *Server) ListNodes() ([]*MAASObject, error) {
+	listURL := server.URL + "/nodes/"
+	params := url.Values{}
+	params.Add("op", "list")
+	result, err := server.Client.Get(listURL, params)
 	if err != nil {
-		log.Println(err)
 		return nil, err
 	}
-	list, errJson := NewMAASObjectList(result)
-	if errJson != nil {
-		log.Println(errJson)
-		return nil, errJson
+	list, err := NewMAASObjectList(result)
+	if err != nil {
+		return nil, err
 	}
 	return list, nil
 }
