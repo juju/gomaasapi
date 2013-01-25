@@ -13,6 +13,7 @@ import (
 // a special kind of JSONObject.  A MAAS API call will usually return either
 // a MAASModel or a list of MAASModels.  (The list itself will be wrapped in
 // a JSONObject).
+//
 type MAASModel interface {
 	// Resource URI for this object.
 	URL() string
@@ -30,11 +31,14 @@ type MAASModel interface {
 	CallPost(operation string, params url.Values) (JSONObject, error)
 }
 
-// JSONObject implementation for a MAAS model object.
-// Implements both JSONObject and MAASModel.
+// JSONObject implementation for a MAAS model object.  From a decoding
+// perspective, a maasModel is just like a jsonMap except it contains a key
+// "resource_uri", and it keeps track of the Client you got it from so that
+// you can invoke API methods directly on their model object.
+// maasModel implements both JSONObject and MAASModel.
 type maasModel struct {
 	jsonMap
-	client *Client
+	client Client
 }
 
 

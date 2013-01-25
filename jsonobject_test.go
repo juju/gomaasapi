@@ -62,6 +62,60 @@ func (suite *GomaasapiTestSuite) TestMaasifyMapContainsJSONObjects(c *gocheck.C)
 }
 
 
+// maasify() converts MAAS model objects.
+func (suite *GomaasapiTestSuite) TestMaasifyConvertsModel(c *gocheck.C) {
+	original := map[string]interface{}{
+		"resource_uri": "http://example.com/foo",
+		"size": "3",
+	}
+	output := maasify(nil, original).(maasModel)
+	c.Check(len(output.jsonMap), gocheck.Equals, len(original))
+	c.Check((string)(output.jsonMap["size"].(jsonString)), gocheck.Equals, "3")
+}
+
+
+// maasify() passes its Client to a MAASModel it creates.
+func (suite *GomaasapiTestSuite) TestMaasifyPassesClientToModel(c *gocheck.C) {
+	client := &genericClient{}
+	original := map[string]interface{}{"resource_uri": "http://example.com/foo"}
+	output := maasify(client, original).(maasModel)
+	c.Check(output.client, gocheck.Equals, client)
+}
+
+
+// maasify() passes its Client into an array of MAASModels it creates.
+func (suite *GomaasapiTestSuite) TestMaasifyPassesClientIntoArray(c *gocheck.C) {
+	client := &genericClient{}
+	obj := map[string]interface{}{"resource_uri": "http://example.com/foo"}
+	list := []interface{}{obj}
+	output := maasify(client, list).(jsonArray)
+	c.Check(output[0].(maasModel).client, gocheck.Equals, client)
+}
+
+
+// maasify() passes its Client into a map of MAASModels it creates.
+func (suite *GomaasapiTestSuite) TestMaasifyPassesClientIntoMap(c *gocheck.C) {
+	client := &genericClient{}
+	obj := map[string]interface{}{"resource_uri": "http://example.com/foo"}
+	mp := map[string]interface{}{"key": obj}
+	output := maasify(client, mp).(jsonMap)
+	c.Check(output["key"].(maasModel).client, gocheck.Equals, client)
+}
+
+
+// maasify() passes its Client all the way down into any MAASModels in the
+// object structure it creates.
+func (suite *GomaasapiTestSuite) TestMaasifyPassesClientAllTheWay(c *gocheck.C) {
+	client := &genericClient{}
+	obj := map[string]interface{}{"resource_uri": "http://example.com/foo"}
+	mp := map[string]interface{}{"key": obj}
+	list := []interface{}{mp}
+	output := maasify(client, list).(jsonArray)
+	model := output[0].(jsonMap)["key"]
+	c.Check(model.(maasModel).client, gocheck.Equals, client)
+}
+
+
 // maasify() converts Booleans.
 func (suite *GomaasapiTestSuite) TestMaasifyConvertsBool(c *gocheck.C) {
 	c.Check(bool(maasify(nil, true).(jsonBool)), gocheck.Equals, true)

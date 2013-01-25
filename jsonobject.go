@@ -58,13 +58,18 @@ type jsonArray []JSONObject
 type jsonBool bool
 
 
+// Our JSON processor distinguishes a MAASModel from a jsonMap by the fact
+// that it contains a key "resource_uri".  (A regular map might contain the
+// same key through sheer coincide, but never mind: you can still treat it
+// as a jsonMap and never notice the difference.)
 const resource_uri = "resource_uri"
+
 
 // Internal: turn a completely untyped json.Unmarshal result into a
 // JSONObject (with the appropriate implementation of course).
 // This function is recursive.  Maps and arrays are deep-copied, with each
 // individual value being converted to a JSONObject type.
-func maasify(client *Client, value interface{}) JSONObject {
+func maasify(client Client, value interface{}) JSONObject {
 	if value == nil {
 		return nil
 	}
@@ -101,7 +106,7 @@ func maasify(client *Client, value interface{}) JSONObject {
 
 
 // Parse a JSON blob into a JSONObject.
-func Parse(client *Client, input []byte) (JSONObject, error) {
+func Parse(client Client, input []byte) (JSONObject, error) {
 	var obj interface{}
 	err := json.Unmarshal(input, &obj)
 	if err != nil {
