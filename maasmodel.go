@@ -32,19 +32,18 @@ type MAASModel interface {
 
 // JSONObject implementation for a MAAS model object.
 // Implements both JSONObject and MAASModel.
-type maasModel jsonMap
+type maasModel struct {
+	jsonMap
+	client *Client
+}
 
 
 // JSONObject implementation for maasModel.
 func (maasModel) Type() string { return "model" }
 func (obj maasModel) GetString() (string, error) { return failString(obj) }
 func (obj maasModel) GetFloat64() (float64, error) { return failFloat64(obj) }
-func (obj maasModel) GetMap() (map[string]JSONObject, error) {
-	return (map[string]JSONObject)(obj), nil
-}
-func (obj maasModel) GetModel() (MAASModel, error) {
-	return maasModel(obj), nil
-}
+func (obj maasModel) GetMap() (map[string]JSONObject, error) { return obj.jsonMap.GetMap() }
+func (obj maasModel) GetModel() (MAASModel, error) { return obj, nil }
 func (obj maasModel) GetArray() ([]JSONObject, error) { return failArray(obj) }
 func (obj maasModel) GetBool() (bool, error) { return failBool(obj) }
 
