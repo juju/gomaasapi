@@ -20,7 +20,7 @@ func (suite *GomaasapiTestSuite) TestServerListNodesReturnsMAASObject(c *C) {
 
 	c.Assert(err, IsNil)
 	// TODO: Really test result.
-	c.Assert(result, Not(IsNil))
+	c.Check(result, Not(IsNil))
 }
 
 func (suite *GomaasapiTestSuite) TestServerListNodesReturnsServerError(c *C) {

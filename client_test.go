@@ -20,8 +20,8 @@ func (suite *GomaasapiTestSuite) TestClientdispatchRequestReturnsError(c *C) {
 
 	result, err := client.dispatchRequest(request)
 
-	c.Assert(err, ErrorMatches, "Error requesting the MAAS server: 400 Bad Request.*")
-	c.Assert(string(result), Equals, expectedResult)
+	c.Check(err, ErrorMatches, "Error requesting the MAAS server: 400 Bad Request.*")
+	c.Check(string(result), Equals, expectedResult)
 }
 
 func (suite *GomaasapiTestSuite) TestClientdispatchRequestSignsRequest(c *C) {
@@ -35,8 +35,8 @@ func (suite *GomaasapiTestSuite) TestClientdispatchRequestSignsRequest(c *C) {
 	result, err := client.dispatchRequest(request)
 
 	c.Assert(err, IsNil)
-	c.Assert(string(result), Equals, expectedResult)
-	c.Assert((*server.requestHeader)["Authorization"][0], Matches, "^OAuth .*")
+	c.Check(string(result), Equals, expectedResult)
+	c.Check((*server.requestHeader)["Authorization"][0], Matches, "^OAuth .*")
 }
 
 func (suite *GomaasapiTestSuite) TestClientGetFormatsGetParameters(c *C) {
@@ -52,11 +52,11 @@ func (suite *GomaasapiTestSuite) TestClientGetFormatsGetParameters(c *C) {
 	result, err := client.Get(server.URL+URI, params)
 
 	c.Assert(err, IsNil)
-	c.Assert(string(result), Equals, expectedResult)
+	c.Check(string(result), Equals, expectedResult)
 }
 
 func (suite *GomaasapiTestSuite) TestNewAuthenticatedClientParsesApiKey(c *C) {
-	// NewAuthenticatedClient returns a pLAINTEXTOAuthSigner configured
+	// NewAuthenticatedClient returns a _PLAINTEXTOAuthSigner configured
 	// to use the given API key.
 	consumerKey := "consumerKey"
 	tokenKey := "tokenKey"
@@ -67,16 +67,16 @@ func (suite *GomaasapiTestSuite) TestNewAuthenticatedClientParsesApiKey(c *C) {
 	client, err := NewAuthenticatedClient(apiKey)
 
 	c.Assert(err, IsNil)
-	signer := client.Signer.(pLAINTEXTOAuthSigner)
-	c.Assert(signer.token.ConsumerKey, Equals, consumerKey)
-	c.Assert(signer.token.TokenKey, Equals, tokenKey)
-	c.Assert(signer.token.TokenSecret, Equals, tokenSecret)
+	signer := client.Signer.(_PLAINTEXTOAuthSigner)
+	c.Check(signer.token.ConsumerKey, Equals, consumerKey)
+	c.Check(signer.token.TokenKey, Equals, tokenKey)
+	c.Check(signer.token.TokenSecret, Equals, tokenSecret)
 }
 
 func (suite *GomaasapiTestSuite) TestNewAuthenticatedClientFailsIfInvalidKey(c *C) {
 	client, err := NewAuthenticatedClient("invalid-key")
 
-	c.Assert(err, ErrorMatches, "Invalid API key.*")
-	c.Assert(client, IsNil)
+	c.Check(err, ErrorMatches, "Invalid API key.*")
+	c.Check(client, IsNil)
 
 }

@@ -16,7 +16,7 @@ type singleServingServer struct {
 	requestHeader  *http.Header
 }
 
-// newSingleServingServer create a single-serving test http server which will
+// newSingleServingServer creates a single-serving test http server which will
 // return only one response as defined by the passed arguments.
 func newSingleServingServer(uri string, response string, code int) *singleServingServer {
 	var requestContent string

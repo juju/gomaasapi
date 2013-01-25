@@ -37,21 +37,21 @@ type OAuthToken struct {
 	TokenSecret    string
 }
 
-// Trick to ensure *pLAINTEXTOAuthSigner implements the OAuthSigner interface.
-var _ OAuthSigner = (*pLAINTEXTOAuthSigner)(nil)
+// Trick to ensure *_PLAINTEXTOAuthSigner implements the OAuthSigner interface.
+var _ OAuthSigner = (*_PLAINTEXTOAuthSigner)(nil)
 
-type pLAINTEXTOAuthSigner struct {
+type _PLAINTEXTOAuthSigner struct {
 	token *OAuthToken
 	realm string
 }
 
 func NewPLAINTEXTOAuthSigner(token *OAuthToken, realm string) (OAuthSigner, error) {
-	return pLAINTEXTOAuthSigner{token, realm}, nil
+	return _PLAINTEXTOAuthSigner{token, realm}, nil
 }
 
 // OAuthSignPLAINTEXT signs the provided request using the OAuth PLAINTEXT
 // method: http://oauth.net/core/1.0/#anchor22.
-func (signer pLAINTEXTOAuthSigner) OAuthSign(request *http.Request) error {
+func (signer _PLAINTEXTOAuthSigner) OAuthSign(request *http.Request) error {
 
 	signature := signer.token.ConsumerSecret + `&` + signer.token.TokenSecret
 	authData := map[string]string{

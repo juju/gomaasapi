@@ -79,7 +79,12 @@ func NewAuthenticatedClient(apiKey string) (*Client, error) {
 		return nil, err
 	}
 	// The consumer secret is the empty string in MAAS' authentication.
-	token := &OAuthToken{ConsumerKey: elements[0], ConsumerSecret: "", TokenKey: elements[1], TokenSecret: elements[2]}
+	token := &OAuthToken{
+		ConsumerKey:    elements[0],
+		ConsumerSecret: "",
+		TokenKey:       elements[1],
+		TokenSecret:    elements[2],
+	}
 	signer, err := NewPLAINTEXTOAuthSigner(token, "MAAS API")
 	if err != nil {
 		return nil, err
