@@ -59,7 +59,7 @@ func main() {
         // Delete the new node.
 	fmt.Println("Deleting the new node...")
 	errDelete := newNode.Delete()
-        if errDelete != nil {
+	if errDelete != nil {
             panic(errDelete)
         }
 
