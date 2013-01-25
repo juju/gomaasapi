@@ -36,11 +36,29 @@ func (suite *GomaasapiTestSuite) TestMaasifyConvertsArray(c *gocheck.C) {
 }
 
 
+// When maasify() converts an array slice, the result contains JSONObjects.
+func (suite *GomaasapiTestSuite) TestMaasifyArrayContainsJSONObjects(c *gocheck.C) {
+	arr := maasify([]interface{}{9.9}).(maasArray)
+	var entry JSONObject
+	entry = arr[0]
+	c.Check((float64)(entry.(maasFloat64)), gocheck.Equals, 9.9)
+}
+
+
 // maasify() converts maps.
 func (suite *GomaasapiTestSuite) TestMaasifyConvertsMap(c *gocheck.C) {
 	original := map[string]interface{}{"1": "one", "2": "two", "3": "three"}
 	output := maasify(original).(maasMap)
 	c.Check(len(output), gocheck.Equals, len(original))
+}
+
+
+// When maasify() converts a map, the result contains JSONObjects.
+func (suite *GomaasapiTestSuite) TestMaasifyMapContainsJSONObjects(c *gocheck.C) {
+	mp := maasify(map[string]interface{}{"key": "value"}).(maasMap)
+	var entry JSONObject
+	entry = mp["key"]
+	c.Check((string)(entry.(maasString)), gocheck.Equals, "value")
 }
 
 
