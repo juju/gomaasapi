@@ -9,37 +9,37 @@ import (
 
 // maasify() converts nil.
 func (suite *GomaasapiTestSuite) TestMaasifyConvertsNil(c *C) {
-	c.Check(maasify(nil, nil), Equals, nil)
+	c.Check(maasify(Client{}, nil), Equals, nil)
 }
 
 // maasify() converts strings.
 func (suite *GomaasapiTestSuite) TestMaasifyConvertsString(c *C) {
 	const text = "Hello"
-	c.Check(string(maasify(nil, text).(jsonString)), Equals, text)
+	c.Check(string(maasify(Client{}, text).(jsonString)), Equals, text)
 }
 
 // maasify() converts float64 numbers.
 func (suite *GomaasapiTestSuite) TestMaasifyConvertsNumber(c *C) {
 	const number = 3.1415926535
-	c.Check(float64(maasify(nil, number).(jsonFloat64)), Equals, number)
+	c.Check(float64(maasify(Client{}, number).(jsonFloat64)), Equals, number)
 }
 
 // Any number converts to float64, even integers.
 func (suite *GomaasapiTestSuite) TestMaasifyConvertsIntegralNumber(c *C) {
 	const number = 1
-	c.Check(float64(maasify(nil, number).(jsonFloat64)), Equals, float64(number))
+	c.Check(float64(maasify(Client{}, number).(jsonFloat64)), Equals, float64(number))
 }
 
 // maasify() converts array slices.
 func (suite *GomaasapiTestSuite) TestMaasifyConvertsArray(c *C) {
 	original := []interface{}{3.0, 2.0, 1.0}
-	output := maasify(nil, original).(jsonArray)
+	output := maasify(Client{}, original).(jsonArray)
 	c.Check(len(output), Equals, len(original))
 }
 
 // When maasify() converts an array slice, the result contains JSONObjects.
 func (suite *GomaasapiTestSuite) TestMaasifyArrayContainsJSONObjects(c *C) {
-	arr := maasify(nil, []interface{}{9.9}).(jsonArray)
+	arr := maasify(Client{}, []interface{}{9.9}).(jsonArray)
 	var entry JSONObject
 	entry = arr[0]
 	c.Check((float64)(entry.(jsonFloat64)), Equals, 9.9)
@@ -48,13 +48,13 @@ func (suite *GomaasapiTestSuite) TestMaasifyArrayContainsJSONObjects(c *C) {
 // maasify() converts maps.
 func (suite *GomaasapiTestSuite) TestMaasifyConvertsMap(c *C) {
 	original := map[string]interface{}{"1": "one", "2": "two", "3": "three"}
-	output := maasify(nil, original).(jsonMap)
+	output := maasify(Client{}, original).(jsonMap)
 	c.Check(len(output), Equals, len(original))
 }
 
 // When maasify() converts a map, the result contains JSONObjects.
 func (suite *GomaasapiTestSuite) TestMaasifyMapContainsJSONObjects(c *C) {
-	mp := maasify(nil, map[string]interface{}{"key": "value"}).(jsonMap)
+	mp := maasify(Client{}, map[string]interface{}{"key": "value"}).(jsonMap)
 	var entry JSONObject
 	entry = mp["key"]
 	c.Check((string)(entry.(jsonString)), Equals, "value")
@@ -66,14 +66,14 @@ func (suite *GomaasapiTestSuite) TestMaasifyConvertsMAASObject(c *C) {
 		"resource_uri": "http://example.com/foo",
 		"size":         "3",
 	}
-	output := maasify(nil, original).(jsonMAASObject)
+	output := maasify(Client{}, original).(jsonMAASObject)
 	c.Check(len(output.jsonMap), Equals, len(original))
 	c.Check((string)(output.jsonMap["size"].(jsonString)), Equals, "3")
 }
 
 // maasify() passes its Client to a MAASObject it creates.
 func (suite *GomaasapiTestSuite) TestMaasifyPassesClientToMAASObject(c *C) {
-	client := &genericClient{}
+	client := Client{}
 	original := map[string]interface{}{"resource_uri": "http://example.com/foo"}
 	output := maasify(client, original).(jsonMAASObject)
 	c.Check(output.client, Equals, client)
@@ -81,7 +81,7 @@ func (suite *GomaasapiTestSuite) TestMaasifyPassesClientToMAASObject(c *C) {
 
 // maasify() passes its Client into an array of MAASObjects it creates.
 func (suite *GomaasapiTestSuite) TestMaasifyPassesClientIntoArray(c *C) {
-	client := &genericClient{}
+	client := Client{}
 	obj := map[string]interface{}{"resource_uri": "http://example.com/foo"}
 	list := []interface{}{obj}
 	output := maasify(client, list).(jsonArray)
@@ -90,7 +90,7 @@ func (suite *GomaasapiTestSuite) TestMaasifyPassesClientIntoArray(c *C) {
 
 // maasify() passes its Client into a map of MAASObjects it creates.
 func (suite *GomaasapiTestSuite) TestMaasifyPassesClientIntoMap(c *C) {
-	client := &genericClient{}
+	client := Client{}
 	obj := map[string]interface{}{"resource_uri": "http://example.com/foo"}
 	mp := map[string]interface{}{"key": obj}
 	output := maasify(client, mp).(jsonMap)
@@ -100,7 +100,7 @@ func (suite *GomaasapiTestSuite) TestMaasifyPassesClientIntoMap(c *C) {
 // maasify() passes its Client all the way down into any MAASObjects in the
 // object structure it creates.
 func (suite *GomaasapiTestSuite) TestMaasifyPassesClientAllTheWay(c *C) {
-	client := &genericClient{}
+	client := Client{}
 	obj := map[string]interface{}{"resource_uri": "http://example.com/foo"}
 	mp := map[string]interface{}{"key": obj}
 	list := []interface{}{mp}
@@ -111,15 +111,14 @@ func (suite *GomaasapiTestSuite) TestMaasifyPassesClientAllTheWay(c *C) {
 
 // maasify() converts Booleans.
 func (suite *GomaasapiTestSuite) TestMaasifyConvertsBool(c *C) {
-	c.Check(bool(maasify(nil, true).(jsonBool)), Equals, true)
-	c.Check(bool(maasify(nil, false).(jsonBool)), Equals, false)
+	c.Check(bool(maasify(Client{}, true).(jsonBool)), Equals, true)
+	c.Check(bool(maasify(Client{}, false).(jsonBool)), Equals, false)
 }
 
 // Parse takes you from a JSON blob to a JSONObject.
 func (suite *GomaasapiTestSuite) TestParseMaasifiesJSONBlob(c *C) {
-	client := &genericClient{}
 	blob := []byte("[12]")
-	obj, err := Parse(client, blob)
+	obj, err := Parse(Client{}, blob)
 	c.Check(err, IsNil)
 	c.Check(float64(obj.(jsonArray)[0].(jsonFloat64)), Equals, 12.0)
 }

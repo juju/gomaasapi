@@ -4,25 +4,24 @@
 package gomaasapi
 
 import (
-	"log"
+	"net/url"
 )
 
 type Server struct {
 	URL    string
-	client *Client
+	Client *Client
 }
 
-func (server *Server) listNodes() ([]JSONObject, error) {
-	// Do something like (warning, completely untested code):
-	listURL := server.URL + "nodes/"
-	result, err := (*server.client).Get(listURL, nil)
+func (server *Server) ListNodes() ([]JSONObject, error) {
+	listURL := server.URL + "/nodes/"
+	params := url.Values{}
+	params.Add("op", "list")
+	result, err := server.Client.Get(listURL, params)
 	if err != nil {
-		log.Println(err)
 		return nil, err
 	}
-	jsonobj, err := Parse(*server.client, result)
+	jsonobj, err := Parse(*server.Client, result)
 	if err != nil {
-		log.Println(err)
 		return nil, err
 	}
 	return jsonobj.GetArray()
