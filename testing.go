@@ -33,7 +33,8 @@ func newSingleServingServer(uri string, response string, code int) *singleServin
 		requestContent = string(res)
 		requestHeader = request.Header
 		if request.URL.String() != uri {
-			http.Error(writer, "404 page not found", http.StatusNotFound)
+			errorMsg := fmt.Sprintf("404 page not found (expected '%v', got '%v').", uri, request.URL.String())
+			http.Error(writer, errorMsg, http.StatusNotFound)
 		} else {
 			writer.WriteHeader(code)
 			fmt.Fprint(writer, response)

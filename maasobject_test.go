@@ -50,3 +50,16 @@ func (suite *GomaasapiTestSuite) TestURL(c *C) {
 	obj := jsonMAASObject{jsonMap: jsonMap(input)}
 	c.Check(obj.URL(), Equals, uri)
 }
+
+func (suite *GomaasapiTestSuite) TestGetField(c *C) {
+	uri := "http://example.com/a/resource"
+	fieldName := "field name"
+	fieldValue := "a value"
+	input := map[string]JSONObject{
+		resource_uri: jsonString(uri), fieldName: jsonString(fieldValue),
+	}
+	obj := jsonMAASObject{jsonMap: jsonMap(input)}
+	value, err := obj.GetField(fieldName)
+	c.Check(err, IsNil)
+	c.Check(value, Equals, fieldValue)
+}

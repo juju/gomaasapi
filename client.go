@@ -5,6 +5,7 @@ package gomaasapi
 
 import (
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -14,6 +15,10 @@ import (
 type Client struct {
 	Signer OAuthSigner
 }
+
+const (
+	operationParamName = "op"
+)
 
 func (client Client) dispatchRequest(request *http.Request) ([]byte, error) {
 	client.Signer.OAuthSign(request)
@@ -32,7 +37,15 @@ func (client Client) dispatchRequest(request *http.Request) ([]byte, error) {
 	return body, nil
 }
 
-func (client Client) Get(URL string, parameters url.Values) ([]byte, error) {
+func (client Client) Get(URL string, operation string, parameters url.Values) ([]byte, error) {
+	opParameter := parameters.Get(operationParamName)
+	if opParameter != "" {
+		errString := fmt.Sprintf("The parameters contain a value for '%s' which is reserved parameter.")
+		return nil, errors.New(errString)
+	}
+	if operation != "" {
+		parameters.Set(operationParamName, operation)
+	}
 	queryUrl := URL + "?" + parameters.Encode()
 	request, err := http.NewRequest("GET", queryUrl, nil)
 	if err != nil {
@@ -41,16 +54,37 @@ func (client Client) Get(URL string, parameters url.Values) ([]byte, error) {
 	return client.dispatchRequest(request)
 }
 
-func (client Client) Post(URL string, parameters url.Values) ([]byte, error) {
-	// Not implemented.
-	return []byte{}, nil
+func (client Client) modification(method string, URL string, parameters url.Values) ([]byte, error) {
+	request, err := http.NewRequest(method, URL, strings.NewReader(string(parameters.Encode())))
+	if err != nil {
+		return nil, err
+	}
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	if err != nil {
+		return nil, err
+	}
+	return client.dispatchRequest(request)
 }
+
+func (client Client) Post(URL string, operation string, parameters url.Values) ([]byte, error) {
+	queryParams := url.Values{operationParamName: {operation}}
+	queryURL := URL + "?" + queryParams.Encode()
+	return client.modification("POST", queryURL, parameters)
+}
+
 func (client Client) Put(URL string, parameters url.Values) ([]byte, error) {
-	// Not implemented.
-	return []byte{}, nil
+	return client.modification("PUT", URL, parameters)
 }
-func (client Client) Delete(URL string, parameters url.Values) error {
-	// Not implemented.
+
+func (client Client) Delete(URL string) error {
+	request, err := http.NewRequest("DELETE", URL, strings.NewReader(""))
+	if err != nil {
+		return err
+	}
+	_, err2 := client.dispatchRequest(request)
+	if err2 != nil {
+		return err2
+	}
 	return nil
 }
 

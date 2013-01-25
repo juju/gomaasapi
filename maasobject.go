@@ -16,12 +16,16 @@ import (
 type MAASObject interface {
 	JSONObject
 
+	// Utility method to extract a string field from this MAAS object.
+	GetField(name string) (string, error)
 	// Resource URI for this MAAS object.
 	URL() string
+	// Retrieve the MAAS object located at thisObject.URL()+name.
+	SubObject(name string) MAASObject
 	// Retrieve this MAAS object.
 	Get() (MAASObject, error)
 	// Write this MAAS object.
-	Post(params url.Values) (MAASObject, error)
+	Post(params url.Values) (JSONObject, error)
 	// Update this MAAS object with the given values.
 	Update(params url.Values) (MAASObject, error)
 	// Delete this MAAS object.
@@ -39,7 +43,8 @@ type MAASObject interface {
 // jsonMAASObject implements both JSONObject and MAASObject.
 type jsonMAASObject struct {
 	jsonMap
-	client Client
+	client  Client
+	baseURL string
 }
 
 var _ JSONObject = (*jsonMAASObject)(nil)
@@ -56,38 +61,85 @@ func (obj jsonMAASObject) GetBool() (bool, error)                 { return failB
 
 // MAASObject implementation for jsonMAASObject.
 
-func (obj jsonMAASObject) URL() string {
+func (obj jsonMAASObject) GetField(name string) (string, error) {
+	return obj.jsonMap[name].GetString()
+}
+
+func (obj jsonMAASObject) _URI() (string, error) {
 	contents, err := obj.GetMap()
 	if err != nil {
 		panic("Unexpected failure converting jsonMAASObject to maasMap.")
 	}
-	url, err := contents[resource_uri].GetString()
+	return contents[resource_uri].GetString()
+}
+
+func (obj jsonMAASObject) URL() string {
+	uri, err := obj._URI()
 	if err != nil {
 		panic("Unexpected failure reading jsonMAASObject's URL.")
 	}
-	return url
+	return obj.baseURL + uri
+}
+
+func (obj jsonMAASObject) SubObject(name string) MAASObject {
+	uri, err := obj._URI()
+	if err != nil {
+		panic("Unexpected failure reading jsonMAASObject's URL.")
+	}
+	input := map[string]JSONObject{resource_uri: jsonString(uri + name)}
+	return jsonMAASObject{jsonMap: jsonMap(input), client: obj.client, baseURL: obj.baseURL}
 }
 
 var NotImplemented = errors.New("Not implemented")
 
 func (obj jsonMAASObject) Get() (MAASObject, error) {
-	return jsonMAASObject{}, NotImplemented
+	result, err := obj.client.Get(obj.URL(), "", url.Values{})
+	if err != nil {
+		return nil, err
+	}
+	jsonObj, err := Parse(obj.client, obj.baseURL, result)
+	if err != nil {
+		return nil, err
+	}
+	return jsonObj.GetMAASObject()
 }
 
-func (obj jsonMAASObject) Post(params url.Values) (MAASObject, error) {
-	return jsonMAASObject{}, NotImplemented
+func (obj jsonMAASObject) Post(params url.Values) (JSONObject, error) {
+	result, err := obj.client.Post(obj.URL(), "", params)
+	if err != nil {
+		return nil, err
+	}
+	return Parse(obj.client, obj.baseURL, result)
 }
 
 func (obj jsonMAASObject) Update(params url.Values) (MAASObject, error) {
-	return jsonMAASObject{}, NotImplemented
+	result, err := obj.client.Put(obj.URL(), params)
+	if err != nil {
+		return nil, err
+	}
+	jsonObj, err := Parse(obj.client, obj.baseURL, result)
+	if err != nil {
+		return nil, err
+	}
+	return jsonObj.GetMAASObject()
 }
 
-func (obj jsonMAASObject) Delete() error { return NotImplemented }
+func (obj jsonMAASObject) Delete() error {
+	return obj.client.Delete(obj.URL())
+}
 
 func (obj jsonMAASObject) CallGet(operation string, params url.Values) (JSONObject, error) {
-	return nil, NotImplemented
+	result, err := obj.client.Get(obj.URL(), operation, params)
+	if err != nil {
+		return nil, err
+	}
+	return Parse(obj.client, obj.baseURL, result)
 }
 
 func (obj jsonMAASObject) CallPost(operation string, params url.Values) (JSONObject, error) {
-	return nil, NotImplemented
+	result, err := obj.client.Post(obj.URL(), operation, params)
+	if err != nil {
+		return nil, err
+	}
+	return Parse(obj.client, obj.baseURL, result)
 }

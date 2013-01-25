@@ -4,25 +4,17 @@
 package gomaasapi
 
 import (
+	"fmt"
 	"net/url"
 )
 
-type Server struct {
-	URL    string
-	Client *Client
-}
-
-func (server *Server) ListNodes() ([]JSONObject, error) {
-	listURL := server.URL + "/nodes/"
-	params := url.Values{}
-	params.Add("op", "list")
-	result, err := server.Client.Get(listURL, params)
+func NewServer(URL string, client Client) (MAASObject, error) {
+	parsed, err := url.Parse(URL)
 	if err != nil {
 		return nil, err
 	}
-	jsonobj, err := Parse(*server.Client, result)
-	if err != nil {
-		return nil, err
-	}
-	return jsonobj.GetArray()
+	baseURL := fmt.Sprintf("%s://%s", parsed.Scheme, parsed.Host)
+	resourceURI := parsed.Path
+	input := map[string]JSONObject{resource_uri: jsonString(resourceURI)}
+	return jsonMAASObject{jsonMap: jsonMap(input), client: client, baseURL: baseURL}, nil
 }
