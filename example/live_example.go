@@ -7,13 +7,13 @@ import (
 )
 
 var apiKey string
-var baseURL string
+var apiURL string
 
 func init() {
 	fmt.Print("Enter API key: ")
 	fmt.Scanf("%s", &apiKey)
-	fmt.Print("Enter base URL: ")
-	fmt.Scanf("%s", &baseURL)
+	fmt.Print("Enter API URL: ")
+	fmt.Scanf("%s", &apiURL)
 }
 
 func main() {
@@ -22,7 +22,7 @@ func main() {
 		panic(err)
 	}
 
-	server, err := gomaasapi.NewServer(baseURL, *authClient)
+	server, err := gomaasapi.NewServer(apiURL, *authClient)
 
         nodeListing := server.SubObject("/nodes/")
 
