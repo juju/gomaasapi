@@ -187,31 +187,6 @@ func (suite *GomaasapiTestSuite) TestConversionsMap(c *gocheck.C) {
 	c.Check(err, gocheck.NotNil)
 }
 
-// Model-type JSONObjects convert only to map or to model.
-func (suite *GomaasapiTestSuite) TestConversionsModel(c *gocheck.C) {
-	input := map[string]JSONObject{resource_uri: jsonString("someplace")}
-	obj := maasModel{jsonMap: jsonMap(input)}
-
-	mp, err := obj.GetMap()
-	c.Check(err, gocheck.IsNil)
-	text, err := mp[resource_uri].GetString()
-	c.Check(err, gocheck.IsNil)
-	c.Check(text, gocheck.Equals, "someplace")
-
-	model, err := obj.GetModel()
-	c.Check(err, gocheck.IsNil)
-	_ = model.(maasModel)
-
-	_, err = obj.GetString()
-	c.Check(err, gocheck.NotNil)
-	_, err = obj.GetFloat64()
-	c.Check(err, gocheck.NotNil)
-	_, err = obj.GetArray()
-	c.Check(err, gocheck.NotNil)
-	_, err = obj.GetBool()
-	c.Check(err, gocheck.NotNil)
-}
-
 // Array-type JSONObjects convert only to array.
 func (suite *GomaasapiTestSuite) TestConversionsArray(c *gocheck.C) {
 	obj := jsonArray([]JSONObject{jsonString("item")})
@@ -234,6 +209,7 @@ func (suite *GomaasapiTestSuite) TestConversionsArray(c *gocheck.C) {
 	c.Check(err, gocheck.NotNil)
 }
 
+// Boolean-type JSONObjects convert only to bool.
 func (suite *GomaasapiTestSuite) TestConversionsBool(c *gocheck.C) {
 	obj := jsonBool(false)
 

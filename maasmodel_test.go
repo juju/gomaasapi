@@ -24,3 +24,35 @@ func (suite *GomaasapiTestSuite) TestImplementsInterfaces(c *gocheck.C) {
 	_ = JSONObject(obj)
 	_ = MAASModel(obj)
 }
+
+// maasModels convert only to map or to model.
+func (suite *GomaasapiTestSuite) TestConversionsModel(c *gocheck.C) {
+	input := map[string]JSONObject{resource_uri: jsonString("someplace")}
+	obj := maasModel{jsonMap: jsonMap(input)}
+
+	mp, err := obj.GetMap()
+	c.Check(err, gocheck.IsNil)
+	text, err := mp[resource_uri].GetString()
+	c.Check(err, gocheck.IsNil)
+	c.Check(text, gocheck.Equals, "someplace")
+
+	model, err := obj.GetModel()
+	c.Check(err, gocheck.IsNil)
+	_ = model.(maasModel)
+
+	_, err = obj.GetString()
+	c.Check(err, gocheck.NotNil)
+	_, err = obj.GetFloat64()
+	c.Check(err, gocheck.NotNil)
+	_, err = obj.GetArray()
+	c.Check(err, gocheck.NotNil)
+	_, err = obj.GetBool()
+	c.Check(err, gocheck.NotNil)
+}
+
+func (suite *GomaasapiTestSuite) TestURL(c *gocheck.C) {
+	uri := "http://example.com/a/resource"
+	input := map[string]JSONObject{resource_uri: jsonString(uri)}
+	obj := maasModel{jsonMap: jsonMap(input)}
+	c.Check(obj.URL(), gocheck.Equals, uri)
+}
