@@ -43,8 +43,7 @@ func (suite *GomaasapiTestSuite) TestClientGetFormatsGetParameters(c *C) {
 	URI := "/some/url"
 	expectedResult := "expected:result"
 	client, _ := NewAnonymousClient()
-	params := url.Values{}
-	params.Add("op", "list")
+	params := url.Values{"op": {"list"}}
 	fullURI := URI + "?op=list"
 	server := newSingleServingServer(fullURI, expectedResult, http.StatusOK)
 	defer server.Close()
