@@ -12,7 +12,7 @@ type Server struct {
 	Client *Client
 }
 
-func (server *Server) ListNodes() ([]*MAASObject, error) {
+func (server *Server) ListNodes() ([]JSONObject, error) {
 	listURL := server.URL + "/nodes/"
 	params := url.Values{}
 	params.Add("op", "list")
@@ -20,9 +20,9 @@ func (server *Server) ListNodes() ([]*MAASObject, error) {
 	if err != nil {
 		return nil, err
 	}
-	list, err := NewMAASObjectList(result)
+	jsonobj, err := Parse(*server.Client, result)
 	if err != nil {
 		return nil, err
 	}
-	return list, nil
+	return jsonobj.GetArray()
 }
