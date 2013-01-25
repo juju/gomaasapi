@@ -28,6 +28,13 @@ func (suite *GomaasapiTestSuite) TestMaasifyConvertsNumber(c *gocheck.C) {
 }
 
 
+// Any number converts to float64, even integers.
+func (suite *GomaasapiTestSuite) TestMaasifyConvertsIntegralNumber(c *gocheck.C) {
+	const number = 1
+	c.Check(float64(maasify(nil, number).(jsonFloat64)), gocheck.Equals, float64(number))
+}
+
+
 // maasify() converts array slices.
 func (suite *GomaasapiTestSuite) TestMaasifyConvertsArray(c *gocheck.C) {
 	original := []interface{}{3.0, 2.0, 1.0}
@@ -121,3 +128,148 @@ func (suite *GomaasapiTestSuite) TestMaasifyConvertsBool(c *gocheck.C) {
 	c.Check(bool(maasify(nil, true).(jsonBool)), gocheck.Equals, true)
 	c.Check(bool(maasify(nil, false).(jsonBool)), gocheck.Equals, false)
 }
+
+
+// Parse takes you from a JSON blob to a JSONObject.
+func (suite *GomaasapiTestSuite) TestParseMaasifiesJSONBlob(c *gocheck.C) {
+	client := &genericClient{}
+	blob := []byte("[12]")
+	obj, err := Parse(client, blob)
+	c.Check(err, gocheck.IsNil)
+	c.Check(float64(obj.(jsonArray)[0].(jsonFloat64)), gocheck.Equals, 12.0)
+}
+
+
+// String-type JSONObjects convert only to string.
+func (suite *GomaasapiTestSuite) TestConversionsString(c *gocheck.C) {
+	obj := jsonString("Test string")
+
+	value, err := obj.GetString()
+	c.Check(err, gocheck.IsNil)
+	c.Check(value, gocheck.Equals, "Test string")
+
+	_, err = obj.GetFloat64()
+	c.Check(err, gocheck.NotNil)
+	_, err = obj.GetMap()
+	c.Check(err, gocheck.NotNil)
+	_, err = obj.GetModel()
+	c.Check(err, gocheck.NotNil)
+	_, err = obj.GetArray()
+	c.Check(err, gocheck.NotNil)
+	_, err = obj.GetBool()
+	c.Check(err, gocheck.NotNil)
+}
+
+
+// Number-type JSONObjects convert only to float64.
+func (suite *GomaasapiTestSuite) TestConversionsFloat64(c *gocheck.C) {
+	obj := jsonFloat64(1.1)
+
+	value, err := obj.GetFloat64()
+	c.Check(err, gocheck.IsNil)
+	c.Check(value, gocheck.Equals, 1.1)
+
+	_, err = obj.GetString()
+	c.Check(err, gocheck.NotNil)
+	_, err = obj.GetMap()
+	c.Check(err, gocheck.NotNil)
+	_, err = obj.GetModel()
+	c.Check(err, gocheck.NotNil)
+	_, err = obj.GetArray()
+	c.Check(err, gocheck.NotNil)
+	_, err = obj.GetBool()
+	c.Check(err, gocheck.NotNil)
+}
+
+
+// Map-type JSONObjects convert only to map.
+func (suite *GomaasapiTestSuite) TestConversionsMap(c *gocheck.C) {
+	input := map[string]JSONObject{"x": jsonString("y")}
+	obj := jsonMap(input)
+
+	value, err := obj.GetMap()
+	c.Check(err, gocheck.IsNil)
+	text, err := value["x"].GetString()
+	c.Check(err, gocheck.IsNil)
+	c.Check(text, gocheck.Equals, "y")
+
+	_, err = obj.GetString()
+	c.Check(err, gocheck.NotNil)
+	_, err = obj.GetFloat64()
+	c.Check(err, gocheck.NotNil)
+	_, err = obj.GetModel()
+	c.Check(err, gocheck.NotNil)
+	_, err = obj.GetArray()
+	c.Check(err, gocheck.NotNil)
+	_, err = obj.GetBool()
+	c.Check(err, gocheck.NotNil)
+}
+
+
+// Model-type JSONObjects convert only to map or to model.
+func (suite *GomaasapiTestSuite) TestConversionsModel(c *gocheck.C) {
+	input := map[string]JSONObject{resource_uri: jsonString("someplace")}
+	obj := maasModel{jsonMap: jsonMap(input)}
+
+	mp, err := obj.GetMap()
+	c.Check(err, gocheck.IsNil)
+	text, err := mp[resource_uri].GetString()
+	c.Check(err, gocheck.IsNil)
+	c.Check(text, gocheck.Equals, "someplace")
+
+	model, err := obj.GetModel()
+	c.Check(err, gocheck.IsNil)
+	_ = model.(maasModel)
+
+	_, err = obj.GetString()
+	c.Check(err, gocheck.NotNil)
+	_, err = obj.GetFloat64()
+	c.Check(err, gocheck.NotNil)
+	_, err = obj.GetArray()
+	c.Check(err, gocheck.NotNil)
+	_, err = obj.GetBool()
+	c.Check(err, gocheck.NotNil)
+}
+
+// Array-type JSONObjects convert only to array.
+func (suite *GomaasapiTestSuite) TestConversionsArray(c *gocheck.C) {
+	obj := jsonArray([]JSONObject{jsonString("item")})
+
+	value, err := obj.GetArray()
+	c.Check(err, gocheck.IsNil)
+	text, err := value[0].GetString()
+	c.Check(err, gocheck.IsNil)
+	c.Check(text, gocheck.Equals, "item")
+
+	_, err = obj.GetString()
+	c.Check(err, gocheck.NotNil)
+	_, err = obj.GetFloat64()
+	c.Check(err, gocheck.NotNil)
+	_, err = obj.GetMap()
+	c.Check(err, gocheck.NotNil)
+	_, err = obj.GetModel()
+	c.Check(err, gocheck.NotNil)
+	_, err = obj.GetBool()
+	c.Check(err, gocheck.NotNil)
+}
+
+
+func (suite *GomaasapiTestSuite) TestConversionsBool(c *gocheck.C) {
+	obj := jsonBool(false)
+
+	value, err := obj.GetBool()
+	c.Check(err, gocheck.IsNil)
+	c.Check(value, gocheck.Equals, false)
+
+	_, err = obj.GetString()
+	c.Check(err, gocheck.NotNil)
+	_, err = obj.GetFloat64()
+	c.Check(err, gocheck.NotNil)
+	_, err = obj.GetMap()
+	c.Check(err, gocheck.NotNil)
+	_, err = obj.GetModel()
+	c.Check(err, gocheck.NotNil)
+	_, err = obj.GetArray()
+	c.Check(err, gocheck.NotNil)
+}
+
