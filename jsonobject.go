@@ -54,7 +54,6 @@ type JSONObject interface {
 type jsonString string
 type jsonFloat64 float64
 type jsonMap map[string]JSONObject
-type maasModel jsonMap
 type jsonArray []JSONObject
 type jsonBool bool
 
@@ -173,20 +172,6 @@ func (obj jsonMap) GetMap() (map[string]JSONObject, error) {
 func (obj jsonMap) GetModel() (MAASModel, error) { return failModel(obj) }
 func (obj jsonMap) GetArray() ([]JSONObject, error) { return failArray(obj) }
 func (obj jsonMap) GetBool() (bool, error) { return failBool(obj) }
-
-
-// JSONObject implementation for maasModel.
-func (maasModel) Type() string { return "model" }
-func (obj maasModel) GetString() (string, error) { return failString(obj) }
-func (obj maasModel) GetFloat64() (float64, error) { return failFloat64(obj) }
-func (obj maasModel) GetMap() (map[string]JSONObject, error) {
-	return (map[string]JSONObject)(obj), nil
-}
-func (obj maasModel) GetModel() (MAASModel, error) {
-	return maasModel(obj), nil
-}
-func (obj maasModel) GetArray() ([]JSONObject, error) { return failArray(obj) }
-func (obj maasModel) GetBool() (bool, error) { return failBool(obj) }
 
 
 // JSONObject implementation for jsonArray.
