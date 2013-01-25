@@ -8,7 +8,6 @@ import (
 	"net/url"
 )
 
-
 // MAASModel represents a model object as returned by the MAAS API.  This is
 // a special kind of JSONObject.  A MAAS API call will usually return either
 // a MAASModel or a list of MAASModels.  (The list itself will be wrapped in
@@ -41,16 +40,14 @@ type maasModel struct {
 	client Client
 }
 
-
 // JSONObject implementation for maasModel.
-func (maasModel) Type() string { return "model" }
-func (obj maasModel) GetString() (string, error) { return failString(obj) }
-func (obj maasModel) GetFloat64() (float64, error) { return failFloat64(obj) }
+func (maasModel) Type() string                               { return "model" }
+func (obj maasModel) GetString() (string, error)             { return failString(obj) }
+func (obj maasModel) GetFloat64() (float64, error)           { return failFloat64(obj) }
 func (obj maasModel) GetMap() (map[string]JSONObject, error) { return obj.jsonMap.GetMap() }
-func (obj maasModel) GetModel() (MAASModel, error) { return obj, nil }
-func (obj maasModel) GetArray() ([]JSONObject, error) { return failArray(obj) }
-func (obj maasModel) GetBool() (bool, error) { return failBool(obj) }
-
+func (obj maasModel) GetModel() (MAASModel, error)           { return obj, nil }
+func (obj maasModel) GetArray() ([]JSONObject, error)        { return failArray(obj) }
+func (obj maasModel) GetBool() (bool, error)                 { return failBool(obj) }
 
 // MAASModel implementation for maasModel.
 
