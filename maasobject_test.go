@@ -19,12 +19,6 @@ func makeFakeMAASObject() jsonMAASObject {
 	return jsonMAASObject{jsonMap: jsonMap(attrs)}
 }
 
-func (suite *GomaasapiTestSuite) TestImplementsInterfaces(c *C) {
-	obj := makeFakeMAASObject()
-	_ = JSONObject(obj)
-	_ = MAASObject(obj)
-}
-
 // jsonMAASObjects convert only to map or to MAASObject.
 func (suite *GomaasapiTestSuite) TestConversionsMAASObject(c *C) {
 	input := map[string]JSONObject{resource_uri: jsonString("someplace")}
