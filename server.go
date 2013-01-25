@@ -20,7 +20,7 @@ func (server *Server) listNodes() ([]JSONObject, error) {
 		log.Println(err)
 		return nil, err
 	}
-	jsonobj, err := Parse(result)
+	jsonobj, err := Parse(server.client, result)
 	if err != nil {
 		log.Println(err)
 		return nil, err
