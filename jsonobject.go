@@ -154,7 +154,7 @@ func (jsonString) Type() string                               { return "string" 
 func (obj jsonString) GetString() (string, error)             { return string(obj), nil }
 func (obj jsonString) GetFloat64() (float64, error)           { return failFloat64(obj) }
 func (obj jsonString) GetMap() (map[string]JSONObject, error) { return failMap(obj) }
-func (obj jsonString) GetMAASObject() (MAASObject, error)           { return failMAASObject(obj) }
+func (obj jsonString) GetMAASObject() (MAASObject, error)     { return failMAASObject(obj) }
 func (obj jsonString) GetArray() ([]JSONObject, error)        { return failArray(obj) }
 func (obj jsonString) GetBool() (bool, error)                 { return failBool(obj) }
 
@@ -163,7 +163,7 @@ func (jsonFloat64) Type() string                               { return "float64
 func (obj jsonFloat64) GetString() (string, error)             { return failString(obj) }
 func (obj jsonFloat64) GetFloat64() (float64, error)           { return float64(obj), nil }
 func (obj jsonFloat64) GetMap() (map[string]JSONObject, error) { return failMap(obj) }
-func (obj jsonFloat64) GetMAASObject() (MAASObject, error)           { return failMAASObject(obj) }
+func (obj jsonFloat64) GetMAASObject() (MAASObject, error)     { return failMAASObject(obj) }
 func (obj jsonFloat64) GetArray() ([]JSONObject, error)        { return failArray(obj) }
 func (obj jsonFloat64) GetBool() (bool, error)                 { return failBool(obj) }
 
@@ -174,16 +174,16 @@ func (obj jsonMap) GetFloat64() (float64, error) { return failFloat64(obj) }
 func (obj jsonMap) GetMap() (map[string]JSONObject, error) {
 	return (map[string]JSONObject)(obj), nil
 }
-func (obj jsonMap) GetMAASObject() (MAASObject, error)    { return failMAASObject(obj) }
-func (obj jsonMap) GetArray() ([]JSONObject, error) { return failArray(obj) }
-func (obj jsonMap) GetBool() (bool, error)          { return failBool(obj) }
+func (obj jsonMap) GetMAASObject() (MAASObject, error) { return failMAASObject(obj) }
+func (obj jsonMap) GetArray() ([]JSONObject, error)    { return failArray(obj) }
+func (obj jsonMap) GetBool() (bool, error)             { return failBool(obj) }
 
 // JSONObject implementation for jsonArray.
 func (jsonArray) Type() string                               { return "array" }
 func (obj jsonArray) GetString() (string, error)             { return failString(obj) }
 func (obj jsonArray) GetFloat64() (float64, error)           { return failFloat64(obj) }
 func (obj jsonArray) GetMap() (map[string]JSONObject, error) { return failMap(obj) }
-func (obj jsonArray) GetMAASObject() (MAASObject, error)           { return failMAASObject(obj) }
+func (obj jsonArray) GetMAASObject() (MAASObject, error)     { return failMAASObject(obj) }
 func (obj jsonArray) GetArray() ([]JSONObject, error) {
 	return ([]JSONObject)(obj), nil
 }
@@ -194,6 +194,6 @@ func (jsonBool) Type() string                               { return "bool" }
 func (obj jsonBool) GetString() (string, error)             { return failString(obj) }
 func (obj jsonBool) GetFloat64() (float64, error)           { return failFloat64(obj) }
 func (obj jsonBool) GetMap() (map[string]JSONObject, error) { return failMap(obj) }
-func (obj jsonBool) GetMAASObject() (MAASObject, error)           { return failMAASObject(obj) }
+func (obj jsonBool) GetMAASObject() (MAASObject, error)     { return failMAASObject(obj) }
 func (obj jsonBool) GetArray() ([]JSONObject, error)        { return failArray(obj) }
 func (obj jsonBool) GetBool() (bool, error)                 { return bool(obj), nil }

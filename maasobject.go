@@ -42,17 +42,15 @@ type jsonMAASObject struct {
 	client Client
 }
 
-
 var _ JSONObject = (*jsonMAASObject)(nil)
 var _ MAASObject = (*jsonMAASObject)(nil)
-
 
 // JSONObject implementation for jsonMAASObject.
 func (jsonMAASObject) Type() string                               { return "maasobject" }
 func (obj jsonMAASObject) GetString() (string, error)             { return failString(obj) }
 func (obj jsonMAASObject) GetFloat64() (float64, error)           { return failFloat64(obj) }
 func (obj jsonMAASObject) GetMap() (map[string]JSONObject, error) { return obj.jsonMap.GetMap() }
-func (obj jsonMAASObject) GetMAASObject() (MAASObject, error)           { return obj, nil }
+func (obj jsonMAASObject) GetMAASObject() (MAASObject, error)     { return obj, nil }
 func (obj jsonMAASObject) GetArray() ([]JSONObject, error)        { return failArray(obj) }
 func (obj jsonMAASObject) GetBool() (bool, error)                 { return failBool(obj) }
 
