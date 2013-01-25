@@ -13,22 +13,22 @@ func makeFakeResourceURI() string {
 	return "http://example.com/" + fmt.Sprint(rand.Int31())
 }
 
-func makeFakeModel() maasModel {
+func makeFakeMAASObject() jsonMAASObject {
 	attrs := make(map[string]JSONObject)
 	attrs[resource_uri] = jsonString(makeFakeResourceURI())
-	return maasModel{jsonMap: jsonMap(attrs)}
+	return jsonMAASObject{jsonMap: jsonMap(attrs)}
 }
 
 func (suite *GomaasapiTestSuite) TestImplementsInterfaces(c *C) {
-	obj := makeFakeModel()
+	obj := makeFakeMAASObject()
 	_ = JSONObject(obj)
-	_ = MAASModel(obj)
+	_ = MAASObject(obj)
 }
 
-// maasModels convert only to map or to model.
-func (suite *GomaasapiTestSuite) TestConversionsModel(c *C) {
+// jsonMAASObjects convert only to map or to MAASObject.
+func (suite *GomaasapiTestSuite) TestConversionsMAASObject(c *C) {
 	input := map[string]JSONObject{resource_uri: jsonString("someplace")}
-	obj := maasModel{jsonMap: jsonMap(input)}
+	obj := jsonMAASObject{jsonMap: jsonMap(input)}
 
 	mp, err := obj.GetMap()
 	c.Check(err, IsNil)
@@ -36,9 +36,9 @@ func (suite *GomaasapiTestSuite) TestConversionsModel(c *C) {
 	c.Check(err, IsNil)
 	c.Check(text, Equals, "someplace")
 
-	model, err := obj.GetModel()
+	maasobj, err := obj.GetMAASObject()
 	c.Check(err, IsNil)
-	_ = model.(maasModel)
+	_ = maasobj.(jsonMAASObject)
 
 	_, err = obj.GetString()
 	c.Check(err, NotNil)
@@ -53,6 +53,6 @@ func (suite *GomaasapiTestSuite) TestConversionsModel(c *C) {
 func (suite *GomaasapiTestSuite) TestURL(c *C) {
 	uri := "http://example.com/a/resource"
 	input := map[string]JSONObject{resource_uri: jsonString(uri)}
-	obj := maasModel{jsonMap: jsonMap(input)}
+	obj := jsonMAASObject{jsonMap: jsonMap(input)}
 	c.Check(obj.URL(), Equals, uri)
 }

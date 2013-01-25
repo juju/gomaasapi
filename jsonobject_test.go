@@ -60,44 +60,44 @@ func (suite *GomaasapiTestSuite) TestMaasifyMapContainsJSONObjects(c *C) {
 	c.Check((string)(entry.(jsonString)), Equals, "value")
 }
 
-// maasify() converts MAAS model objects.
-func (suite *GomaasapiTestSuite) TestMaasifyConvertsModel(c *C) {
+// maasify() converts MAAS objects.
+func (suite *GomaasapiTestSuite) TestMaasifyConvertsMAASObject(c *C) {
 	original := map[string]interface{}{
 		"resource_uri": "http://example.com/foo",
 		"size":         "3",
 	}
-	output := maasify(nil, original).(maasModel)
+	output := maasify(nil, original).(jsonMAASObject)
 	c.Check(len(output.jsonMap), Equals, len(original))
 	c.Check((string)(output.jsonMap["size"].(jsonString)), Equals, "3")
 }
 
-// maasify() passes its Client to a MAASModel it creates.
-func (suite *GomaasapiTestSuite) TestMaasifyPassesClientToModel(c *C) {
+// maasify() passes its Client to a MAASObject it creates.
+func (suite *GomaasapiTestSuite) TestMaasifyPassesClientToMAASObject(c *C) {
 	client := &genericClient{}
 	original := map[string]interface{}{"resource_uri": "http://example.com/foo"}
-	output := maasify(client, original).(maasModel)
+	output := maasify(client, original).(jsonMAASObject)
 	c.Check(output.client, Equals, client)
 }
 
-// maasify() passes its Client into an array of MAASModels it creates.
+// maasify() passes its Client into an array of MAASObjects it creates.
 func (suite *GomaasapiTestSuite) TestMaasifyPassesClientIntoArray(c *C) {
 	client := &genericClient{}
 	obj := map[string]interface{}{"resource_uri": "http://example.com/foo"}
 	list := []interface{}{obj}
 	output := maasify(client, list).(jsonArray)
-	c.Check(output[0].(maasModel).client, Equals, client)
+	c.Check(output[0].(jsonMAASObject).client, Equals, client)
 }
 
-// maasify() passes its Client into a map of MAASModels it creates.
+// maasify() passes its Client into a map of MAASObjects it creates.
 func (suite *GomaasapiTestSuite) TestMaasifyPassesClientIntoMap(c *C) {
 	client := &genericClient{}
 	obj := map[string]interface{}{"resource_uri": "http://example.com/foo"}
 	mp := map[string]interface{}{"key": obj}
 	output := maasify(client, mp).(jsonMap)
-	c.Check(output["key"].(maasModel).client, Equals, client)
+	c.Check(output["key"].(jsonMAASObject).client, Equals, client)
 }
 
-// maasify() passes its Client all the way down into any MAASModels in the
+// maasify() passes its Client all the way down into any MAASObjects in the
 // object structure it creates.
 func (suite *GomaasapiTestSuite) TestMaasifyPassesClientAllTheWay(c *C) {
 	client := &genericClient{}
@@ -105,8 +105,8 @@ func (suite *GomaasapiTestSuite) TestMaasifyPassesClientAllTheWay(c *C) {
 	mp := map[string]interface{}{"key": obj}
 	list := []interface{}{mp}
 	output := maasify(client, list).(jsonArray)
-	model := output[0].(jsonMap)["key"]
-	c.Check(model.(maasModel).client, Equals, client)
+	maasobj := output[0].(jsonMap)["key"]
+	c.Check(maasobj.(jsonMAASObject).client, Equals, client)
 }
 
 // maasify() converts Booleans.
@@ -136,7 +136,7 @@ func (suite *GomaasapiTestSuite) TestConversionsString(c *C) {
 	c.Check(err, NotNil)
 	_, err = obj.GetMap()
 	c.Check(err, NotNil)
-	_, err = obj.GetModel()
+	_, err = obj.GetMAASObject()
 	c.Check(err, NotNil)
 	_, err = obj.GetArray()
 	c.Check(err, NotNil)
@@ -156,7 +156,7 @@ func (suite *GomaasapiTestSuite) TestConversionsFloat64(c *C) {
 	c.Check(err, NotNil)
 	_, err = obj.GetMap()
 	c.Check(err, NotNil)
-	_, err = obj.GetModel()
+	_, err = obj.GetMAASObject()
 	c.Check(err, NotNil)
 	_, err = obj.GetArray()
 	c.Check(err, NotNil)
@@ -179,7 +179,7 @@ func (suite *GomaasapiTestSuite) TestConversionsMap(c *C) {
 	c.Check(err, NotNil)
 	_, err = obj.GetFloat64()
 	c.Check(err, NotNil)
-	_, err = obj.GetModel()
+	_, err = obj.GetMAASObject()
 	c.Check(err, NotNil)
 	_, err = obj.GetArray()
 	c.Check(err, NotNil)
@@ -203,7 +203,7 @@ func (suite *GomaasapiTestSuite) TestConversionsArray(c *C) {
 	c.Check(err, NotNil)
 	_, err = obj.GetMap()
 	c.Check(err, NotNil)
-	_, err = obj.GetModel()
+	_, err = obj.GetMAASObject()
 	c.Check(err, NotNil)
 	_, err = obj.GetBool()
 	c.Check(err, NotNil)
@@ -223,7 +223,7 @@ func (suite *GomaasapiTestSuite) TestConversionsBool(c *C) {
 	c.Check(err, NotNil)
 	_, err = obj.GetMap()
 	c.Check(err, NotNil)
-	_, err = obj.GetModel()
+	_, err = obj.GetMAASObject()
 	c.Check(err, NotNil)
 	_, err = obj.GetArray()
 	c.Check(err, NotNil)
