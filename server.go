@@ -12,7 +12,7 @@ type Server struct {
 	client *Client
 }
 
-func (server *Server) listNodes() ([]MAASObject, error) {
+func (server *Server) listNodes() ([]JSONObject, error) {
 	// Do something like (warning, completely untested code):
 	listURL := server.URL + "nodes/"
 	result, err := (*server.client).Get(listURL, nil)
@@ -20,10 +20,10 @@ func (server *Server) listNodes() ([]MAASObject, error) {
 		log.Println(err)
 		return nil, err
 	}
-	maasobj, err := Parse(result)
+	jsonobj, err := Parse(result)
 	if err != nil {
 		log.Println(err)
 		return nil, err
 	}
-	return maasobj.GetArray()
+	return jsonobj.GetArray()
 }
