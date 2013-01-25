@@ -50,13 +50,13 @@ type JSONObject interface {
 // So for each JSON type, there is a separate implementation of JSONObject
 // that converts only to that type.  Any other conversion is an error.
 // One type is special: maasModel is a model object.  It behaves just like
-// a maasMap if you want it to, but it also implements MAASModel.
-type maasString string
-type maasFloat64 float64
-type maasMap map[string]JSONObject
-type maasModel maasMap
-type maasArray []JSONObject
-type maasBool bool
+// a jsonMap if you want it to, but it also implements MAASModel.
+type jsonString string
+type jsonFloat64 float64
+type jsonMap map[string]JSONObject
+type maasModel jsonMap
+type jsonArray []JSONObject
+type jsonBool bool
 
 
 const resource_uri = "resource_uri"
@@ -71,9 +71,9 @@ func maasify(value interface{}) JSONObject {
 	}
 	switch value.(type) {
 	case string:
-		return maasString(value.(string))
+		return jsonString(value.(string))
 	case float64:
-		return maasFloat64(value.(float64))
+		return jsonFloat64(value.(float64))
 	case map[string]interface{}:
 		original := value.(map[string]interface{})
 		result := make(map[string]JSONObject, len(original))
@@ -85,16 +85,16 @@ func maasify(value interface{}) JSONObject {
 			// it as a model object.
 			return maasModel(result)
 		}
-		return maasMap(result)
+		return jsonMap(result)
 	case []interface{}:
 		original := value.([]interface{})
 		result := make([]JSONObject, len(original))
 		for index, value := range original {
 			result[index] = maasify(value)
 		}
-		return maasArray(result)
+		return jsonArray(result)
 	case bool:
-		return maasBool(value.(bool))
+		return jsonBool(value.(bool))
 	}
 	msg := fmt.Sprintf("Unknown JSON type, can't be converted to JSONObject: %v", value)
 	panic(msg)
@@ -145,34 +145,34 @@ func failBool(obj JSONObject) (bool, error) {
 }
 
 
-// JSONObject implementation for maasString.
-func (maasString) Type() string { return "string" }
-func (obj maasString) GetString() (string, error) { return string(obj), nil }
-func (obj maasString) GetFloat64() (float64, error) { return failFloat64(obj) }
-func (obj maasString) GetMap() (map[string]JSONObject, error) { return failMap(obj) }
-func (obj maasString) GetModel() (MAASModel, error) { return failModel(obj) }
-func (obj maasString) GetArray() ([]JSONObject, error) { return failArray(obj) }
-func (obj maasString) GetBool() (bool, error) { return failBool(obj) }
+// JSONObject implementation for jsonString.
+func (jsonString) Type() string { return "string" }
+func (obj jsonString) GetString() (string, error) { return string(obj), nil }
+func (obj jsonString) GetFloat64() (float64, error) { return failFloat64(obj) }
+func (obj jsonString) GetMap() (map[string]JSONObject, error) { return failMap(obj) }
+func (obj jsonString) GetModel() (MAASModel, error) { return failModel(obj) }
+func (obj jsonString) GetArray() ([]JSONObject, error) { return failArray(obj) }
+func (obj jsonString) GetBool() (bool, error) { return failBool(obj) }
 
-// JSONObject implementation for maasFloat64.
-func (maasFloat64) Type() string { return "float64" }
-func (obj maasFloat64) GetString() (string, error) { return failString(obj) }
-func (obj maasFloat64) GetFloat64() (float64, error) { return float64(obj), nil }
-func (obj maasFloat64) GetMap() (map[string]JSONObject, error) { return failMap(obj) }
-func (obj maasFloat64) GetModel() (MAASModel, error) { return failModel(obj) }
-func (obj maasFloat64) GetArray() ([]JSONObject, error) { return failArray(obj) }
-func (obj maasFloat64) GetBool() (bool, error) { return failBool(obj) }
+// JSONObject implementation for jsonFloat64.
+func (jsonFloat64) Type() string { return "float64" }
+func (obj jsonFloat64) GetString() (string, error) { return failString(obj) }
+func (obj jsonFloat64) GetFloat64() (float64, error) { return float64(obj), nil }
+func (obj jsonFloat64) GetMap() (map[string]JSONObject, error) { return failMap(obj) }
+func (obj jsonFloat64) GetModel() (MAASModel, error) { return failModel(obj) }
+func (obj jsonFloat64) GetArray() ([]JSONObject, error) { return failArray(obj) }
+func (obj jsonFloat64) GetBool() (bool, error) { return failBool(obj) }
 
-// JSONObject implementation for maasMap.
-func (maasMap) Type() string { return "map" }
-func (obj maasMap) GetString() (string, error) { return failString(obj) }
-func (obj maasMap) GetFloat64() (float64, error) { return failFloat64(obj) }
-func (obj maasMap) GetMap() (map[string]JSONObject, error) {
+// JSONObject implementation for jsonMap.
+func (jsonMap) Type() string { return "map" }
+func (obj jsonMap) GetString() (string, error) { return failString(obj) }
+func (obj jsonMap) GetFloat64() (float64, error) { return failFloat64(obj) }
+func (obj jsonMap) GetMap() (map[string]JSONObject, error) {
 	return (map[string]JSONObject)(obj), nil
 }
-func (obj maasMap) GetModel() (MAASModel, error) { return failModel(obj) }
-func (obj maasMap) GetArray() ([]JSONObject, error) { return failArray(obj) }
-func (obj maasMap) GetBool() (bool, error) { return failBool(obj) }
+func (obj jsonMap) GetModel() (MAASModel, error) { return failModel(obj) }
+func (obj jsonMap) GetArray() ([]JSONObject, error) { return failArray(obj) }
+func (obj jsonMap) GetBool() (bool, error) { return failBool(obj) }
 
 
 // JSONObject implementation for maasModel.
@@ -189,22 +189,22 @@ func (obj maasModel) GetArray() ([]JSONObject, error) { return failArray(obj) }
 func (obj maasModel) GetBool() (bool, error) { return failBool(obj) }
 
 
-// JSONObject implementation for maasArray.
-func (maasArray) Type() string { return "array" }
-func (obj maasArray) GetString() (string, error) { return failString(obj) }
-func (obj maasArray) GetFloat64() (float64, error) { return failFloat64(obj) }
-func (obj maasArray) GetMap() (map[string]JSONObject, error) { return failMap(obj) }
-func (obj maasArray) GetModel() (MAASModel, error) { return failModel(obj) }
-func (obj maasArray) GetArray() ([]JSONObject, error) {
+// JSONObject implementation for jsonArray.
+func (jsonArray) Type() string { return "array" }
+func (obj jsonArray) GetString() (string, error) { return failString(obj) }
+func (obj jsonArray) GetFloat64() (float64, error) { return failFloat64(obj) }
+func (obj jsonArray) GetMap() (map[string]JSONObject, error) { return failMap(obj) }
+func (obj jsonArray) GetModel() (MAASModel, error) { return failModel(obj) }
+func (obj jsonArray) GetArray() ([]JSONObject, error) {
 	return ([]JSONObject)(obj), nil
 }
-func (obj maasArray) GetBool() (bool, error) { return failBool(obj) }
+func (obj jsonArray) GetBool() (bool, error) { return failBool(obj) }
 
-// JSONObject implementation for maasBool.
-func (maasBool) Type() string { return "bool" }
-func (obj maasBool) GetString() (string, error) { return failString(obj) }
-func (obj maasBool) GetFloat64() (float64, error) { return failFloat64(obj) }
-func (obj maasBool) GetMap() (map[string]JSONObject, error) { return failMap(obj) }
-func (obj maasBool) GetModel() (MAASModel, error) { return failModel(obj) }
-func (obj maasBool) GetArray() ([]JSONObject, error) { return failArray(obj) }
-func (obj maasBool) GetBool() (bool, error) { return bool(obj), nil }
+// JSONObject implementation for jsonBool.
+func (jsonBool) Type() string { return "bool" }
+func (obj jsonBool) GetString() (string, error) { return failString(obj) }
+func (obj jsonBool) GetFloat64() (float64, error) { return failFloat64(obj) }
+func (obj jsonBool) GetMap() (map[string]JSONObject, error) { return failMap(obj) }
+func (obj jsonBool) GetModel() (MAASModel, error) { return failModel(obj) }
+func (obj jsonBool) GetArray() ([]JSONObject, error) { return failArray(obj) }
+func (obj jsonBool) GetBool() (bool, error) { return bool(obj), nil }
