@@ -70,8 +70,8 @@ func (suite *GomaasapiTestSuite) TestGetSubObject(c *C) {
 
 	c.Check(err, IsNil)
 	// uri ends with a slash and subName starts with one, but the two paths
-	// should be concatenated as "http://example.com/a/resource/test".
-	expectedSubURL, _ := url.Parse("http://example.com/a/resource/test")
+	// should be concatenated as "http://example.com/a/resource/test/".
+	expectedSubURL, _ := url.Parse("http://example.com/a/resource/test/")
 	c.Check(subURL, DeepEquals, expectedSubURL)
 }
 

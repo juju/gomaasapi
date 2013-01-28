@@ -68,9 +68,6 @@ func (client Client) nonIdempotentRequest(method string, URI *url.URL, parameter
 		return nil, err
 	}
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	if err != nil {
-		return nil, err
-	}
 	return client.dispatchRequest(request)
 }
 

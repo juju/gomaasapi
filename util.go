@@ -14,3 +14,15 @@ import (
 func JoinURLs(baseURL, path string) string {
 	return strings.TrimRight(baseURL, "/") + "/" + strings.TrimLeft(path, "/")
 }
+
+// AppendSlash appends a slash at the end of the given string unless there
+// already is one.
+// This is used to create the kind of normalized URLs that Django expects.
+// (to avoid Django's redirection when an URL does not ends with a slash.)
+func AppendSlash(URL string) string {
+	length := len(URL)
+	if length > 0 && string(URL[length-1]) == "/" {
+		return URL
+	}
+	return URL + "/"
+}

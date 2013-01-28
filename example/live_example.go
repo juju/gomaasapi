@@ -33,7 +33,7 @@ func main() {
 
 	maas, err := gomaasapi.NewMAAS(*authClient)
 
-	nodeListing := maas.GetSubObject("/nodes/")
+	nodeListing := maas.GetSubObject("nodes")
 
 	// List nodes.
 	fmt.Println("Fetching list of nodes...")
