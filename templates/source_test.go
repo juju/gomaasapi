@@ -4,11 +4,10 @@
 package gomaasapi
 
 import (
-	"launchpad.net/gocheck"
+	. "launchpad.net/gocheck"
 )
 
-
 // TODO: Replace with real test functions.  Give them real names.
-func (suite *GomaasapiTestSuite) TestXXX(c *gocheck.C) {
-	c.Check(2 + 2, gocheck.Equals, 4)
+func (suite *GomaasapiTestSuite) TestXXX(c *C) {
+	c.Check(2+2, Equals, 4)
 }
