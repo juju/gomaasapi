@@ -34,11 +34,6 @@ func main() {
 	maas, err := gomaasapi.NewMAAS(*authClient)
 
 	nodeListing := maas.GetSubObject("/nodes/")
-	URL, _ := nodeListing.URL()
-	URI, _ := nodeListing.URI()
-	fmt.Println("**************")
-	fmt.Println(URL)
-	fmt.Println(URI)
 
 	// List nodes.
 	fmt.Println("Fetching list of nodes...")
