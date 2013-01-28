@@ -66,7 +66,7 @@ const resource_uri = "resource_uri"
 // JSONObject (with the appropriate implementation of course).
 // This function is recursive.  Maps and arrays are deep-copied, with each
 // individual value being converted to a JSONObject type.
-func maasify(client Client, value interface{}) JSONObject {
+func maasify(client Client, baseURL string, value interface{}) JSONObject {
 	if value == nil {
 		return nil
 	}
@@ -81,19 +81,19 @@ func maasify(client Client, value interface{}) JSONObject {
 		original := value.(map[string]interface{})
 		result := make(map[string]JSONObject, len(original))
 		for key, value := range original {
-			result[key] = maasify(client, value)
+			result[key] = maasify(client, baseURL, value)
 		}
 		if _, ok := result[resource_uri]; ok {
 			// If the map contains "resource-uri", we can treat
 			// it as a MAAS object.
-			return jsonMAASObject{result, client}
+			return jsonMAASObject{result, client, baseURL}
 		}
 		return jsonMap(result)
 	case []interface{}:
 		original := value.([]interface{})
 		result := make([]JSONObject, len(original))
 		for index, value := range original {
-			result[index] = maasify(client, value)
+			result[index] = maasify(client, baseURL, value)
 		}
 		return jsonArray(result)
 	case bool:
@@ -104,13 +104,13 @@ func maasify(client Client, value interface{}) JSONObject {
 }
 
 // Parse a JSON blob into a JSONObject.
-func Parse(client Client, input []byte) (JSONObject, error) {
+func Parse(client Client, baseURL string, input []byte) (JSONObject, error) {
 	var obj interface{}
 	err := json.Unmarshal(input, &obj)
 	if err != nil {
 		return nil, err
 	}
-	return maasify(client, obj), nil
+	return maasify(client, baseURL, obj), nil
 }
 
 // Return error value for failed type conversion.

@@ -5,36 +5,16 @@ package gomaasapi
 
 import (
 	. "launchpad.net/gocheck"
-	"net/http"
 )
 
-func (suite *GomaasapiTestSuite) TestServerListNodesReturnsMAASObject(c *C) {
-	URL := "/nodes/?op=list"
-	blob := `[{"resource_uri": "/obj1"}, {"resource_uri": "/obj2"}]`
-	testServer := newSingleServingServer(URL, blob, http.StatusOK)
-	defer testServer.Close()
-	client, _ := NewAnonymousClient()
-	server := Server{testServer.URL, client}
+func (suite *GomaasapiTestSuite) TestNewMAASParsesURL(c *C) {
+	maas, err := NewMAAS("https://server.com:888/path/to/api", Client{})
 
-	result, err := server.ListNodes()
-
-	c.Assert(err, IsNil)
-	c.Check(result, Not(IsNil))
-	c.Check(len(result), Equals, 2)
-	obj1, err := result[0].GetMAASObject()
-	c.Assert(err, IsNil)
-	c.Check(obj1.URL(), Equals, "/obj1")
-}
-
-func (suite *GomaasapiTestSuite) TestServerListNodesReturnsServerError(c *C) {
-	URL := "/nodes/?op=list"
-	expectedResult := "expected:result"
-	testServer := newSingleServingServer(URL, expectedResult, http.StatusBadRequest)
-	defer testServer.Close()
-	client, _ := NewAnonymousClient()
-	server := Server{testServer.URL, client}
-
-	_, err := server.ListNodes()
-
-	c.Assert(err, ErrorMatches, "Error requesting the MAAS server: 400 Bad Request.*")
+	c.Check(err, IsNil)
+	c.Check(maas.URL(), Equals, "https://server.com:888/path/to/api")
+	jsonObj := maas.(jsonMAASObject)
+	uri, err := jsonObj._URI()
+	c.Check(err, IsNil)
+	c.Check(uri, Equals, "/path/to/api")
+	c.Check(jsonObj.baseURL, Equals, "https://server.com:888")
 }
