@@ -7,14 +7,14 @@ import (
 	. "launchpad.net/gocheck"
 )
 
-func (suite *GomaasapiTestSuite) TestJoinURLsAppendsPathToHost(c *C) {
+func (suite *GomaasapiTestSuite) TestJoinURLsAppendsPathToBaseURL(c *C) {
 	c.Check(JoinURLs("http://example.com/", "foo"), Equals, "http://example.com/foo")
 }
 
 func (suite *GomaasapiTestSuite) TestJoinURLsAddsSlashIfNeeded(c *C) {
-	c.Check(JoinURLs("http://example.com", "bar"), Equals, "http://example.com/bar")
+	c.Check(JoinURLs("http://example.com/foo", "bar"), Equals, "http://example.com/foo/bar")
 }
 
 func (suite *GomaasapiTestSuite) TestJoinURLsNormalizesDoubleSlash(c *C) {
-	c.Check(JoinURLs("http://example.com/", "/szot"), Equals, "http://example.com/szot")
+	c.Check(JoinURLs("http://example.com/base/", "/szot"), Equals, "http://example.com/base/szot")
 }
