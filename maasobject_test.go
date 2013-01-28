@@ -51,6 +51,15 @@ func (suite *GomaasapiTestSuite) TestURL(c *C) {
 	c.Check(obj.URL(), Equals, uri)
 }
 
+func (suite *GomaasapiTestSuite) TestGetSubObject(c *C) {
+	uri := "http://example.com/a/resource"
+	input := map[string]JSONObject{resource_uri: jsonString(uri)}
+	obj := jsonMAASObject{jsonMap: jsonMap(input)}
+	subName := "/test"
+	subObj := obj.GetSubObject(subName)
+	c.Check(subObj.URL(), Equals, uri+subName)
+}
+
 func (suite *GomaasapiTestSuite) TestGetField(c *C) {
 	uri := "http://example.com/a/resource"
 	fieldName := "field name"

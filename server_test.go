@@ -7,12 +7,12 @@ import (
 	. "launchpad.net/gocheck"
 )
 
-func (suite *GomaasapiTestSuite) TestServerParsesURL(c *C) {
-	server, err := NewServer("https://server.com:888/path/to/api", Client{})
+func (suite *GomaasapiTestSuite) TestNewMAASParsesURL(c *C) {
+	maas, err := NewMAAS("https://server.com:888/path/to/api", Client{})
 
 	c.Check(err, IsNil)
-	c.Check(server.URL(), Equals, "https://server.com:888/path/to/api")
-	jsonObj := server.(jsonMAASObject)
+	c.Check(maas.URL(), Equals, "https://server.com:888/path/to/api")
+	jsonObj := maas.(jsonMAASObject)
 	uri, err := jsonObj._URI()
 	c.Check(err, IsNil)
 	c.Check(uri, Equals, "/path/to/api")

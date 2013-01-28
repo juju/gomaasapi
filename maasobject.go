@@ -21,7 +21,7 @@ type MAASObject interface {
 	// Resource URI for this MAAS object.
 	URL() string
 	// Retrieve the MAAS object located at thisObject.URL()+name.
-	SubObject(name string) MAASObject
+	GetSubObject(name string) MAASObject
 	// Retrieve this MAAS object.
 	Get() (MAASObject, error)
 	// Write this MAAS object.
@@ -81,7 +81,7 @@ func (obj jsonMAASObject) URL() string {
 	return obj.baseURL + uri
 }
 
-func (obj jsonMAASObject) SubObject(name string) MAASObject {
+func (obj jsonMAASObject) GetSubObject(name string) MAASObject {
 	uri, err := obj._URI()
 	if err != nil {
 		panic("Unexpected failure reading jsonMAASObject's URL.")

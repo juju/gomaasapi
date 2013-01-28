@@ -1,3 +1,11 @@
+// Copyright 2013 Canonical Ltd.  This software is licensed under the
+// GNU Lesser General Public License version 3 (see the file COPYING).
+
+/*
+This is an example on how the Go library gomaasapi can be used to interact with
+a real MAAS server.
+Note that this is a provided only as an example and that real code should probably do something more sensible with errors than ignoring them or panicking.
+*/
 package main
 
 import (
@@ -10,6 +18,7 @@ var apiKey string
 var apiURL string
 
 func init() {
+	fmt.Println("Warning: this will create a node on the MAAS server; it should be deleted at the end of the run but if something goes wrong, that test node might be left over.  You've been warned.")
 	fmt.Print("Enter API key: ")
 	fmt.Scanf("%s", &apiKey)
 	fmt.Print("Enter API URL: ")
@@ -22,9 +31,9 @@ func main() {
 		panic(err)
 	}
 
-	server, err := gomaasapi.NewServer(apiURL, *authClient)
+	maas, err := gomaasapi.NewMAAS(apiURL, *authClient)
 
-	nodeListing := server.SubObject("/nodes/")
+	nodeListing := maas.GetSubObject("/nodes/")
 
 	// List nodes.
 	fmt.Println("Fetching list of nodes...")

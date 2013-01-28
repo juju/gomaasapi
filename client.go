@@ -54,7 +54,8 @@ func (client Client) Get(URL string, operation string, parameters url.Values) ([
 	return client.dispatchRequest(request)
 }
 
-func (client Client) modification(method string, URL string, parameters url.Values) ([]byte, error) {
+// nonIdempotentRequest is a utility method to issue a PUT or a POST request.
+func (client Client) nonIdempotentRequest(method string, URL string, parameters url.Values) ([]byte, error) {
 	request, err := http.NewRequest(method, URL, strings.NewReader(string(parameters.Encode())))
 	if err != nil {
 		return nil, err
@@ -69,11 +70,11 @@ func (client Client) modification(method string, URL string, parameters url.Valu
 func (client Client) Post(URL string, operation string, parameters url.Values) ([]byte, error) {
 	queryParams := url.Values{operationParamName: {operation}}
 	queryURL := URL + "?" + queryParams.Encode()
-	return client.modification("POST", queryURL, parameters)
+	return client.nonIdempotentRequest("POST", queryURL, parameters)
 }
 
 func (client Client) Put(URL string, parameters url.Values) ([]byte, error) {
-	return client.modification("PUT", URL, parameters)
+	return client.nonIdempotentRequest("PUT", URL, parameters)
 }
 
 func (client Client) Delete(URL string) error {

@@ -8,7 +8,8 @@ import (
 	"net/url"
 )
 
-func NewServer(URL string, client Client) (MAASObject, error) {
+// NewMAAS returns an interface to the MAAS API as a MAASObject.
+func NewMAAS(URL string, client Client) (MAASObject, error) {
 	parsed, err := url.Parse(URL)
 	if err != nil {
 		return nil, err
