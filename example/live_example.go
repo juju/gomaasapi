@@ -34,11 +34,11 @@ func main() {
 	maas, err := gomaasapi.NewMAAS(*authClient)
 
 	nodeListing := maas.GetSubObject("/nodes/")
-        URL, _ := nodeListing.URL()
-        URI, _ := nodeListing.URI()
-        fmt.Println("**************")
-        fmt.Println(URL)
-        fmt.Println(URI)
+	URL, _ := nodeListing.URL()
+	URI, _ := nodeListing.URI()
+	fmt.Println("**************")
+	fmt.Println(URL)
+	fmt.Println(URI)
 
 	// List nodes.
 	fmt.Println("Fetching list of nodes...")
@@ -51,7 +51,7 @@ func main() {
 	for index, nodeObj := range listNodes {
 		node, _ := nodeObj.GetMAASObject()
 		hostname, _ := node.GetField("hostname")
-                nodeURL, _ := node.URL()
+		nodeURL, _ := node.URL()
 		fmt.Printf("Node #%d is named '%v' (%v)\n", index, hostname, nodeURL)
 	}
 
@@ -64,7 +64,7 @@ func main() {
 	}
 	newNode, _ := newNodeObj.GetMAASObject()
 	newNodeName, _ := newNode.GetField("hostname")
-        newNodeURL, _ := newNode.URL()
+	newNodeURL, _ := newNode.URL()
 	fmt.Printf("New node created: %s (%s)\n", newNodeName, newNodeURL)
 
 	// Update the new node.

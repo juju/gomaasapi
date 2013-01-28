@@ -60,16 +60,18 @@ func (suite *GomaasapiTestSuite) TestURL(c *C) {
 }
 
 func (suite *GomaasapiTestSuite) TestGetSubObject(c *C) {
-	uri := "http://example.com/a/resource"
+	uri := "http://example.com/a/resource/"
 	input := map[string]JSONObject{resource_uri: jsonString(uri)}
 	obj := jsonMAASObject{jsonMap: jsonMap(input)}
+	// uri ends with a slash and subName starts with one, but the two paths
+	// should be concatenated as "http://example.com/a/resource/test".
 	subName := "/test"
 
 	subObj := obj.GetSubObject(subName)
 	subURL, err := subObj.URL()
 
 	c.Check(err, IsNil)
-	expectedSubURL, _ := url.Parse(uri + subName)
+	expectedSubURL, _ := url.Parse("http://example.com/a/resource/test")
 	c.Check(subURL, DeepEquals, expectedSubURL)
 }
 
