@@ -3,19 +3,8 @@
 
 package gomaasapi
 
-import (
-	"fmt"
-	"net/url"
-)
-
 // NewMAAS returns an interface to the MAAS API as a MAASObject.
-func NewMAAS(URL string, client Client) (MAASObject, error) {
-	parsed, err := url.Parse(URL)
-	if err != nil {
-		return nil, err
-	}
-	baseURL := fmt.Sprintf("%s://%s", parsed.Scheme, parsed.Host)
-	resourceURI := parsed.Path
-	input := map[string]JSONObject{resource_uri: jsonString(resourceURI)}
-	return jsonMAASObject{jsonMap: jsonMap(input), client: client, baseURL: baseURL}, nil
+func NewMAAS(client Client) (MAASObject, error) {
+	input := map[string]JSONObject{resource_uri: jsonString(client.BaseURL.String())}
+	return jsonMAASObject{jsonMap: jsonMap(input), client: client}, nil
 }

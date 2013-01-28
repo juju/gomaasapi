@@ -13,9 +13,9 @@ import (
 func (suite *GomaasapiTestSuite) TestClientdispatchRequestReturnsError(c *C) {
 	URI := "/some/url/?param1=test"
 	expectedResult := "expected:result"
-	client, _ := NewAnonymousClient()
 	server := newSingleServingServer(URI, expectedResult, http.StatusBadRequest)
 	defer server.Close()
+	client, _ := NewAnonymousClient(server.URL)
 	request, err := http.NewRequest("GET", server.URL+URI, nil)
 
 	result, err := client.dispatchRequest(request)
@@ -27,9 +27,9 @@ func (suite *GomaasapiTestSuite) TestClientdispatchRequestReturnsError(c *C) {
 func (suite *GomaasapiTestSuite) TestClientdispatchRequestSignsRequest(c *C) {
 	URI := "/some/url/?param1=test"
 	expectedResult := "expected:result"
-	client, _ := NewAuthenticatedClient("the:api:key")
 	server := newSingleServingServer(URI, expectedResult, http.StatusOK)
 	defer server.Close()
+	client, _ := NewAuthenticatedClient(server.URL, "the:api:key")
 	request, err := http.NewRequest("GET", server.URL+URI, nil)
 
 	result, err := client.dispatchRequest(request)
@@ -40,44 +40,44 @@ func (suite *GomaasapiTestSuite) TestClientdispatchRequestSignsRequest(c *C) {
 }
 
 func (suite *GomaasapiTestSuite) TestClientGetFormatsGetParameters(c *C) {
-	URI := "/some/url"
+	URI, _ := url.Parse("/some/url")
 	expectedResult := "expected:result"
-	client, _ := NewAnonymousClient()
 	params := url.Values{"test": {"123"}}
-	fullURI := URI + "?test=123"
+	fullURI := URI.String() + "?test=123"
 	server := newSingleServingServer(fullURI, expectedResult, http.StatusOK)
 	defer server.Close()
+	client, _ := NewAnonymousClient(server.URL)
 
-	result, err := client.Get(server.URL+URI, "", params)
+	result, err := client.Get(URI, "", params)
 
 	c.Check(err, IsNil)
 	c.Check(string(result), Equals, expectedResult)
 }
 
 func (suite *GomaasapiTestSuite) TestClientGetFormatsOperationAsGetParameter(c *C) {
-	URI := "/some/url"
+	URI, _ := url.Parse("/some/url")
 	expectedResult := "expected:result"
-	client, _ := NewAnonymousClient()
-	fullURI := URI + "?op=list"
+	fullURI := URI.String() + "?op=list"
 	server := newSingleServingServer(fullURI, expectedResult, http.StatusOK)
 	defer server.Close()
+	client, _ := NewAnonymousClient(server.URL)
 
-	result, err := client.Get(server.URL+URI, "list", url.Values{})
+	result, err := client.Get(URI, "list", url.Values{})
 
 	c.Check(err, IsNil)
 	c.Check(string(result), Equals, expectedResult)
 }
 
 func (suite *GomaasapiTestSuite) TestClientPostSendsRequest(c *C) {
-	URI := "/some/url"
+	URI, _ := url.Parse("/some/url")
 	expectedResult := "expected:result"
-	client, _ := NewAnonymousClient()
-	fullURI := URI + "?op=list"
+	fullURI := URI.String() + "?op=list"
 	params := url.Values{"test": {"123"}}
 	server := newSingleServingServer(fullURI, expectedResult, http.StatusOK)
 	defer server.Close()
+	client, _ := NewAnonymousClient(server.URL)
 
-	result, err := client.Post(server.URL+URI, "list", params)
+	result, err := client.Post(URI, "list", params)
 
 	c.Check(err, IsNil)
 	c.Check(string(result), Equals, expectedResult)
@@ -85,14 +85,14 @@ func (suite *GomaasapiTestSuite) TestClientPostSendsRequest(c *C) {
 }
 
 func (suite *GomaasapiTestSuite) TestClientPutSendsRequest(c *C) {
-	URI := "/some/url"
+	URI, _ := url.Parse("/some/url")
 	expectedResult := "expected:result"
-	client, _ := NewAnonymousClient()
 	params := url.Values{"test": {"123"}}
-	server := newSingleServingServer(URI, expectedResult, http.StatusOK)
+	server := newSingleServingServer(URI.String(), expectedResult, http.StatusOK)
 	defer server.Close()
+	client, _ := NewAnonymousClient(server.URL)
 
-	result, err := client.Put(server.URL+URI, params)
+	result, err := client.Put(URI, params)
 
 	c.Check(err, IsNil)
 	c.Check(string(result), Equals, expectedResult)
@@ -100,13 +100,13 @@ func (suite *GomaasapiTestSuite) TestClientPutSendsRequest(c *C) {
 }
 
 func (suite *GomaasapiTestSuite) TestClientDeleteSendsRequest(c *C) {
-	URI := "/some/url"
+	URI, _ := url.Parse("/some/url")
 	expectedResult := "expected:result"
-	client, _ := NewAnonymousClient()
-	server := newSingleServingServer(URI, expectedResult, http.StatusOK)
+	server := newSingleServingServer(URI.String(), expectedResult, http.StatusOK)
 	defer server.Close()
+	client, _ := NewAnonymousClient(server.URL)
 
-	err := client.Delete(server.URL + URI)
+	err := client.Delete(URI)
 
 	c.Check(err, IsNil)
 }
@@ -120,7 +120,7 @@ func (suite *GomaasapiTestSuite) TestNewAuthenticatedClientParsesApiKey(c *C) {
 	keyElements := []string{consumerKey, tokenKey, tokenSecret}
 	apiKey := strings.Join(keyElements, ":")
 
-	client, err := NewAuthenticatedClient(apiKey)
+	client, err := NewAuthenticatedClient("http://example.com/api", apiKey)
 
 	c.Check(err, IsNil)
 	signer := client.Signer.(_PLAINTEXTOAuthSigner)
@@ -130,7 +130,7 @@ func (suite *GomaasapiTestSuite) TestNewAuthenticatedClientParsesApiKey(c *C) {
 }
 
 func (suite *GomaasapiTestSuite) TestNewAuthenticatedClientFailsIfInvalidKey(c *C) {
-	client, err := NewAuthenticatedClient("invalid-key")
+	client, err := NewAuthenticatedClient("", "invalid-key")
 
 	c.Check(err, ErrorMatches, "Invalid API key.*")
 	c.Check(client, IsNil)
