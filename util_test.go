@@ -19,14 +19,14 @@ func (suite *GomaasapiTestSuite) TestJoinURLsNormalizesDoubleSlash(c *C) {
 	c.Check(JoinURLs("http://example.com/base/", "/szot"), Equals, "http://example.com/base/szot")
 }
 
-func (suite *GomaasapiTestSuite) TestAppendSlashAppendsSlashIfMissing(c *C) {
-	c.Check(AppendSlash("test"), Equals, "test/")
+func (suite *GomaasapiTestSuite) TestEnsureTrailingSlashAppendsSlashIfMissing(c *C) {
+	c.Check(EnsureTrailingSlash("test"), Equals, "test/")
 }
 
-func (suite *GomaasapiTestSuite) TestAppendSlashDoesNotAppendsIfPresent(c *C) {
-	c.Check(AppendSlash("test/"), Equals, "test/")
+func (suite *GomaasapiTestSuite) TestEnsureTrailingSlashDoesNotAppendIfPresent(c *C) {
+	c.Check(EnsureTrailingSlash("test/"), Equals, "test/")
 }
 
-func (suite *GomaasapiTestSuite) TestAppendSlashReturnsSlashIfEmpty(c *C) {
-	c.Check(AppendSlash(""), Equals, "/")
+func (suite *GomaasapiTestSuite) TestEnsureTrailingSlashReturnsSlashIfEmpty(c *C) {
+	c.Check(EnsureTrailingSlash(""), Equals, "/")
 }

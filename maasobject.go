@@ -91,7 +91,7 @@ func (obj jsonMAASObject) GetSubObject(name string) MAASObject {
 	if err != nil {
 		panic("Unexpected failure reading jsonMAASObject's URL.")
 	}
-	uri.Path = AppendSlash(JoinURLs(uri.Path, name))
+	uri.Path = EnsureTrailingSlash(JoinURLs(uri.Path, name))
 	input := map[string]JSONObject{resource_uri: jsonString(uri.String())}
 	return jsonMAASObject{jsonMap: jsonMap(input), client: obj.client}
 }
