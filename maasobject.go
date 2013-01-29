@@ -19,9 +19,9 @@ type MAASObject interface {
 	// Utility method to extract a string field from this MAAS object.
 	GetField(name string) (string, error)
 	// URL for this MAAS object.
-	URL() (*url.URL, error)
+	URL() *url.URL
 	// Resource URI for this MAAS object.
-	URI() (*url.URL, error)
+	URI() *url.URL
 	// Retrieve the MAAS object located at thisObject.URI()+name.
 	GetSubObject(name string) MAASObject
 	// Retrieve this MAAS object.
@@ -46,6 +46,25 @@ type MAASObject interface {
 type jsonMAASObject struct {
 	jsonMap
 	client Client
+	uri    *url.URL
+}
+
+// newJSONMAASObject creates a new MAAS object.  It will panic if the given map
+// does not contain a valid URL for the 'resource_uri' key.
+func newJSONMAASObject(jmap jsonMap, client Client) jsonMAASObject {
+	uriObj, ok := jmap[resource_uri]
+	if !ok {
+		panic("Cannot create jsonMAASObject object, no 'resource_uri' key present in the given jsonMap.")
+	}
+	uriString, err := uriObj.GetString()
+	if err != nil {
+		panic("Cannot create jsonMAASObject object, the value of 'resource_uri' is not a string.")
+	}
+	uri, err := url.Parse(uriString)
+	if err != nil {
+		panic("Cannot create jsonMAASObject object, the value of 'resource_uri' is not a valid URL.")
+	}
+	return jsonMAASObject{jmap, client, uri}
 }
 
 var _ JSONObject = (*jsonMAASObject)(nil)
@@ -66,43 +85,30 @@ func (obj jsonMAASObject) GetField(name string) (string, error) {
 	return obj.jsonMap[name].GetString()
 }
 
-func (obj jsonMAASObject) URI() (*url.URL, error) {
-	contents, err := obj.GetMap()
+func (obj jsonMAASObject) URI() *url.URL {
+	// Duplicate the URL.
+	uri, err := url.Parse(obj.uri.String())
 	if err != nil {
-		panic("Unexpected failure converting jsonMAASObject to maasMap.")
+		panic(err)
 	}
-	urlString, err := contents[resource_uri].GetString()
-	if err != nil {
-		return &url.URL{}, err
-	}
-	return url.Parse(urlString)
+	return uri
 }
 
-func (obj jsonMAASObject) URL() (*url.URL, error) {
-	uri, err := obj.URI()
-	if err != nil {
-		return &url.URL{}, err
-	}
-	return obj.client.GetURL(uri), nil
+func (obj jsonMAASObject) URL() *url.URL {
+	return obj.client.GetURL(obj.URI())
 }
 
 func (obj jsonMAASObject) GetSubObject(name string) MAASObject {
-	uri, err := obj.URI()
-	if err != nil {
-		panic("Unexpected failure reading jsonMAASObject's URL.")
-	}
+	uri := obj.URI()
 	uri.Path = EnsureTrailingSlash(JoinURLs(uri.Path, name))
 	input := map[string]JSONObject{resource_uri: jsonString(uri.String())}
-	return jsonMAASObject{jsonMap: jsonMap(input), client: obj.client}
+	return newJSONMAASObject(jsonMap(input), obj.client)
 }
 
 var NotImplemented = errors.New("Not implemented")
 
 func (obj jsonMAASObject) Get() (MAASObject, error) {
-	uri, err := obj.URI()
-	if err != nil {
-		return nil, err
-	}
+	uri := obj.URI()
 	result, err := obj.client.Get(uri, "", url.Values{})
 	if err != nil {
 		return nil, err
@@ -115,10 +121,7 @@ func (obj jsonMAASObject) Get() (MAASObject, error) {
 }
 
 func (obj jsonMAASObject) Post(params url.Values) (JSONObject, error) {
-	uri, err := obj.URI()
-	if err != nil {
-		return nil, err
-	}
+	uri := obj.URI()
 	result, err := obj.client.Post(uri, "", params)
 	if err != nil {
 		return nil, err
@@ -127,10 +130,7 @@ func (obj jsonMAASObject) Post(params url.Values) (JSONObject, error) {
 }
 
 func (obj jsonMAASObject) Update(params url.Values) (MAASObject, error) {
-	uri, err := obj.URI()
-	if err != nil {
-		return nil, err
-	}
+	uri := obj.URI()
 	result, err := obj.client.Put(uri, params)
 	if err != nil {
 		return nil, err
@@ -143,18 +143,12 @@ func (obj jsonMAASObject) Update(params url.Values) (MAASObject, error) {
 }
 
 func (obj jsonMAASObject) Delete() error {
-	uri, err := obj.URI()
-	if err != nil {
-		return err
-	}
+	uri := obj.URI()
 	return obj.client.Delete(uri)
 }
 
 func (obj jsonMAASObject) CallGet(operation string, params url.Values) (JSONObject, error) {
-	uri, err := obj.URI()
-	if err != nil {
-		return nil, err
-	}
+	uri := obj.URI()
 	result, err := obj.client.Get(uri, operation, params)
 	if err != nil {
 		return nil, err
@@ -163,10 +157,7 @@ func (obj jsonMAASObject) CallGet(operation string, params url.Values) (JSONObje
 }
 
 func (obj jsonMAASObject) CallPost(operation string, params url.Values) (JSONObject, error) {
-	uri, err := obj.URI()
-	if err != nil {
-		return nil, err
-	}
+	uri := obj.URI()
 	result, err := obj.client.Post(uri, operation, params)
 	if err != nil {
 		return nil, err

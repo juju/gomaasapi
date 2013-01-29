@@ -14,7 +14,6 @@ func (suite *GomaasapiTestSuite) TestNewMAASUsesBaseURLFromClient(c *C) {
 	client := Client{BaseURL: baseURL}
 	maas, err := NewMAAS(client)
 	c.Check(err, IsNil)
-	URL, err := maas.URL()
-	c.Check(err, IsNil)
+	URL := maas.URL()
 	c.Check(URL, DeepEquals, baseURL)
 }

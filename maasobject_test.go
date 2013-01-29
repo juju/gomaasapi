@@ -45,30 +45,67 @@ func (suite *GomaasapiTestSuite) TestConversionsMAASObject(c *C) {
 	c.Check(err, NotNil)
 }
 
+func (suite *GomaasapiTestSuite) TestNewJSONMAASObjectPanicsIfNoResourceURI(c *C) {
+	defer func() {
+		recoveredError := recover()
+		c.Check(recoveredError, NotNil)
+		c.Check(recoveredError, Matches, ".*no 'resource_uri' key.*")
+	}()
+	input := map[string]JSONObject{"test": jsonString("test")}
+	newJSONMAASObject(jsonMap(input), Client{})
+}
+
+func (suite *GomaasapiTestSuite) TestNewJSONMAASObjectPanicsIfResourceURINotString(c *C) {
+	defer func() {
+		recoveredError := recover()
+		c.Check(recoveredError, NotNil)
+		c.Check(recoveredError, Matches, ".*the value of 'resource_uri' is not a string.*")
+	}()
+	input := map[string]JSONObject{resource_uri: jsonFloat64(77.7)}
+	newJSONMAASObject(jsonMap(input), Client{})
+}
+
+func (suite *GomaasapiTestSuite) TestNewJSONMAASObjectPanicsIfResourceURINotURL(c *C) {
+	defer func() {
+		recoveredError := recover()
+		c.Check(recoveredError, NotNil)
+		c.Check(recoveredError, Matches, ".*the value of 'resource_uri' is not a valid URL.*")
+	}()
+	input := map[string]JSONObject{resource_uri: jsonString("")}
+	newJSONMAASObject(jsonMap(input), Client{})
+}
+
+func (suite *GomaasapiTestSuite) TestNewJSONMAASObjectSetsUpURI(c *C) {
+	URI, _ := url.Parse("http://example.com/a/resource")
+	input := map[string]JSONObject{resource_uri: jsonString(URI.String())}
+	obj := newJSONMAASObject(jsonMap(input), Client{})
+	c.Check(obj.uri, DeepEquals, URI)
+}
+
 func (suite *GomaasapiTestSuite) TestURL(c *C) {
 	baseURL, _ := url.Parse("http://example.com/")
 	uri := "http://example.com/a/resource"
 	resourceURL, _ := url.Parse(uri)
 	input := map[string]JSONObject{resource_uri: jsonString(uri)}
 	client := Client{BaseURL: baseURL}
-	obj := jsonMAASObject{jsonMap: jsonMap(input), client: client}
+	obj := newJSONMAASObject(jsonMap(input), client)
 
-	URL, err := obj.URL()
+	URL := obj.URL()
 
-	c.Check(err, IsNil)
 	c.Check(URL, DeepEquals, resourceURL)
 }
 
 func (suite *GomaasapiTestSuite) TestGetSubObject(c *C) {
+	baseURL, _ := url.Parse("http://example.com/")
 	uri := "http://example.com/a/resource/"
 	input := map[string]JSONObject{resource_uri: jsonString(uri)}
-	obj := jsonMAASObject{jsonMap: jsonMap(input)}
+	client := Client{BaseURL: baseURL}
+	obj := newJSONMAASObject(jsonMap(input), client)
 	subName := "/test"
 
 	subObj := obj.GetSubObject(subName)
-	subURL, err := subObj.URL()
+	subURL := subObj.URL()
 
-	c.Check(err, IsNil)
 	// uri ends with a slash and subName starts with one, but the two paths
 	// should be concatenated as "http://example.com/a/resource/test/".
 	expectedSubURL, _ := url.Parse("http://example.com/a/resource/test/")
