@@ -46,8 +46,7 @@ func main() {
 	for index, nodeObj := range listNodes {
 		node, _ := nodeObj.GetMAASObject()
 		hostname, _ := node.GetField("hostname")
-		nodeURL, _ := node.URL()
-		fmt.Printf("Node #%d is named '%v' (%v)\n", index, hostname, nodeURL)
+		fmt.Printf("Node #%d is named '%v' (%v)\n", index, hostname, node.URL())
 	}
 
 	// Create a node.
@@ -59,8 +58,7 @@ func main() {
 	}
 	newNode, _ := newNodeObj.GetMAASObject()
 	newNodeName, _ := newNode.GetField("hostname")
-	newNodeURL, _ := newNode.URL()
-	fmt.Printf("New node created: %s (%s)\n", newNodeName, newNodeURL)
+	fmt.Printf("New node created: %s (%s)\n", newNodeName, newNode.URL())
 
 	// Update the new node.
 	fmt.Println("Updating the new node...")

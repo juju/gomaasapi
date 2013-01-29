@@ -86,7 +86,7 @@ func maasify(client Client, value interface{}) JSONObject {
 		if _, ok := result[resource_uri]; ok {
 			// If the map contains "resource-uri", we can treat
 			// it as a MAAS object.
-			return jsonMAASObject{result, client}
+			return newjsonMAASObject(result, client)
 		}
 		return jsonMap(result)
 	case []interface{}:
