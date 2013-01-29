@@ -26,14 +26,14 @@ func init() {
 }
 
 func main() {
-	authClient, err := gomaasapi.NewAuthenticatedClient(apiKey)
+	authClient, err := gomaasapi.NewAuthenticatedClient(apiURL, apiKey)
 	if err != nil {
 		panic(err)
 	}
 
-	maas, err := gomaasapi.NewMAAS(apiURL, *authClient)
+	maas, err := gomaasapi.NewMAAS(*authClient)
 
-	nodeListing := maas.GetSubObject("/nodes/")
+	nodeListing := maas.GetSubObject("nodes")
 
 	// List nodes.
 	fmt.Println("Fetching list of nodes...")
@@ -46,7 +46,8 @@ func main() {
 	for index, nodeObj := range listNodes {
 		node, _ := nodeObj.GetMAASObject()
 		hostname, _ := node.GetField("hostname")
-		fmt.Printf("Node #%d is named '%v' (%v)\n", index, hostname, node.URL())
+		nodeURL, _ := node.URL()
+		fmt.Printf("Node #%d is named '%v' (%v)\n", index, hostname, nodeURL)
 	}
 
 	// Create a node.
@@ -58,7 +59,8 @@ func main() {
 	}
 	newNode, _ := newNodeObj.GetMAASObject()
 	newNodeName, _ := newNode.GetField("hostname")
-	fmt.Printf("New node created: %s (%s)\n", newNodeName, newNode.URL())
+	newNodeURL, _ := newNode.URL()
+	fmt.Printf("New node created: %s (%s)\n", newNodeName, newNodeURL)
 
 	// Update the new node.
 	fmt.Println("Updating the new node...")

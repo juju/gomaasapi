@@ -13,7 +13,8 @@ import (
 )
 
 type Client struct {
-	Signer OAuthSigner
+	BaseURL *url.URL
+	Signer  OAuthSigner
 }
 
 const (
@@ -37,7 +38,11 @@ func (client Client) dispatchRequest(request *http.Request) ([]byte, error) {
 	return body, nil
 }
 
-func (client Client) Get(URL string, operation string, parameters url.Values) ([]byte, error) {
+func (client Client) GetURL(URI *url.URL) *url.URL {
+	return client.BaseURL.ResolveReference(URI)
+}
+
+func (client Client) Get(URI *url.URL, operation string, parameters url.Values) ([]byte, error) {
 	opParameter := parameters.Get(operationParamName)
 	if opParameter != "" {
 		errString := fmt.Sprintf("The parameters contain a value for '%s' which is reserved parameter.")
@@ -46,8 +51,9 @@ func (client Client) Get(URL string, operation string, parameters url.Values) ([
 	if operation != "" {
 		parameters.Set(operationParamName, operation)
 	}
-	queryUrl := URL + "?" + parameters.Encode()
-	request, err := http.NewRequest("GET", queryUrl, nil)
+	queryUrl := client.GetURL(URI)
+	queryUrl.RawQuery = parameters.Encode()
+	request, err := http.NewRequest("GET", queryUrl.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -55,30 +61,29 @@ func (client Client) Get(URL string, operation string, parameters url.Values) ([
 }
 
 // nonIdempotentRequest is a utility method to issue a PUT or a POST request.
-func (client Client) nonIdempotentRequest(method string, URL string, parameters url.Values) ([]byte, error) {
-	request, err := http.NewRequest(method, URL, strings.NewReader(string(parameters.Encode())))
+func (client Client) nonIdempotentRequest(method string, URI *url.URL, parameters url.Values) ([]byte, error) {
+	URL := client.GetURL(URI)
+	request, err := http.NewRequest(method, URL.String(), strings.NewReader(string(parameters.Encode())))
 	if err != nil {
 		return nil, err
 	}
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	if err != nil {
-		return nil, err
-	}
 	return client.dispatchRequest(request)
 }
 
-func (client Client) Post(URL string, operation string, parameters url.Values) ([]byte, error) {
+func (client Client) Post(URI *url.URL, operation string, parameters url.Values) ([]byte, error) {
 	queryParams := url.Values{operationParamName: {operation}}
-	queryURL := URL + "?" + queryParams.Encode()
-	return client.nonIdempotentRequest("POST", queryURL, parameters)
+	URI.RawQuery = queryParams.Encode()
+	return client.nonIdempotentRequest("POST", URI, parameters)
 }
 
-func (client Client) Put(URL string, parameters url.Values) ([]byte, error) {
-	return client.nonIdempotentRequest("PUT", URL, parameters)
+func (client Client) Put(URI *url.URL, parameters url.Values) ([]byte, error) {
+	return client.nonIdempotentRequest("PUT", URI, parameters)
 }
 
-func (client Client) Delete(URL string) error {
-	request, err := http.NewRequest("DELETE", URL, strings.NewReader(""))
+func (client Client) Delete(URI *url.URL) error {
+	URL := client.GetURL(URI)
+	request, err := http.NewRequest("DELETE", URL.String(), strings.NewReader(""))
 	if err != nil {
 		return err
 	}
@@ -99,14 +104,18 @@ func (signer anonSigner) OAuthSign(request *http.Request) error {
 var _ OAuthSigner = (*anonSigner)(nil)
 
 // NewAnonymousClient creates a client that issues anonymous requests.
-func NewAnonymousClient() (*Client, error) {
-	return &Client{Signer: &anonSigner{}}, nil
+func NewAnonymousClient(BaseURL string) (*Client, error) {
+	parsedBaseURL, err := url.Parse(BaseURL)
+	if err != nil {
+		return nil, err
+	}
+	return &Client{Signer: &anonSigner{}, BaseURL: parsedBaseURL}, nil
 }
 
 // NewAuthenticatedClient parses the given MAAS API key into the individual
 // OAuth tokens and creates an Client that will use these tokens to sign the
 // requests it issues.
-func NewAuthenticatedClient(apiKey string) (*Client, error) {
+func NewAuthenticatedClient(BaseURL string, apiKey string) (*Client, error) {
 	elements := strings.Split(apiKey, ":")
 	if len(elements) != 3 {
 		errString := "Invalid API key. The format of the key must be \"<consumer secret>:<token key>:<token secret>\"."
@@ -124,5 +133,9 @@ func NewAuthenticatedClient(apiKey string) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Client{Signer: signer}, nil
+	parsedBaseURL, err := url.Parse(BaseURL)
+	if err != nil {
+		return nil, err
+	}
+	return &Client{Signer: signer, BaseURL: parsedBaseURL}, nil
 }

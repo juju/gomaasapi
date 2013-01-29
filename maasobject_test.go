@@ -7,6 +7,7 @@ import (
 	"fmt"
 	. "launchpad.net/gocheck"
 	"math/rand"
+	"net/url"
 )
 
 func makeFakeResourceURI() string {
@@ -45,19 +46,33 @@ func (suite *GomaasapiTestSuite) TestConversionsMAASObject(c *C) {
 }
 
 func (suite *GomaasapiTestSuite) TestURL(c *C) {
+	baseURL, _ := url.Parse("http://example.com/")
 	uri := "http://example.com/a/resource"
+	resourceURL, _ := url.Parse(uri)
 	input := map[string]JSONObject{resource_uri: jsonString(uri)}
-	obj := jsonMAASObject{jsonMap: jsonMap(input)}
-	c.Check(obj.URL(), Equals, uri)
+	client := Client{BaseURL: baseURL}
+	obj := jsonMAASObject{jsonMap: jsonMap(input), client: client}
+
+	URL, err := obj.URL()
+
+	c.Check(err, IsNil)
+	c.Check(URL, DeepEquals, resourceURL)
 }
 
 func (suite *GomaasapiTestSuite) TestGetSubObject(c *C) {
-	uri := "http://example.com/a/resource"
+	uri := "http://example.com/a/resource/"
 	input := map[string]JSONObject{resource_uri: jsonString(uri)}
 	obj := jsonMAASObject{jsonMap: jsonMap(input)}
 	subName := "/test"
+
 	subObj := obj.GetSubObject(subName)
-	c.Check(subObj.URL(), Equals, uri+subName)
+	subURL, err := subObj.URL()
+
+	c.Check(err, IsNil)
+	// uri ends with a slash and subName starts with one, but the two paths
+	// should be concatenated as "http://example.com/a/resource/test/".
+	expectedSubURL, _ := url.Parse("http://example.com/a/resource/test/")
+	c.Check(subURL, DeepEquals, expectedSubURL)
 }
 
 func (suite *GomaasapiTestSuite) TestGetField(c *C) {
