@@ -12,8 +12,7 @@ func (suite *GomaasapiTestSuite) TestNewMAASUsesBaseURLFromClient(c *C) {
 	baseURLString := "https://server.com:888/path/to/api"
 	baseURL, _ := url.Parse(baseURLString)
 	client := Client{BaseURL: baseURL}
-	maas, err := NewMAAS(client)
-	c.Check(err, IsNil)
+	maas := NewMAAS(client)
 	URL := maas.URL()
 	c.Check(URL, DeepEquals, baseURL)
 }
