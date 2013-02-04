@@ -31,7 +31,7 @@ func main() {
 		panic(err)
 	}
 
-	maas, err := gomaasapi.NewMAAS(*authClient)
+	maas := gomaasapi.NewMAAS(*authClient)
 
 	nodeListing := maas.GetSubObject("nodes")
 
