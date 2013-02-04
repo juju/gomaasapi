@@ -24,9 +24,9 @@ var _ MAASObject = (*TestMAASObject)(nil)
 // NewTestMAAS returns a TestMAASObject that implements the MAASObject
 // interface and thus can be used as a test object instead of the one returned
 // by gomaasapi.NewMAAS().
-func NewTestMAAS() *TestMAASObject {
-	server := NewTestServer()
-	authClient, _ := NewAnonymousClient(server.URL + "/api/1.0/")
+func NewTestMAAS(version string) *TestMAASObject {
+	server := NewTestServer(version)
+	authClient, _ := NewAnonymousClient(server.URL + fmt.Sprintf("/api/%s/", version))
 	return &TestMAASObject{NewMAAS(*authClient), server}
 }
 
@@ -45,22 +45,23 @@ type TestServer struct {
 	nodes          map[string]MAASObject
 	client         Client
 	nodeOperations map[string][]string
+	version        string
 }
 
-func getResourceURI(systemId string) string {
-	return fmt.Sprintf("/api/1.0/nodes/%s/", systemId)
+func getNodeURI(version, systemId string) string {
+	return fmt.Sprintf("/api/%s/nodes/%s/", version, systemId)
 }
 
 // Clear clears all the fake data stored and recorded by the test server
 // (nodes, recorded operations, etc.).
 func (server *TestServer) Clear() {
-	server.nodes = map[string]MAASObject{}
-	server.nodeOperations = map[string][]string{}
+	server.nodes = make(map[string]MAASObject)
+	server.nodeOperations = make(map[string][]string)
 }
 
-// GetNodeOperations returns the map containing the list of the operations
+// NodeOperations returns the map containing the list of the operations
 // performed for each node.
-func (server *TestServer) GetNodeOperations() map[string][]string {
+func (server *TestServer) NodeOperations() map[string][]string {
 	return server.nodeOperations
 }
 
@@ -95,7 +96,7 @@ func (server *TestServer) NewNode(json string) MAASObject {
 	if err != nil {
 		panic(err)
 	}
-	resourceUri := getResourceURI(stringSystemId)
+	resourceUri := getNodeURI(server.version, stringSystemId)
 	mapobj[resource_uri] = jsonString(resourceUri)
 	maasobj := newJSONMAASObject(mapobj, server.client)
 	server.nodes[stringSystemId] = maasobj
@@ -104,7 +105,7 @@ func (server *TestServer) NewNode(json string) MAASObject {
 
 // Returns a map associating all the nodes' system ids with the nodes'
 // objects.
-func (server *TestServer) GetNodes() map[string]MAASObject {
+func (server *TestServer) Nodes() map[string]MAASObject {
 	return server.nodes
 }
 
@@ -118,15 +119,22 @@ func (server *TestServer) ChangeNode(systemId, key, value string) {
 	mapObj[key] = jsonString(value)
 }
 
-var nodeListingURL = "/api/1.0/nodes/"
-var nodeURLRE = regexp.MustCompile("^/api/1.0/nodes/([^/]*)/$")
+func getNodeListingURL(version string) string {
+	return fmt.Sprintf("/api/%s/nodes/", version)
+}
+
+func getNodeURLRE(version string) *regexp.Regexp {
+	reString := fmt.Sprintf("^/api/%s/nodes/([^/]*)/$", version)
+	return regexp.MustCompile(reString)
+}
 
 // NewTestServer starts and returns a new MAAS test server. The caller should call Close when finished, to shut it down.
-func NewTestServer() *TestServer {
-	server := &TestServer{}
+func NewTestServer(version string) *TestServer {
+	server := &TestServer{version: version}
 
 	serveMux := http.NewServeMux()
-	// Register handler for '/api/1.0/nodes/*'.
+	nodeListingURL := getNodeListingURL(server.version)
+	// Register handler for '/api/<version>/nodes/*'.
 	serveMux.HandleFunc(nodeListingURL, func(w http.ResponseWriter, r *http.Request) {
 		nodesHandler(server, w, r)
 	})
@@ -140,16 +148,22 @@ func NewTestServer() *TestServer {
 	return server
 }
 
-// nodesHandler handles requests for '/api/1.0/nodes/*'.
+// nodesHandler handles requests for '/api/<version>/nodes/*'.
 func nodesHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
 	values, _ := url.ParseQuery(r.URL.RawQuery)
 	op := values.Get("op")
-	if r.Method == "GET" && op == "list" && r.URL.Path == nodeListingURL {
+	nodeURLRE := getNodeURLRE(server.version)
+	nodeURLMatch := nodeURLRE.FindStringSubmatch(r.URL.Path)
+	nodeListingURL := getNodeListingURL(server.version)
+	switch {
+	case r.Method == "GET" && op == "list" && r.URL.Path == nodeListingURL:
+		// Node listing operation.
 		nodeListingHandler(server, w, r)
-
-	} else if res := nodeURLRE.FindStringSubmatch(r.URL.Path); res != nil {
-		nodeHandler(server, w, r, res[1], op)
-	} else {
+	case nodeURLMatch != nil:
+		// Request for a single node.
+		nodeHandler(server, w, r, nodeURLMatch[1], op)
+	default:
+		// Default handler: not found.
 		http.NotFoundHandler().ServeHTTP(w, r)
 	}
 }
@@ -161,7 +175,7 @@ func marshalNode(node MAASObject) string {
 
 }
 
-// nodeHandler handles requests for '/api/1.0/nodes/<system_id>/'.
+// nodeHandler handles requests for '/api/<version>/nodes/<system_id>/'.
 func nodeHandler(server *TestServer, w http.ResponseWriter, r *http.Request, systemId string, operation string) {
 	node, ok := server.nodes[systemId]
 	if !ok {
@@ -200,7 +214,7 @@ func nodeHandler(server *TestServer, w http.ResponseWriter, r *http.Request, sys
 	http.NotFoundHandler().ServeHTTP(w, r)
 }
 
-func Contains(slice []string, val string) bool {
+func contains(slice []string, val string) bool {
 	for _, item := range slice {
 		if item == val {
 			return true
@@ -213,9 +227,9 @@ func Contains(slice []string, val string) bool {
 func nodeListingHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
 	values, _ := url.ParseQuery(r.URL.RawQuery)
 	ids, hasId := values["id"]
-	var convertedNodes []map[string]JSONObject = []map[string]JSONObject{}
+	var convertedNodes = []map[string]JSONObject{}
 	for systemId, node := range server.nodes {
-		if !hasId || Contains(ids, systemId) {
+		if !hasId || contains(ids, systemId) {
 			mapp, _ := node.GetMap()
 			convertedNodes = append(convertedNodes, mapp)
 		}
