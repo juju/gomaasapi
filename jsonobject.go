@@ -114,8 +114,8 @@ func Parse(client Client, input []byte) (JSONObject, error) {
 }
 
 // Return error value for failed type conversion.
-func failConversion(wanted_type string, obj JSONObject) error {
-	msg := fmt.Sprintf("Requested %v, got %v.", wanted_type, obj.Type())
+func failConversion(wantedType string, obj JSONObject) error {
+	msg := fmt.Sprintf("Requested %v, got %v.", wantedType, obj.Type())
 	return errors.New(msg)
 }
 
