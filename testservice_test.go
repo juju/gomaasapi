@@ -153,28 +153,28 @@ func (suite *TestServerSuite) TestHandlesNodeDelete(c *C) {
 	c.Check(len(suite.server.nodes), Equals, 0)
 }
 
-// TestTestMAASObjectSuite validates that the object created by
+// TestMAASObjectSuite validates that the object created by
 // TestMAASObject can be used by the gomaasapi library as if it were a real
 // MAAS server.
-type TestTestMAASObjectSuite struct {
+type TestMAASObjectSuite struct {
 	TestMAASObject *TestMAASObject
 }
 
-var _ = Suite(&TestTestMAASObjectSuite{})
+var _ = Suite(&TestMAASObjectSuite{})
 
-func (s *TestTestMAASObjectSuite) SetUpSuite(c *C) {
+func (s *TestMAASObjectSuite) SetUpSuite(c *C) {
 	s.TestMAASObject = NewTestMAAS("1.0")
 }
 
-func (s *TestTestMAASObjectSuite) TearDownSuite(c *C) {
+func (s *TestMAASObjectSuite) TearDownSuite(c *C) {
 	s.TestMAASObject.Close()
 }
 
-func (s *TestTestMAASObjectSuite) TearDownTest(c *C) {
+func (s *TestMAASObjectSuite) TearDownTest(c *C) {
 	s.TestMAASObject.TestServer.Clear()
 }
 
-func (suite *TestTestMAASObjectSuite) TestListNodes(c *C) {
+func (suite *TestMAASObjectSuite) TestListNodes(c *C) {
 	input := `{"system_id": "mysystemid"}`
 	suite.TestMAASObject.TestServer.NewNode(input)
 	nodeListing := suite.TestMAASObject.GetSubObject("nodes")
@@ -193,7 +193,7 @@ func (suite *TestTestMAASObjectSuite) TestListNodes(c *C) {
 	c.Check(resourceURI, Equals, expectedResourceURI)
 }
 
-func (suite *TestTestMAASObjectSuite) TestListNodesNoNodes(c *C) {
+func (suite *TestMAASObjectSuite) TestListNodesNoNodes(c *C) {
 	nodeListing := suite.TestMAASObject.GetSubObject("nodes")
 	listNodeObjects, err := nodeListing.CallGet("list", url.Values{})
 	c.Check(err, IsNil)
@@ -204,7 +204,7 @@ func (suite *TestTestMAASObjectSuite) TestListNodesNoNodes(c *C) {
 	c.Check(listNodes, DeepEquals, []JSONObject{})
 }
 
-func (suite *TestTestMAASObjectSuite) TestListNodesSelectedNodes(c *C) {
+func (suite *TestMAASObjectSuite) TestListNodesSelectedNodes(c *C) {
 	input := `{"system_id": "mysystemid"}`
 	suite.TestMAASObject.TestServer.NewNode(input)
 	input2 := `{"system_id": "mysystemid2"}`
@@ -222,7 +222,7 @@ func (suite *TestTestMAASObjectSuite) TestListNodesSelectedNodes(c *C) {
 	c.Check(systemId, Equals, "mysystemid2")
 }
 
-func (suite *TestTestMAASObjectSuite) TestDeleteNode(c *C) {
+func (suite *TestMAASObjectSuite) TestDeleteNode(c *C) {
 	input := `{"system_id": "mysystemid"}`
 	node := suite.TestMAASObject.TestServer.NewNode(input)
 
@@ -232,7 +232,7 @@ func (suite *TestTestMAASObjectSuite) TestDeleteNode(c *C) {
 	c.Check(suite.TestMAASObject.TestServer.Nodes(), DeepEquals, map[string]MAASObject{})
 }
 
-func (suite *TestTestMAASObjectSuite) TestOperationsOnNode(c *C) {
+func (suite *TestMAASObjectSuite) TestOperationsOnNode(c *C) {
 	input := `{"system_id": "mysystemid"}`
 	node := suite.TestMAASObject.TestServer.NewNode(input)
 	operations := []string{"start", "stop", "release"}
@@ -242,7 +242,7 @@ func (suite *TestTestMAASObjectSuite) TestOperationsOnNode(c *C) {
 	}
 }
 
-func (suite *TestTestMAASObjectSuite) TestOperationsOnNodeGetRecorded(c *C) {
+func (suite *TestMAASObjectSuite) TestOperationsOnNodeGetRecorded(c *C) {
 	input := `{"system_id": "mysystemid"}`
 	node := suite.TestMAASObject.TestServer.NewNode(input)
 
