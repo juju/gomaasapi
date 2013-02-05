@@ -60,7 +60,7 @@ type jsonBool bool
 // that it contains a key "resource_uri".  (A regular map might contain the
 // same key through sheer coincide, but never mind: you can still treat it
 // as a jsonMap and never notice the difference.)
-const resource_uri = "resource_uri"
+const resourceURI = "resource_uri"
 
 // Internal: turn a completely untyped json.Unmarshal result into a
 // JSONObject (with the appropriate implementation of course).
@@ -73,8 +73,6 @@ func maasify(client Client, value interface{}) JSONObject {
 	switch value.(type) {
 	case string:
 		return jsonString(value.(string))
-	case int:
-		return jsonFloat64(float64(value.(int)))
 	case float64:
 		return jsonFloat64(value.(float64))
 	case map[string]interface{}:
@@ -83,7 +81,7 @@ func maasify(client Client, value interface{}) JSONObject {
 		for key, value := range original {
 			result[key] = maasify(client, value)
 		}
-		if _, ok := result[resource_uri]; ok {
+		if _, ok := result[resourceURI]; ok {
 			// If the map contains "resource-uri", we can treat
 			// it as a MAAS object.
 			return newJSONMAASObject(result, client)
@@ -114,8 +112,8 @@ func Parse(client Client, input []byte) (JSONObject, error) {
 }
 
 // Return error value for failed type conversion.
-func failConversion(wanted_type string, obj JSONObject) error {
-	msg := fmt.Sprintf("Requested %v, got %v.", wanted_type, obj.Type())
+func failConversion(wantedType string, obj JSONObject) error {
+	msg := fmt.Sprintf("Requested %v, got %v.", wantedType, obj.Type())
 	return errors.New(msg)
 }
 

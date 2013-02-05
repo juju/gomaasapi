@@ -97,7 +97,7 @@ func (server *TestServer) NewNode(json string) MAASObject {
 		panic(err)
 	}
 	resourceUri := getNodeURI(server.version, stringSystemId)
-	mapobj[resource_uri] = jsonString(resourceUri)
+	mapobj[resourceURI] = jsonString(resourceUri)
 	maasobj := newJSONMAASObject(mapobj, server.client)
 	server.nodes[stringSystemId] = maasobj
 	return maasobj

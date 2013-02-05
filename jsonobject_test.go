@@ -24,12 +24,6 @@ func (suite *GomaasapiTestSuite) TestMaasifyConvertsNumber(c *C) {
 	c.Check(float64(maasify(Client{}, number).(jsonFloat64)), Equals, number)
 }
 
-// Any number converts to float64, even integers.
-func (suite *GomaasapiTestSuite) TestMaasifyConvertsIntegralNumber(c *C) {
-	const number = 1
-	c.Check(float64(maasify(Client{}, number).(jsonFloat64)), Equals, float64(number))
-}
-
 // maasify() converts array slices.
 func (suite *GomaasapiTestSuite) TestMaasifyConvertsArray(c *C) {
 	original := []interface{}{3.0, 2.0, 1.0}

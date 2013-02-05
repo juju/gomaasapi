@@ -188,7 +188,7 @@ func (suite *GomaasapiTestMAASObjectSuite) TestListNodes(c *C) {
 	node, _ := listNodes[0].GetMAASObject()
 	systemId, _ := node.GetField("system_id")
 	c.Check(systemId, Equals, "mysystemid")
-	resourceURI, _ := node.GetField(resource_uri)
+	resourceURI, _ := node.GetField(resourceURI)
 	expectedResourceURI := fmt.Sprintf("/api/%s/nodes/mysystemid/", suite.TestMAASObject.TestServer.version)
 	c.Check(resourceURI, Equals, expectedResourceURI)
 }
