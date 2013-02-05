@@ -60,7 +60,7 @@ type jsonBool bool
 // that it contains a key "resource_uri".  (A regular map might contain the
 // same key through sheer coincide, but never mind: you can still treat it
 // as a jsonMap and never notice the difference.)
-const resource_uri = "resource_uri"
+const resourceURI = "resource_uri"
 
 // Internal: turn a completely untyped json.Unmarshal result into a
 // JSONObject (with the appropriate implementation of course).
@@ -83,7 +83,7 @@ func maasify(client Client, value interface{}) JSONObject {
 		for key, value := range original {
 			result[key] = maasify(client, value)
 		}
-		if _, ok := result[resource_uri]; ok {
+		if _, ok := result[resourceURI]; ok {
 			// If the map contains "resource-uri", we can treat
 			// it as a MAAS object.
 			return newJSONMAASObject(result, client)
