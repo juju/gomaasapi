@@ -17,12 +17,18 @@ import (
 var apiKey string
 var apiURL string
 
-func init() {
+func getParams() {
 	fmt.Println("Warning: this will create a node on the MAAS server; it should be deleted at the end of the run but if something goes wrong, that test node might be left over.  You've been warned.")
 	fmt.Print("Enter API key: ")
-	fmt.Scanf("%s", &apiKey)
+	_, err := fmt.Scanf("%s", &apiKey)
+	if err != nil {
+		panic(err)
+	}
 	fmt.Print("Enter API URL: ")
-	fmt.Scanf("%s", &apiURL)
+	_, err = fmt.Scanf("%s", &apiURL)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func checkError(err error) {
@@ -32,6 +38,7 @@ func checkError(err error) {
 }
 
 func main() {
+	getParams()
 	authClient, err := gomaasapi.NewAuthenticatedClient(apiURL, apiKey)
 	checkError(err)
 
