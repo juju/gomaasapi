@@ -73,8 +73,6 @@ func maasify(client Client, value interface{}) JSONObject {
 	switch value.(type) {
 	case string:
 		return jsonString(value.(string))
-	case int:
-		return jsonFloat64(float64(value.(int)))
 	case float64:
 		return jsonFloat64(value.(float64))
 	case map[string]interface{}:
