@@ -25,11 +25,15 @@ func init() {
 	fmt.Scanf("%s", &apiURL)
 }
 
-func main() {
-	authClient, err := gomaasapi.NewAuthenticatedClient(apiURL, apiKey)
+func checkError(err error) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+func main() {
+	authClient, err := gomaasapi.NewAuthenticatedClient(apiURL, apiKey)
+	checkError(err)
 
 	maas := gomaasapi.NewMAAS(*authClient)
 
@@ -38,14 +42,15 @@ func main() {
 	// List nodes.
 	fmt.Println("Fetching list of nodes...")
 	listNodeObjects, err := nodeListing.CallGet("list", url.Values{})
-	if err != nil {
-		panic(err)
-	}
+	checkError(err)
 	listNodes, err := listNodeObjects.GetArray()
+	checkError(err)
 	fmt.Printf("Got list of %v nodes\n", len(listNodes))
 	for index, nodeObj := range listNodes {
-		node, _ := nodeObj.GetMAASObject()
-		hostname, _ := node.GetField("hostname")
+		node, err := nodeObj.GetMAASObject()
+		checkError(err)
+		hostname, err := node.GetField("hostname")
+		checkError(err)
 		fmt.Printf("Node #%d is named '%v' (%v)\n", index, hostname, node.URL())
 	}
 
@@ -53,39 +58,41 @@ func main() {
 	fmt.Println("Creating a new node...")
 	params := url.Values{"architecture": {"i386/generic"}, "mac_addresses": {"AA:BB:CC:DD:EE:FF"}}
 	newNodeObj, err := nodeListing.CallPost("new", params)
-	if err != nil {
-		panic(err)
-	}
-	newNode, _ := newNodeObj.GetMAASObject()
-	newNodeName, _ := newNode.GetField("hostname")
+	checkError(err)
+	newNode, err := newNodeObj.GetMAASObject()
+	checkError(err)
+	newNodeName, err := newNode.GetField("hostname")
+	checkError(err)
 	fmt.Printf("New node created: %s (%s)\n", newNodeName, newNode.URL())
 
 	// Update the new node.
 	fmt.Println("Updating the new node...")
 	updateParams := url.Values{"hostname": {"mynewname"}}
 	newNodeObj2, err := newNode.Update(updateParams)
-	if err != nil {
-		panic(err)
-	}
-	newNode2, _ := newNodeObj2.GetMAASObject()
-	newNodeName2, _ := newNode2.GetField("hostname")
+	checkError(err)
+	newNode2, err := newNodeObj2.GetMAASObject()
+	checkError(err)
+	newNodeName2, err := newNode2.GetField("hostname")
+	checkError(err)
 	fmt.Printf("New node updated, now named: %s\n", newNodeName2)
 
 	// Count the nodes.
-	listNodeObjects2, _ := nodeListing.CallGet("list", url.Values{})
+	listNodeObjects2, err := nodeListing.CallGet("list", url.Values{})
+	checkError(err)
 	listNodes2, err := listNodeObjects2.GetArray()
+	checkError(err)
 	fmt.Printf("We've got %v nodes\n", len(listNodes2))
 
 	// Delete the new node.
 	fmt.Println("Deleting the new node...")
 	errDelete := newNode.Delete()
-	if errDelete != nil {
-		panic(errDelete)
-	}
+	checkError(errDelete)
 
 	// Count the nodes.
-	listNodeObjects3, _ := nodeListing.CallGet("list", url.Values{})
+	listNodeObjects3, err := nodeListing.CallGet("list", url.Values{})
+	checkError(err)
 	listNodes3, err := listNodeObjects3.GetArray()
+	checkError(err)
 	fmt.Printf("We've got %v nodes\n", len(listNodes3))
 
 	fmt.Println("All done.")

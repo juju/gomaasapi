@@ -112,7 +112,7 @@ func (suite *GomaasapiTestSuite) TestClientDeleteSendsRequest(c *C) {
 }
 
 func (suite *GomaasapiTestSuite) TestNewAuthenticatedClientParsesApiKey(c *C) {
-	// NewAuthenticatedClient returns a _PLAINTEXTOAuthSigner configured
+	// NewAuthenticatedClient returns a plainTextOAuthSigner configured
 	// to use the given API key.
 	consumerKey := "consumerKey"
 	tokenKey := "tokenKey"
@@ -123,7 +123,7 @@ func (suite *GomaasapiTestSuite) TestNewAuthenticatedClientParsesApiKey(c *C) {
 	client, err := NewAuthenticatedClient("http://example.com/api", apiKey)
 
 	c.Check(err, IsNil)
-	signer := client.Signer.(_PLAINTEXTOAuthSigner)
+	signer := client.Signer.(*plainTextOAuthSigner)
 	c.Check(signer.token.ConsumerKey, Equals, consumerKey)
 	c.Check(signer.token.TokenKey, Equals, tokenKey)
 	c.Check(signer.token.TokenSecret, Equals, tokenSecret)

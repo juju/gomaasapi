@@ -4,8 +4,9 @@
 package gomaasapi
 
 import (
+	"crypto/rand"
 	"fmt"
-	"math/rand"
+	"math/big"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -13,13 +14,14 @@ import (
 	"time"
 )
 
-func init() {
-	// Initialize the random generator.
-	rand.Seed(time.Now().UTC().UnixNano())
-}
+var nonceMax = big.NewInt(100000000)
 
-func generateNonce() string {
-	return strconv.Itoa(rand.Intn(100000000))
+func generateNonce() (string, error) {
+	randInt, err := rand.Int(rand.Reader, nonceMax)
+	if err != nil {
+		return "", err
+	}
+	return strconv.Itoa(int(randInt.Int64())), nil
 }
 
 func generateTimestamp() string {
@@ -37,23 +39,27 @@ type OAuthToken struct {
 	TokenSecret    string
 }
 
-// Trick to ensure *_PLAINTEXTOAuthSigner implements the OAuthSigner interface.
-var _ OAuthSigner = (*_PLAINTEXTOAuthSigner)(nil)
+// Trick to ensure *plainTextOAuthSigner implements the OAuthSigner interface.
+var _ OAuthSigner = (*plainTextOAuthSigner)(nil)
 
-type _PLAINTEXTOAuthSigner struct {
+type plainTextOAuthSigner struct {
 	token *OAuthToken
 	realm string
 }
 
-func NewPLAINTEXTOAuthSigner(token *OAuthToken, realm string) (OAuthSigner, error) {
-	return _PLAINTEXTOAuthSigner{token, realm}, nil
+func NewPlainTestOAuthSigner(token *OAuthToken, realm string) (OAuthSigner, error) {
+	return &plainTextOAuthSigner{token, realm}, nil
 }
 
 // OAuthSignPLAINTEXT signs the provided request using the OAuth PLAINTEXT
 // method: http://oauth.net/core/1.0/#anchor22.
-func (signer _PLAINTEXTOAuthSigner) OAuthSign(request *http.Request) error {
+func (signer plainTextOAuthSigner) OAuthSign(request *http.Request) error {
 
 	signature := signer.token.ConsumerSecret + `&` + signer.token.TokenSecret
+	nonce, err := generateNonce()
+	if err != nil {
+		return err
+	}
 	authData := map[string]string{
 		"realm":                  signer.realm,
 		"oauth_consumer_key":     signer.token.ConsumerKey,
@@ -61,11 +67,11 @@ func (signer _PLAINTEXTOAuthSigner) OAuthSign(request *http.Request) error {
 		"oauth_signature_method": "PLAINTEXT",
 		"oauth_signature":        signature,
 		"oauth_timestamp":        generateTimestamp(),
-		"oauth_nonce":            generateNonce(),
+		"oauth_nonce":            nonce,
 		"oauth_version":          "1.0",
 	}
 	// Build OAuth header.
-	authHeader := []string{}
+	var authHeader []string
 	for key, value := range authData {
 		authHeader = append(authHeader, fmt.Sprintf(`%s="%s"`, key, url.QueryEscape(value)))
 	}
