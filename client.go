@@ -85,9 +85,9 @@ func (client Client) Delete(uri *url.URL) error {
 	if err != nil {
 		return err
 	}
-	_, err2 := client.dispatchRequest(request)
-	if err2 != nil {
-		return err2
+	_, err = client.dispatchRequest(request)
+	if err != nil {
+		return err
 	}
 	return nil
 }
