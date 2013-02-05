@@ -36,11 +36,11 @@ func (client Client) dispatchRequest(request *http.Request) ([]byte, error) {
 	return body, nil
 }
 
-func (client Client) GetURL(URI *url.URL) *url.URL {
-	return client.BaseURL.ResolveReference(URI)
+func (client Client) GetURL(uri *url.URL) *url.URL {
+	return client.BaseURL.ResolveReference(uri)
 }
 
-func (client Client) Get(URI *url.URL, operation string, parameters url.Values) ([]byte, error) {
+func (client Client) Get(uri *url.URL, operation string, parameters url.Values) ([]byte, error) {
 	opParameter := parameters.Get("op")
 	if opParameter != "" {
 		errString := fmt.Sprintf("The parameters contain a value for '%s' which is reserved parameter.")
@@ -49,7 +49,7 @@ func (client Client) Get(URI *url.URL, operation string, parameters url.Values) 
 	if operation != "" {
 		parameters.Set("op", operation)
 	}
-	queryUrl := client.GetURL(URI)
+	queryUrl := client.GetURL(uri)
 	queryUrl.RawQuery = parameters.Encode()
 	request, err := http.NewRequest("GET", queryUrl.String(), nil)
 	if err != nil {
@@ -59,9 +59,9 @@ func (client Client) Get(URI *url.URL, operation string, parameters url.Values) 
 }
 
 // nonIdempotentRequest is a utility method to issue a PUT or a POST request.
-func (client Client) nonIdempotentRequest(method string, URI *url.URL, parameters url.Values) ([]byte, error) {
-	URL := client.GetURL(URI)
-	request, err := http.NewRequest(method, URL.String(), strings.NewReader(string(parameters.Encode())))
+func (client Client) nonIdempotentRequest(method string, uri *url.URL, parameters url.Values) ([]byte, error) {
+	url := client.GetURL(uri)
+	request, err := http.NewRequest(method, url.String(), strings.NewReader(string(parameters.Encode())))
 	if err != nil {
 		return nil, err
 	}
@@ -69,19 +69,19 @@ func (client Client) nonIdempotentRequest(method string, URI *url.URL, parameter
 	return client.dispatchRequest(request)
 }
 
-func (client Client) Post(URI *url.URL, operation string, parameters url.Values) ([]byte, error) {
+func (client Client) Post(uri *url.URL, operation string, parameters url.Values) ([]byte, error) {
 	queryParams := url.Values{"op": {operation}}
-	URI.RawQuery = queryParams.Encode()
-	return client.nonIdempotentRequest("POST", URI, parameters)
+	uri.RawQuery = queryParams.Encode()
+	return client.nonIdempotentRequest("POST", uri, parameters)
 }
 
-func (client Client) Put(URI *url.URL, parameters url.Values) ([]byte, error) {
-	return client.nonIdempotentRequest("PUT", URI, parameters)
+func (client Client) Put(uri *url.URL, parameters url.Values) ([]byte, error) {
+	return client.nonIdempotentRequest("PUT", uri, parameters)
 }
 
-func (client Client) Delete(URI *url.URL) error {
-	URL := client.GetURL(URI)
-	request, err := http.NewRequest("DELETE", URL.String(), strings.NewReader(""))
+func (client Client) Delete(uri *url.URL) error {
+	url := client.GetURL(uri)
+	request, err := http.NewRequest("DELETE", url.String(), strings.NewReader(""))
 	if err != nil {
 		return err
 	}
