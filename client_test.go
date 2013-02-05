@@ -132,7 +132,7 @@ func (suite *GomaasapiTestSuite) TestNewAuthenticatedClientParsesApiKey(c *C) {
 func (suite *GomaasapiTestSuite) TestNewAuthenticatedClientFailsIfInvalidKey(c *C) {
 	client, err := NewAuthenticatedClient("", "invalid-key")
 
-	c.Check(err, ErrorMatches, "Invalid API key.*")
+	c.Check(err, ErrorMatches, "invalid API key.*")
 	c.Check(client, IsNil)
 
 }

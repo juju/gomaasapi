@@ -99,7 +99,7 @@ func (signer anonSigner) OAuthSign(request *http.Request) error {
 }
 
 // Trick to ensure *anonSigner implements the OAuthSigner interface.
-var _ OAuthSigner = (*anonSigner)(nil)
+var _ OAuthSigner = anonSigner{}
 
 // NewAnonymousClient creates a client that issues anonymous requests.
 func NewAnonymousClient(BaseURL string) (*Client, error) {
@@ -116,9 +116,8 @@ func NewAnonymousClient(BaseURL string) (*Client, error) {
 func NewAuthenticatedClient(BaseURL string, apiKey string) (*Client, error) {
 	elements := strings.Split(apiKey, ":")
 	if len(elements) != 3 {
-		errString := "Invalid API key. The format of the key must be \"<consumer secret>:<token key>:<token secret>\"."
-		err := errors.New(errString)
-		return nil, err
+		errString := "invalid API key %q; expected \"<consumer secret>:<token key>:<token secret>\""
+		return nil, fmt.Errorf(errString, apiKey)
 	}
 	// The consumer secret is the empty string in MAAS' authentication.
 	token := &OAuthToken{
