@@ -8,7 +8,11 @@ import (
 	"net/url"
 )
 
-func (suite *GomaasapiTestSuite) TestNewMAASUsesBaseURLFromClient(c *C) {
+type MAASSuite struct{}
+
+var _ = Suite(&MAASSuite{})
+
+func (suite *MAASSuite) TestNewMAASUsesBaseURLFromClient(c *C) {
 	baseURLString := "https://server.com:888/path/to/api"
 	baseURL, _ := url.Parse(baseURLString)
 	client := Client{BaseURL: baseURL}

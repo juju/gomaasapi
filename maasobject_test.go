@@ -10,6 +10,10 @@ import (
 	"net/url"
 )
 
+type MAASObjectSuite struct{}
+
+var _ = Suite(&MAASObjectSuite{})
+
 func makeFakeResourceURI() string {
 	return "http://example.com/" + fmt.Sprint(rand.Int31())
 }
@@ -21,7 +25,7 @@ func makeFakeMAASObject() jsonMAASObject {
 }
 
 // jsonMAASObjects convert only to map or to MAASObject.
-func (suite *GomaasapiTestSuite) TestConversionsMAASObject(c *C) {
+func (suite *MAASObjectSuite) TestConversionsMAASObject(c *C) {
 	input := map[string]JSONObject{resourceURI: jsonString("someplace")}
 	obj := jsonMAASObject{jsonMap: jsonMap(input)}
 
@@ -45,7 +49,7 @@ func (suite *GomaasapiTestSuite) TestConversionsMAASObject(c *C) {
 	c.Check(err, NotNil)
 }
 
-func (suite *GomaasapiTestSuite) TestNewJSONMAASObjectPanicsIfNoResourceURI(c *C) {
+func (suite *MAASObjectSuite) TestNewJSONMAASObjectPanicsIfNoResourceURI(c *C) {
 	defer func() {
 		recoveredError := recover()
 		c.Check(recoveredError, NotNil)
@@ -55,7 +59,7 @@ func (suite *GomaasapiTestSuite) TestNewJSONMAASObjectPanicsIfNoResourceURI(c *C
 	newJSONMAASObject(jsonMap(input), Client{})
 }
 
-func (suite *GomaasapiTestSuite) TestNewJSONMAASObjectPanicsIfResourceURINotString(c *C) {
+func (suite *MAASObjectSuite) TestNewJSONMAASObjectPanicsIfResourceURINotString(c *C) {
 	defer func() {
 		recoveredError := recover()
 		c.Check(recoveredError, NotNil)
@@ -65,7 +69,7 @@ func (suite *GomaasapiTestSuite) TestNewJSONMAASObjectPanicsIfResourceURINotStri
 	newJSONMAASObject(jsonMap(input), Client{})
 }
 
-func (suite *GomaasapiTestSuite) TestNewJSONMAASObjectPanicsIfResourceURINotURL(c *C) {
+func (suite *MAASObjectSuite) TestNewJSONMAASObjectPanicsIfResourceURINotURL(c *C) {
 	defer func() {
 		recoveredError := recover()
 		c.Check(recoveredError, NotNil)
@@ -75,14 +79,14 @@ func (suite *GomaasapiTestSuite) TestNewJSONMAASObjectPanicsIfResourceURINotURL(
 	newJSONMAASObject(jsonMap(input), Client{})
 }
 
-func (suite *GomaasapiTestSuite) TestNewJSONMAASObjectSetsUpURI(c *C) {
+func (suite *MAASObjectSuite) TestNewJSONMAASObjectSetsUpURI(c *C) {
 	URI, _ := url.Parse("http://example.com/a/resource")
 	input := map[string]JSONObject{resourceURI: jsonString(URI.String())}
 	obj := newJSONMAASObject(jsonMap(input), Client{})
 	c.Check(obj.uri, DeepEquals, URI)
 }
 
-func (suite *GomaasapiTestSuite) TestURL(c *C) {
+func (suite *MAASObjectSuite) TestURL(c *C) {
 	baseURL, _ := url.Parse("http://example.com/")
 	uri := "http://example.com/a/resource"
 	resourceURL, _ := url.Parse(uri)
@@ -95,7 +99,7 @@ func (suite *GomaasapiTestSuite) TestURL(c *C) {
 	c.Check(URL, DeepEquals, resourceURL)
 }
 
-func (suite *GomaasapiTestSuite) TestGetSubObject(c *C) {
+func (suite *MAASObjectSuite) TestGetSubObject(c *C) {
 	baseURL, _ := url.Parse("http://example.com/")
 	uri := "http://example.com/a/resource/"
 	input := map[string]JSONObject{resourceURI: jsonString(uri)}
@@ -112,7 +116,7 @@ func (suite *GomaasapiTestSuite) TestGetSubObject(c *C) {
 	c.Check(subURL, DeepEquals, expectedSubURL)
 }
 
-func (suite *GomaasapiTestSuite) TestGetField(c *C) {
+func (suite *MAASObjectSuite) TestGetField(c *C) {
 	uri := "http://example.com/a/resource"
 	fieldName := "field name"
 	fieldValue := "a value"
