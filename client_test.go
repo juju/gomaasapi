@@ -116,7 +116,7 @@ func (suite *ClientSuite) TestClientDeleteSendsRequest(c *C) {
 }
 
 func (suite *ClientSuite) TestNewAuthenticatedClientParsesApiKey(c *C) {
-	// NewAuthenticatedClient returns a configured plainTextOAuthSigner.
+	// NewAuthenticatedClient returns a plainTextOAuthSigneri configured
 	// to use the given API key.
 	consumerKey := "consumerKey"
 	tokenKey := "tokenKey"
