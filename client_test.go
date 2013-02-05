@@ -20,7 +20,7 @@ func (suite *GomaasapiTestSuite) TestClientdispatchRequestReturnsError(c *C) {
 
 	result, err := client.dispatchRequest(request)
 
-	c.Check(err, ErrorMatches, "Error requesting the MAAS server: 400 Bad Request.*")
+	c.Check(err, ErrorMatches, "gomaasapi: got error back from server: 400 Bad Request.*")
 	c.Check(string(result), Equals, expectedResult)
 }
 
