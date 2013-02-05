@@ -12,14 +12,12 @@ import (
 	"strings"
 )
 
+// Client represents a way ot communicating with a MAAS API instance.
+// It is stateless, so it can have concurrent requests in progress.
 type Client struct {
 	BaseURL *url.URL
 	Signer  OAuthSigner
 }
-
-const (
-	operationParamName = "op"
-)
 
 func (client Client) dispatchRequest(request *http.Request) ([]byte, error) {
 	client.Signer.OAuthSign(request)
@@ -43,13 +41,13 @@ func (client Client) GetURL(URI *url.URL) *url.URL {
 }
 
 func (client Client) Get(URI *url.URL, operation string, parameters url.Values) ([]byte, error) {
-	opParameter := parameters.Get(operationParamName)
+	opParameter := parameters.Get("op")
 	if opParameter != "" {
 		errString := fmt.Sprintf("The parameters contain a value for '%s' which is reserved parameter.")
 		return nil, errors.New(errString)
 	}
 	if operation != "" {
-		parameters.Set(operationParamName, operation)
+		parameters.Set("op", operation)
 	}
 	queryUrl := client.GetURL(URI)
 	queryUrl.RawQuery = parameters.Encode()
@@ -72,7 +70,7 @@ func (client Client) nonIdempotentRequest(method string, URI *url.URL, parameter
 }
 
 func (client Client) Post(URI *url.URL, operation string, parameters url.Values) ([]byte, error) {
-	queryParams := url.Values{operationParamName: {operation}}
+	queryParams := url.Values{"op": {operation}}
 	URI.RawQuery = queryParams.Encode()
 	return client.nonIdempotentRequest("POST", URI, parameters)
 }
