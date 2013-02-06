@@ -11,22 +11,22 @@ import (
 	"net/url"
 )
 
-type GomaasapiTestServerSuite struct {
+type TestServerSuite struct {
 	server *TestServer
 }
 
-var _ = Suite(&GomaasapiTestServerSuite{})
+var _ = Suite(&TestServerSuite{})
 
-func (suite *GomaasapiTestServerSuite) SetUpTest(c *C) {
+func (suite *TestServerSuite) SetUpTest(c *C) {
 	server := NewTestServer("1.0")
 	suite.server = server
 }
 
-func (suite *GomaasapiTestServerSuite) TearDownTest(c *C) {
+func (suite *TestServerSuite) TearDownTest(c *C) {
 	suite.server.Close()
 }
 
-func (suite *GomaasapiTestServerSuite) TestNewTestServerReturnsTestServer(c *C) {
+func (suite *TestServerSuite) TestNewTestServerReturnsTestServer(c *C) {
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusAccepted)
 	}
@@ -37,11 +37,11 @@ func (suite *GomaasapiTestServerSuite) TestNewTestServerReturnsTestServer(c *C) 
 	c.Check(resp.StatusCode, Equals, http.StatusAccepted)
 }
 
-func (suite *GomaasapiTestServerSuite) TestGetResourceURI(c *C) {
+func (suite *TestServerSuite) TestGetResourceURI(c *C) {
 	c.Check(getNodeURI("version", "test"), Equals, "/api/version/nodes/test/")
 }
 
-func (suite *GomaasapiTestServerSuite) TestHandlesNodeListingUnknownPath(c *C) {
+func (suite *TestServerSuite) TestHandlesNodeListingUnknownPath(c *C) {
 	invalidPath := fmt.Sprintf("/api/%s/nodes/invalid/path/", suite.server.version)
 	resp, err := http.Get(suite.server.Server.URL + invalidPath)
 
@@ -49,7 +49,7 @@ func (suite *GomaasapiTestServerSuite) TestHandlesNodeListingUnknownPath(c *C) {
 	c.Check(resp.StatusCode, Equals, http.StatusNotFound)
 }
 
-func (suite *GomaasapiTestServerSuite) TestNewNode(c *C) {
+func (suite *TestServerSuite) TestNewNode(c *C) {
 	input := `{"system_id": "mysystemid"}`
 
 	newNode := suite.server.NewNode(input)
@@ -58,7 +58,7 @@ func (suite *GomaasapiTestServerSuite) TestNewNode(c *C) {
 	c.Check(suite.server.nodes["mysystemid"], DeepEquals, newNode)
 }
 
-func (suite *GomaasapiTestServerSuite) TestNodesReturnsNodes(c *C) {
+func (suite *TestServerSuite) TestNodesReturnsNodes(c *C) {
 	input := `{"system_id": "mysystemid"}`
 	newNode := suite.server.NewNode(input)
 
@@ -68,7 +68,7 @@ func (suite *GomaasapiTestServerSuite) TestNodesReturnsNodes(c *C) {
 	c.Check(nodesMap["mysystemid"], DeepEquals, newNode)
 }
 
-func (suite *GomaasapiTestServerSuite) TestChangeNode(c *C) {
+func (suite *TestServerSuite) TestChangeNode(c *C) {
 	input := `{"system_id": "mysystemid"}`
 	suite.server.NewNode(input)
 	suite.server.ChangeNode("mysystemid", "newfield", "newvalue")
@@ -79,7 +79,7 @@ func (suite *GomaasapiTestServerSuite) TestChangeNode(c *C) {
 	c.Check(field, Equals, "newvalue")
 }
 
-func (suite *GomaasapiTestServerSuite) TestClearClearsData(c *C) {
+func (suite *TestServerSuite) TestClearClearsData(c *C) {
 	input := `{"system_id": "mysystemid"}`
 	suite.server.NewNode(input)
 	suite.server.addNodeOperation("mysystemid", "start")
@@ -90,7 +90,7 @@ func (suite *GomaasapiTestServerSuite) TestClearClearsData(c *C) {
 	c.Check(len(suite.server.nodeOperations), Equals, 0)
 }
 
-func (suite *GomaasapiTestServerSuite) TestAddNodeOperationPopulatesOperations(c *C) {
+func (suite *TestServerSuite) TestAddNodeOperationPopulatesOperations(c *C) {
 	input := `{"system_id": "mysystemid"}`
 	suite.server.NewNode(input)
 
@@ -102,7 +102,7 @@ func (suite *GomaasapiTestServerSuite) TestAddNodeOperationPopulatesOperations(c
 	c.Check(operations, DeepEquals, []string{"start", "stop"})
 }
 
-func (suite *GomaasapiTestServerSuite) TestNewNodeRequiresJSONString(c *C) {
+func (suite *TestServerSuite) TestNewNodeRequiresJSONString(c *C) {
 	input := `invalid:json`
 	defer func() {
 		recoveredError := recover().(*json.SyntaxError)
@@ -112,7 +112,7 @@ func (suite *GomaasapiTestServerSuite) TestNewNodeRequiresJSONString(c *C) {
 	suite.server.NewNode(input)
 }
 
-func (suite *GomaasapiTestServerSuite) TestNewNodeRequiresSystemIdKey(c *C) {
+func (suite *TestServerSuite) TestNewNodeRequiresSystemIdKey(c *C) {
 	input := `{"test": "test"}`
 	defer func() {
 		recoveredError := recover()
@@ -122,7 +122,7 @@ func (suite *GomaasapiTestServerSuite) TestNewNodeRequiresSystemIdKey(c *C) {
 	suite.server.NewNode(input)
 }
 
-func (suite *GomaasapiTestServerSuite) TestHandlesNodeRequestNotFound(c *C) {
+func (suite *TestServerSuite) TestHandlesNodeRequestNotFound(c *C) {
 	getURI := fmt.Sprintf("/api/%s/nodes/test/", suite.server.version)
 	resp, err := http.Get(suite.server.Server.URL + getURI)
 
@@ -130,7 +130,7 @@ func (suite *GomaasapiTestServerSuite) TestHandlesNodeRequestNotFound(c *C) {
 	c.Check(resp.StatusCode, Equals, http.StatusNotFound)
 }
 
-func (suite *GomaasapiTestServerSuite) TestHandlesNodeUnknownOperation(c *C) {
+func (suite *TestServerSuite) TestHandlesNodeUnknownOperation(c *C) {
 	input := `{"system_id": "mysystemid"}`
 	suite.server.NewNode(input)
 	postURI := fmt.Sprintf("/api/%s/nodes/mysystemid/?op=unknown/", suite.server.version)
@@ -140,7 +140,7 @@ func (suite *GomaasapiTestServerSuite) TestHandlesNodeUnknownOperation(c *C) {
 	c.Check(respStart.StatusCode, Equals, http.StatusBadRequest)
 }
 
-func (suite *GomaasapiTestServerSuite) TestHandlesNodeDelete(c *C) {
+func (suite *TestServerSuite) TestHandlesNodeDelete(c *C) {
 	input := `{"system_id": "mysystemid"}`
 	suite.server.NewNode(input)
 	deleteURI := fmt.Sprintf("/api/%s/nodes/mysystemid/?op=mysystemid", suite.server.version)
@@ -153,28 +153,28 @@ func (suite *GomaasapiTestServerSuite) TestHandlesNodeDelete(c *C) {
 	c.Check(len(suite.server.nodes), Equals, 0)
 }
 
-// GomaasapiTestMAASObjectSuite validates that the object created by
+// TestMAASObjectSuite validates that the object created by
 // TestMAASObject can be used by the gomaasapi library as if it were a real
 // MAAS server.
-type GomaasapiTestMAASObjectSuite struct {
+type TestMAASObjectSuite struct {
 	TestMAASObject *TestMAASObject
 }
 
-var _ = Suite(&GomaasapiTestMAASObjectSuite{})
+var _ = Suite(&TestMAASObjectSuite{})
 
-func (s *GomaasapiTestMAASObjectSuite) SetUpSuite(c *C) {
+func (s *TestMAASObjectSuite) SetUpSuite(c *C) {
 	s.TestMAASObject = NewTestMAAS("1.0")
 }
 
-func (s *GomaasapiTestMAASObjectSuite) TearDownSuite(c *C) {
+func (s *TestMAASObjectSuite) TearDownSuite(c *C) {
 	s.TestMAASObject.Close()
 }
 
-func (s *GomaasapiTestMAASObjectSuite) TearDownTest(c *C) {
+func (s *TestMAASObjectSuite) TearDownTest(c *C) {
 	s.TestMAASObject.TestServer.Clear()
 }
 
-func (suite *GomaasapiTestMAASObjectSuite) TestListNodes(c *C) {
+func (suite *TestMAASObjectSuite) TestListNodes(c *C) {
 	input := `{"system_id": "mysystemid"}`
 	suite.TestMAASObject.TestServer.NewNode(input)
 	nodeListing := suite.TestMAASObject.GetSubObject("nodes")
@@ -193,7 +193,7 @@ func (suite *GomaasapiTestMAASObjectSuite) TestListNodes(c *C) {
 	c.Check(resourceURI, Equals, expectedResourceURI)
 }
 
-func (suite *GomaasapiTestMAASObjectSuite) TestListNodesNoNodes(c *C) {
+func (suite *TestMAASObjectSuite) TestListNodesNoNodes(c *C) {
 	nodeListing := suite.TestMAASObject.GetSubObject("nodes")
 	listNodeObjects, err := nodeListing.CallGet("list", url.Values{})
 	c.Check(err, IsNil)
@@ -204,7 +204,7 @@ func (suite *GomaasapiTestMAASObjectSuite) TestListNodesNoNodes(c *C) {
 	c.Check(listNodes, DeepEquals, []JSONObject{})
 }
 
-func (suite *GomaasapiTestMAASObjectSuite) TestListNodesSelectedNodes(c *C) {
+func (suite *TestMAASObjectSuite) TestListNodesSelectedNodes(c *C) {
 	input := `{"system_id": "mysystemid"}`
 	suite.TestMAASObject.TestServer.NewNode(input)
 	input2 := `{"system_id": "mysystemid2"}`
@@ -222,7 +222,7 @@ func (suite *GomaasapiTestMAASObjectSuite) TestListNodesSelectedNodes(c *C) {
 	c.Check(systemId, Equals, "mysystemid2")
 }
 
-func (suite *GomaasapiTestMAASObjectSuite) TestDeleteNode(c *C) {
+func (suite *TestMAASObjectSuite) TestDeleteNode(c *C) {
 	input := `{"system_id": "mysystemid"}`
 	node := suite.TestMAASObject.TestServer.NewNode(input)
 
@@ -232,7 +232,7 @@ func (suite *GomaasapiTestMAASObjectSuite) TestDeleteNode(c *C) {
 	c.Check(suite.TestMAASObject.TestServer.Nodes(), DeepEquals, map[string]MAASObject{})
 }
 
-func (suite *GomaasapiTestMAASObjectSuite) TestOperationsOnNode(c *C) {
+func (suite *TestMAASObjectSuite) TestOperationsOnNode(c *C) {
 	input := `{"system_id": "mysystemid"}`
 	node := suite.TestMAASObject.TestServer.NewNode(input)
 	operations := []string{"start", "stop", "release"}
@@ -242,7 +242,7 @@ func (suite *GomaasapiTestMAASObjectSuite) TestOperationsOnNode(c *C) {
 	}
 }
 
-func (suite *GomaasapiTestMAASObjectSuite) TestOperationsOnNodeGetRecorded(c *C) {
+func (suite *TestMAASObjectSuite) TestOperationsOnNodeGetRecorded(c *C) {
 	input := `{"system_id": "mysystemid"}`
 	node := suite.TestMAASObject.TestServer.NewNode(input)
 

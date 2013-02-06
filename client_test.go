@@ -10,7 +10,11 @@ import (
 	"strings"
 )
 
-func (suite *GomaasapiTestSuite) TestClientdispatchRequestReturnsError(c *C) {
+type ClientSuite struct{}
+
+var _ = Suite(&ClientSuite{})
+
+func (suite *ClientSuite) TestClientdispatchRequestReturnsError(c *C) {
 	URI := "/some/url/?param1=test"
 	expectedResult := "expected:result"
 	server := newSingleServingServer(URI, expectedResult, http.StatusBadRequest)
@@ -24,7 +28,7 @@ func (suite *GomaasapiTestSuite) TestClientdispatchRequestReturnsError(c *C) {
 	c.Check(string(result), Equals, expectedResult)
 }
 
-func (suite *GomaasapiTestSuite) TestClientdispatchRequestSignsRequest(c *C) {
+func (suite *ClientSuite) TestClientdispatchRequestSignsRequest(c *C) {
 	URI := "/some/url/?param1=test"
 	expectedResult := "expected:result"
 	server := newSingleServingServer(URI, expectedResult, http.StatusOK)
@@ -39,7 +43,7 @@ func (suite *GomaasapiTestSuite) TestClientdispatchRequestSignsRequest(c *C) {
 	c.Check((*server.requestHeader)["Authorization"][0], Matches, "^OAuth .*")
 }
 
-func (suite *GomaasapiTestSuite) TestClientGetFormatsGetParameters(c *C) {
+func (suite *ClientSuite) TestClientGetFormatsGetParameters(c *C) {
 	URI, _ := url.Parse("/some/url")
 	expectedResult := "expected:result"
 	params := url.Values{"test": {"123"}}
@@ -54,7 +58,7 @@ func (suite *GomaasapiTestSuite) TestClientGetFormatsGetParameters(c *C) {
 	c.Check(string(result), Equals, expectedResult)
 }
 
-func (suite *GomaasapiTestSuite) TestClientGetFormatsOperationAsGetParameter(c *C) {
+func (suite *ClientSuite) TestClientGetFormatsOperationAsGetParameter(c *C) {
 	URI, _ := url.Parse("/some/url")
 	expectedResult := "expected:result"
 	fullURI := URI.String() + "?op=list"
@@ -68,7 +72,7 @@ func (suite *GomaasapiTestSuite) TestClientGetFormatsOperationAsGetParameter(c *
 	c.Check(string(result), Equals, expectedResult)
 }
 
-func (suite *GomaasapiTestSuite) TestClientPostSendsRequest(c *C) {
+func (suite *ClientSuite) TestClientPostSendsRequest(c *C) {
 	URI, _ := url.Parse("/some/url")
 	expectedResult := "expected:result"
 	fullURI := URI.String() + "?op=list"
@@ -84,7 +88,7 @@ func (suite *GomaasapiTestSuite) TestClientPostSendsRequest(c *C) {
 	c.Check(*server.requestContent, Equals, "test=123")
 }
 
-func (suite *GomaasapiTestSuite) TestClientPutSendsRequest(c *C) {
+func (suite *ClientSuite) TestClientPutSendsRequest(c *C) {
 	URI, _ := url.Parse("/some/url")
 	expectedResult := "expected:result"
 	params := url.Values{"test": {"123"}}
@@ -99,7 +103,7 @@ func (suite *GomaasapiTestSuite) TestClientPutSendsRequest(c *C) {
 	c.Check(*server.requestContent, Equals, "test=123")
 }
 
-func (suite *GomaasapiTestSuite) TestClientDeleteSendsRequest(c *C) {
+func (suite *ClientSuite) TestClientDeleteSendsRequest(c *C) {
 	URI, _ := url.Parse("/some/url")
 	expectedResult := "expected:result"
 	server := newSingleServingServer(URI.String(), expectedResult, http.StatusOK)
@@ -111,8 +115,8 @@ func (suite *GomaasapiTestSuite) TestClientDeleteSendsRequest(c *C) {
 	c.Check(err, IsNil)
 }
 
-func (suite *GomaasapiTestSuite) TestNewAuthenticatedClientParsesApiKey(c *C) {
-	// NewAuthenticatedClient returns a _PLAINTEXTOAuthSigner configured
+func (suite *ClientSuite) TestNewAuthenticatedClientParsesApiKey(c *C) {
+	// NewAuthenticatedClient returns a plainTextOAuthSigneri configured
 	// to use the given API key.
 	consumerKey := "consumerKey"
 	tokenKey := "tokenKey"
@@ -123,13 +127,13 @@ func (suite *GomaasapiTestSuite) TestNewAuthenticatedClientParsesApiKey(c *C) {
 	client, err := NewAuthenticatedClient("http://example.com/api", apiKey)
 
 	c.Check(err, IsNil)
-	signer := client.Signer.(_PLAINTEXTOAuthSigner)
+	signer := client.Signer.(*plainTextOAuthSigner)
 	c.Check(signer.token.ConsumerKey, Equals, consumerKey)
 	c.Check(signer.token.TokenKey, Equals, tokenKey)
 	c.Check(signer.token.TokenSecret, Equals, tokenSecret)
 }
 
-func (suite *GomaasapiTestSuite) TestNewAuthenticatedClientFailsIfInvalidKey(c *C) {
+func (suite *ClientSuite) TestNewAuthenticatedClientFailsIfInvalidKey(c *C) {
 	client, err := NewAuthenticatedClient("", "invalid-key")
 
 	c.Check(err, ErrorMatches, "invalid API key.*")
