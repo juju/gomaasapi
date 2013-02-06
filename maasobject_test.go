@@ -49,7 +49,8 @@ func (suite *GomaasapiTestSuite) TestNewJSONMAASObjectPanicsIfNoResourceURI(c *C
 	defer func() {
 		recoveredError := recover()
 		c.Check(recoveredError, NotNil)
-		c.Check(recoveredError, Matches, ".*no 'resource_uri' key.*")
+		msg := recoveredError.(error).Error()
+		c.Check(msg, Matches, ".*no 'resource_uri' key.*")
 	}()
 	input := map[string]JSONObject{"test": jsonString("test")}
 	newJSONMAASObject(jsonMap(input), Client{})
@@ -59,7 +60,8 @@ func (suite *GomaasapiTestSuite) TestNewJSONMAASObjectPanicsIfResourceURINotStri
 	defer func() {
 		recoveredError := recover()
 		c.Check(recoveredError, NotNil)
-		c.Check(recoveredError, Matches, ".*the value of 'resource_uri' is not a string.*")
+		msg := recoveredError.(error).Error()
+		c.Check(msg, Matches, ".*the value of 'resource_uri' is not a string.*")
 	}()
 	input := map[string]JSONObject{resourceURI: jsonFloat64(77.7)}
 	newJSONMAASObject(jsonMap(input), Client{})
@@ -69,7 +71,8 @@ func (suite *GomaasapiTestSuite) TestNewJSONMAASObjectPanicsIfResourceURINotURL(
 	defer func() {
 		recoveredError := recover()
 		c.Check(recoveredError, NotNil)
-		c.Check(recoveredError, Matches, ".*the value of 'resource_uri' is not a valid URL.*")
+		msg := recoveredError.(error).Error()
+		c.Check(msg, Matches, ".*the value of 'resource_uri' is not a valid URL.*")
 	}()
 	input := map[string]JSONObject{resourceURI: jsonString("")}
 	newJSONMAASObject(jsonMap(input), Client{})

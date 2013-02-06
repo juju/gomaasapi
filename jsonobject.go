@@ -62,8 +62,8 @@ type jsonBool bool
 // as a jsonMap and never notice the difference.)
 const resourceURI = "resource_uri"
 
-// Internal: turn a completely untyped json.Unmarshal result into a
-// JSONObject (with the appropriate implementation of course).
+// maasify is internal.  It turns a completely untyped json.Unmarshal result
+// into a JSONObject (with the appropriate implementation of course).
 // This function is recursive.  Maps and arrays are deep-copied, with each
 // individual value being converted to a JSONObject type.
 func maasify(client Client, value interface{}) JSONObject {
