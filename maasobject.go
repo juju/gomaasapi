@@ -52,17 +52,18 @@ type jsonMAASObject struct {
 // newJSONMAASObject creates a new MAAS object.  It will panic if the given map
 // does not contain a valid URL for the 'resource_uri' key.
 func newJSONMAASObject(jmap jsonMap, client Client) jsonMAASObject {
+	const panicPrefix = "Error processing MAAS object: "
 	uriObj, ok := jmap[resourceURI]
 	if !ok {
-		panic("Cannot create jsonMAASObject object, no 'resource_uri' key present in the given jsonMap.")
+		panic(errors.New(panicPrefix + "no 'resource_uri' key present in the given jsonMap."))
 	}
 	uriString, err := uriObj.GetString()
 	if err != nil {
-		panic("Cannot create jsonMAASObject object, the value of 'resource_uri' is not a string.")
+		panic(errors.New(panicPrefix + "the value of 'resource_uri' is not a string."))
 	}
 	uri, err := url.Parse(uriString)
 	if err != nil {
-		panic("Cannot create jsonMAASObject object, the value of 'resource_uri' is not a valid URL.")
+		panic(errors.New(panicPrefix + "the value of 'resource_uri' is not a valid URL."))
 	}
 	return jsonMAASObject{jmap, client, uri}
 }
