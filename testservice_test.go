@@ -4,9 +4,13 @@
 package gomaasapi
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
 	. "launchpad.net/gocheck"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 )
@@ -151,6 +155,52 @@ func (suite *TestServerSuite) TestHandlesNodeDelete(c *C) {
 	c.Check(err, IsNil)
 	c.Check(resp.StatusCode, Equals, http.StatusOK)
 	c.Check(len(suite.server.nodes), Equals, 0)
+}
+
+func uploadTo(url, fileName, fileContent string) (*http.Response, error) {
+	buf := new(bytes.Buffer)
+	w := multipart.NewWriter(buf)
+	fw, err := w.CreateFormFile(fileName, fileContent)
+	if err != nil {
+		panic(err)
+	}
+	io.Copy(fw, bytes.NewBufferString(fileContent))
+	w.Close()
+	req, err := http.NewRequest("POST", url, buf)
+	if err != nil {
+		panic(err)
+	}
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	client := &http.Client{}
+	return client.Do(req)
+}
+
+func (suite *TestServerSuite) TestHandlesUploadFile(c *C) {
+	fileContent := "test file content"
+	postURL := suite.server.Server.URL + fmt.Sprintf("/api/%s/files/?op=add&filename=filename", suite.server.version)
+
+	resp, err := uploadTo(postURL, "upload", fileContent)
+
+	c.Check(err, IsNil)
+	c.Check(resp.StatusCode, Equals, http.StatusOK)
+	c.Check(len(suite.server.files), Equals, 1)
+	expectedFiles := map[string]string{"filename": fileContent}
+	c.Check(suite.server.files, DeepEquals, expectedFiles)
+}
+
+func (suite *TestServerSuite) TestHandlesGetFile(c *C) {
+	fileContent := "test file content"
+	fileName := "filename"
+	suite.server.NewFile(fileName, fileContent)
+	getURI := fmt.Sprintf("/api/%s/files/?op=get&filename=filename", suite.server.version)
+
+	resp, err := http.Get(suite.server.Server.URL + getURI)
+
+	c.Check(err, IsNil)
+	c.Check(resp.StatusCode, Equals, http.StatusOK)
+	content, err := ioutil.ReadAll(resp.Body)
+	c.Check(err, IsNil)
+	c.Check(string(content), Equals, fileContent)
 }
 
 // TestMAASObjectSuite validates that the object created by
