@@ -102,13 +102,13 @@ func (suite *MAASObjectSuite) TestURL(c *C) {
 	c.Check(URL, DeepEquals, resourceURL)
 }
 
-func (suite *MAASObjectSuite) TestGetSubObject(c *C) {
+func (suite *MAASObjectSuite) TestGetSubObjectRelative(c *C) {
 	baseURL, _ := url.Parse("http://example.com/")
 	uri := "http://example.com/a/resource/"
 	input := map[string]JSONObject{resourceURI: jsonString(uri)}
 	client := Client{BaseURL: baseURL}
 	obj := newJSONMAASObject(jsonMap(input), client)
-	subName := "/test"
+	subName := "test"
 
 	subObj := obj.GetSubObject(subName)
 	subURL := subObj.URL()
@@ -116,6 +116,21 @@ func (suite *MAASObjectSuite) TestGetSubObject(c *C) {
 	// uri ends with a slash and subName starts with one, but the two paths
 	// should be concatenated as "http://example.com/a/resource/test/".
 	expectedSubURL, _ := url.Parse("http://example.com/a/resource/test/")
+	c.Check(subURL, DeepEquals, expectedSubURL)
+}
+
+func (suite *MAASObjectSuite) TestGetSubObjectAbsolute(c *C) {
+	baseURL, _ := url.Parse("http://example.com/")
+	uri := "http://example.com/a/resource/"
+	input := map[string]JSONObject{resourceURI: jsonString(uri)}
+	client := Client{BaseURL: baseURL}
+	obj := newJSONMAASObject(jsonMap(input), client)
+	subName := "/b/test"
+
+	subObj := obj.GetSubObject(subName)
+	subURL := subObj.URL()
+
+	expectedSubURL, _ := url.Parse("http://example.com/b/test/")
 	c.Check(subURL, DeepEquals, expectedSubURL)
 }
 
