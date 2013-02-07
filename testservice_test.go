@@ -149,7 +149,7 @@ func (suite *TestServerSuite) TestHandlesNodeDelete(c *C) {
 	suite.server.NewNode(input)
 	deleteURI := fmt.Sprintf("/api/%s/nodes/mysystemid/?op=mysystemid", suite.server.version)
 	req, err := http.NewRequest("DELETE", suite.server.Server.URL+deleteURI, nil)
-	client := &http.Client{}
+	var client http.Client
 	resp, err := client.Do(req)
 
 	c.Check(err, IsNil)
@@ -157,14 +157,14 @@ func (suite *TestServerSuite) TestHandlesNodeDelete(c *C) {
 	c.Check(len(suite.server.nodes), Equals, 0)
 }
 
-func uploadTo(url, fileName, fileContent string) (*http.Response, error) {
+func uploadTo(url, fileName string, fileContent []byte) (*http.Response, error) {
 	buf := new(bytes.Buffer)
 	w := multipart.NewWriter(buf)
-	fw, err := w.CreateFormFile(fileName, fileContent)
+	fw, err := w.CreateFormFile(fileName, fileName)
 	if err != nil {
 		panic(err)
 	}
-	io.Copy(fw, bytes.NewBufferString(fileContent))
+	io.Copy(fw, bytes.NewBuffer(fileContent))
 	w.Close()
 	req, err := http.NewRequest("POST", url, buf)
 	if err != nil {
@@ -176,7 +176,7 @@ func uploadTo(url, fileName, fileContent string) (*http.Response, error) {
 }
 
 func (suite *TestServerSuite) TestHandlesUploadFile(c *C) {
-	fileContent := "test file content"
+	fileContent := []byte("test file content")
 	postURL := suite.server.Server.URL + fmt.Sprintf("/api/%s/files/?op=add&filename=filename", suite.server.version)
 
 	resp, err := uploadTo(postURL, "upload", fileContent)
@@ -184,12 +184,12 @@ func (suite *TestServerSuite) TestHandlesUploadFile(c *C) {
 	c.Check(err, IsNil)
 	c.Check(resp.StatusCode, Equals, http.StatusOK)
 	c.Check(len(suite.server.files), Equals, 1)
-	expectedFiles := map[string]string{"filename": fileContent}
+	expectedFiles := map[string][]byte{"filename": fileContent}
 	c.Check(suite.server.files, DeepEquals, expectedFiles)
 }
 
 func (suite *TestServerSuite) TestHandlesGetFile(c *C) {
-	fileContent := "test file content"
+	fileContent := []byte("test file content")
 	fileName := "filename"
 	suite.server.NewFile(fileName, fileContent)
 	getURI := fmt.Sprintf("/api/%s/files/?op=get&filename=filename", suite.server.version)
@@ -200,7 +200,8 @@ func (suite *TestServerSuite) TestHandlesGetFile(c *C) {
 	c.Check(resp.StatusCode, Equals, http.StatusOK)
 	content, err := ioutil.ReadAll(resp.Body)
 	c.Check(err, IsNil)
-	c.Check(string(content), Equals, fileContent)
+	c.Check(string(content), Equals, string(fileContent))
+	c.Check(content, DeepEquals, fileContent)
 }
 
 // TestMAASObjectSuite validates that the object created by

@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -47,7 +48,7 @@ type TestServer struct {
 	client         Client
 	nodes          map[string]MAASObject
 	nodeOperations map[string][]string
-	files          map[string]string
+	files          map[string][]byte
 	version        string
 }
 
@@ -60,7 +61,7 @@ func getNodeURI(version, systemId string) string {
 func (server *TestServer) Clear() {
 	server.nodes = make(map[string]MAASObject)
 	server.nodeOperations = make(map[string][]string)
-	server.files = make(map[string]string)
+	server.files = make(map[string][]byte)
 }
 
 // NodeOperations returns the map containing the list of the operations
@@ -114,11 +115,11 @@ func (server *TestServer) Nodes() map[string]MAASObject {
 }
 
 // NewFile creates a file in the test MAAS server.
-func (server *TestServer) NewFile(filename, filecontent string) {
+func (server *TestServer) NewFile(filename string, filecontent []byte) {
 	server.files[filename] = filecontent
 }
 
-func (server *TestServer) Files() map[string]string {
+func (server *TestServer) Files() map[string][]byte {
 	return server.files
 }
 
@@ -277,6 +278,7 @@ func filesHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
 
 }
 
+// filesHandler handles requests for '/api/<version>/files/?op=get&filename=filename'.
 func getFileHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
 	values, _ := url.ParseQuery(r.URL.RawQuery)
 	filename := values.Get("filename")
@@ -285,10 +287,20 @@ func getFileHandler(server *TestServer, w http.ResponseWriter, r *http.Request) 
 		http.NotFoundHandler().ServeHTTP(w, r)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprint(w, content)
+	w.Write(content)
 }
 
+func readMultipart(upload *multipart.FileHeader) ([]byte, error) {
+	file, err := upload.Open()
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	reader := bufio.NewReader(file)
+	return ioutil.ReadAll(reader)
+}
+
+// filesHandler handles requests for '/api/<version>/files/?op=add&filename=filename'.
 func addFileHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
 	err := r.ParseMultipartForm(10000000)
 	if err != nil {
@@ -299,24 +311,17 @@ func addFileHandler(server *TestServer, w http.ResponseWriter, r *http.Request) 
 	filename := values.Get("filename")
 
 	uploads := r.MultipartForm.File
-	index := 0
-	for _, uploadContent := range uploads {
-		if index > 0 {
-			panic("more than one file uploaded")
-		}
-		upload := uploadContent[0]
-		file, err := upload.Open()
-		if err != nil {
-			panic(err)
-		}
-		defer file.Close()
-		reader := bufio.NewReader(file)
-		content, err := ioutil.ReadAll(reader)
-		if err != nil {
-			panic(err)
-		}
-		server.files[filename] = string(content)
-		w.WriteHeader(http.StatusOK)
-		index++
+	if len(uploads) != 1 {
+		panic("the payload should contain one file and one file only")
 	}
+	var upload *multipart.FileHeader
+	for _, uploadContent := range uploads {
+		upload = uploadContent[0]
+	}
+	content, err := readMultipart(upload)
+	if err != nil {
+		panic(err)
+	}
+	server.files[filename] = content
+	w.WriteHeader(http.StatusOK)
 }
