@@ -101,8 +101,13 @@ func (obj jsonMAASObject) URL() *url.URL {
 
 func (obj jsonMAASObject) GetSubObject(name string) MAASObject {
 	uri := obj.URI()
-	uri.Path = EnsureTrailingSlash(JoinURLs(uri.Path, name))
-	input := map[string]JSONObject{resourceURI: jsonString(uri.String())}
+	newUrl, err := url.Parse(name)
+	if err != nil {
+		panic(err)
+	}
+	resUrl := uri.ResolveReference(newUrl)
+	resUrl.Path = EnsureTrailingSlash(resUrl.Path)
+	input := map[string]JSONObject{resourceURI: jsonString(resUrl.String())}
 	return newJSONMAASObject(jsonMap(input), obj.client)
 }
 
