@@ -23,7 +23,7 @@ import (
 // There is one exception: a MAASObject is really a special kind of map,
 // so you can read it as either.
 // Reading a null item is also an error.  So before you try obj.Get*(),
-// first check that obj != nil.
+// first check obj.IsNil().
 type JSONObject struct {
 	value  interface{}
 	client Client
