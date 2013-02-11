@@ -5,88 +5,77 @@ package gomaasapi
 
 import (
 	"errors"
+	"fmt"
 	"net/url"
 )
 
 // MAASObject represents a MAAS object as returned by the MAAS API, such as a
 // Node or a Tag.
-// This is a special kind of JSONObject.  A MAAS API call will usually return
-// either a MAASObject or a list of MAASObjects.  (The list itself will be
-// wrapped in a JSONObject).
-type MAASObject interface {
-	JSONObject
-
-	// Utility method to extract a string field from this MAAS object.
-	GetField(name string) (string, error)
-	// URL for this MAAS object.
-	URL() *url.URL
-	// Resource URI for this MAAS object.
-	URI() *url.URL
-	// Retrieve the MAAS object located at thisObject.URI()+name.
-	GetSubObject(name string) MAASObject
-	// Retrieve this MAAS object.
-	Get() (MAASObject, error)
-	// Write this MAAS object.
-	Post(params url.Values) (JSONObject, error)
-	// Update this MAAS object with the given values.
-	Update(params url.Values) (MAASObject, error)
-	// Delete this MAAS object.
-	Delete() error
-	// Invoke a GET-based method on this MAAS object.
-	CallGet(operation string, params url.Values) (JSONObject, error)
-	// Invoke a POST-based method on this MAAS object.
-	CallPost(operation string, params url.Values) (JSONObject, error)
-}
-
-// JSONObject implementation for a MAAS object.  From a decoding perspective,
-// a jsonMAASObject is just like a jsonMap except it contains a key
-// "resource_uri", and it keeps track of the Client you got it from so that
-// you can invoke API methods directly on their MAAS objects.
-// jsonMAASObject implements both JSONObject and MAASObject.
-type jsonMAASObject struct {
-	jsonMap
+// You can extract a MAASObject out of a JSONObject using
+// JSONObject.GetMAASObject.  A MAAS API call will usually return either a
+// MAASObject or a list of MAASObjects.  The list itself would be wrapped in
+// a JSONObject, so if an API call returns a list of objects "l," you first
+// obtain the array using l.GetArray().  Then, for each item "i" in the array,
+// obtain the matching MAASObject using i.GetMAASObject().
+type MAASObject struct {
+	values map[string]JSONObject
 	client Client
 	uri    *url.URL
 }
 
 // newJSONMAASObject creates a new MAAS object.  It will panic if the given map
 // does not contain a valid URL for the 'resource_uri' key.
-func newJSONMAASObject(jmap jsonMap, client Client) jsonMAASObject {
-	const panicPrefix = "Error processing MAAS object: "
-	uriObj, ok := jmap[resourceURI]
+func newJSONMAASObject(jmap map[string]interface{}, client Client) MAASObject {
+	obj, err := maasify(client, jmap).GetMAASObject()
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+var noResourceURI = errors.New("not a MAAS object: no 'resource_uri' key")
+
+// extractURI obtains the "resource_uri" string from a JSONObject map.
+func extractURI(attrs map[string]JSONObject) (*url.URL, error) {
+	uriEntry, ok := attrs[resourceURI]
 	if !ok {
-		panic(errors.New(panicPrefix + "no 'resource_uri' key present in the given jsonMap."))
+		return nil, noResourceURI
 	}
-	uriString, err := uriObj.GetString()
+	uri, err := uriEntry.GetString()
 	if err != nil {
-		panic(errors.New(panicPrefix + "the value of 'resource_uri' is not a string."))
+		return nil, fmt.Errorf("invalid resource_uri: %v", uri)
 	}
-	uri, err := url.Parse(uriString)
+	resourceURL, err := url.Parse(uri)
 	if err != nil {
-		panic(errors.New(panicPrefix + "the value of 'resource_uri' is not a valid URL."))
+		return nil, fmt.Errorf("resource_uri does not contain a valid URL: %v", uri)
 	}
-	return jsonMAASObject{jmap, client, uri}
+	return resourceURL, nil
 }
 
-var _ JSONObject = (*jsonMAASObject)(nil)
-var _ MAASObject = (*jsonMAASObject)(nil)
-
-// JSONObject implementation for jsonMAASObject.
-func (jsonMAASObject) Type() string                               { return "maasobject" }
-func (obj jsonMAASObject) GetString() (string, error)             { return failString(obj) }
-func (obj jsonMAASObject) GetFloat64() (float64, error)           { return failFloat64(obj) }
-func (obj jsonMAASObject) GetMap() (map[string]JSONObject, error) { return obj.jsonMap.GetMap() }
-func (obj jsonMAASObject) GetMAASObject() (MAASObject, error)     { return obj, nil }
-func (obj jsonMAASObject) GetArray() ([]JSONObject, error)        { return failArray(obj) }
-func (obj jsonMAASObject) GetBool() (bool, error)                 { return failBool(obj) }
-
-// MAASObject implementation for jsonMAASObject.
-
-func (obj jsonMAASObject) GetField(name string) (string, error) {
-	return obj.jsonMap[name].GetString()
+// JSONObject getter for a MAAS object.  From a decoding perspective, a
+// MAASObject is just like a map except it contains a key "resource_uri", and
+// it keeps track of the Client you got it from so that you can invoke API
+// methods directly on their MAAS objects.
+func (obj JSONObject) GetMAASObject() (MAASObject, error) {
+	attrs, err := obj.GetMap()
+	if err != nil {
+		return MAASObject{}, err
+	}
+	uri, err := extractURI(attrs)
+	if err != nil {
+		return MAASObject{}, err
+	}
+	return MAASObject{values: attrs, client: obj.client, uri: uri}, nil
 }
 
-func (obj jsonMAASObject) URI() *url.URL {
+// GetField extracts a string field from this MAAS object.
+func (obj MAASObject) GetField(name string) (string, error) {
+	return obj.values[name].GetString()
+}
+
+// URI is the resource URI for this MAAS object.  It is an absolute path, but
+// without a network part.
+func (obj MAASObject) URI() *url.URL {
 	// Duplicate the URL.
 	uri, err := url.Parse(obj.uri.String())
 	if err != nil {
@@ -95,11 +84,20 @@ func (obj jsonMAASObject) URI() *url.URL {
 	return uri
 }
 
-func (obj jsonMAASObject) URL() *url.URL {
+// URL returns a full absolute URL (including network part) for this MAAS
+// object on the API.
+func (obj MAASObject) URL() *url.URL {
 	return obj.client.GetURL(obj.URI())
 }
 
-func (obj jsonMAASObject) GetSubObject(name string) MAASObject {
+// GetMap returns all of the object's attributes in the form of a map.
+func (obj MAASObject) GetMap() map[string]JSONObject {
+	return obj.values
+}
+
+// GetSubObject returns a new MAASObject representing the API resource found
+// at a given sub-path of the current object's resource URI.
+func (obj MAASObject) GetSubObject(name string) MAASObject {
 	uri := obj.URI()
 	newUrl, err := url.Parse(name)
 	if err != nil {
@@ -107,66 +105,74 @@ func (obj jsonMAASObject) GetSubObject(name string) MAASObject {
 	}
 	resUrl := uri.ResolveReference(newUrl)
 	resUrl.Path = EnsureTrailingSlash(resUrl.Path)
-	input := map[string]JSONObject{resourceURI: jsonString(resUrl.String())}
-	return newJSONMAASObject(jsonMap(input), obj.client)
+	input := map[string]interface{}{resourceURI: resUrl.String()}
+	return newJSONMAASObject(input, obj.client)
 }
 
 var NotImplemented = errors.New("Not implemented")
 
-func (obj jsonMAASObject) Get() (MAASObject, error) {
+// Get retrieves a fresh copy of this MAAS object from the API.
+func (obj MAASObject) Get() (MAASObject, error) {
 	uri := obj.URI()
 	result, err := obj.client.Get(uri, "", url.Values{})
 	if err != nil {
-		return nil, err
+		return MAASObject{}, err
 	}
 	jsonObj, err := Parse(obj.client, result)
 	if err != nil {
-		return nil, err
+		return MAASObject{}, err
 	}
 	return jsonObj.GetMAASObject()
 }
 
-func (obj jsonMAASObject) Post(params url.Values) (JSONObject, error) {
+// Post overwrites this object's existing value on the API with those given
+// in "params."  It returns the object's new value as received from the API.
+func (obj MAASObject) Post(params url.Values) (JSONObject, error) {
 	uri := obj.URI()
 	result, err := obj.client.Post(uri, "", params)
 	if err != nil {
-		return nil, err
+		return JSONObject{}, err
 	}
 	return Parse(obj.client, result)
 }
 
-func (obj jsonMAASObject) Update(params url.Values) (MAASObject, error) {
+// Update modifies this object on the API, based on the values given in
+// "params."  It returns the object's new value as received from the API.
+func (obj MAASObject) Update(params url.Values) (MAASObject, error) {
 	uri := obj.URI()
 	result, err := obj.client.Put(uri, params)
 	if err != nil {
-		return nil, err
+		return MAASObject{}, err
 	}
 	jsonObj, err := Parse(obj.client, result)
 	if err != nil {
-		return nil, err
+		return MAASObject{}, err
 	}
 	return jsonObj.GetMAASObject()
 }
 
-func (obj jsonMAASObject) Delete() error {
+// Delete removes this object on the API.
+func (obj MAASObject) Delete() error {
 	uri := obj.URI()
 	return obj.client.Delete(uri)
 }
 
-func (obj jsonMAASObject) CallGet(operation string, params url.Values) (JSONObject, error) {
+// CallGet invokes an idempotent API method on this object.
+func (obj MAASObject) CallGet(operation string, params url.Values) (JSONObject, error) {
 	uri := obj.URI()
 	result, err := obj.client.Get(uri, operation, params)
 	if err != nil {
-		return nil, err
+		return JSONObject{}, err
 	}
 	return Parse(obj.client, result)
 }
 
-func (obj jsonMAASObject) CallPost(operation string, params url.Values) (JSONObject, error) {
+// CallPost invokes a non-idempotent API method on this object.
+func (obj MAASObject) CallPost(operation string, params url.Values) (JSONObject, error) {
 	uri := obj.URI()
 	result, err := obj.client.Post(uri, operation, params)
 	if err != nil {
-		return nil, err
+		return JSONObject{}, err
 	}
 	return Parse(obj.client, result)
 }

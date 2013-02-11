@@ -18,16 +18,10 @@ func makeFakeResourceURI() string {
 	return "http://example.com/" + fmt.Sprint(rand.Int31())
 }
 
-func makeFakeMAASObject() jsonMAASObject {
-	attrs := make(map[string]JSONObject)
-	attrs[resourceURI] = jsonString(makeFakeResourceURI())
-	return jsonMAASObject{jsonMap: jsonMap(attrs)}
-}
-
-// jsonMAASObjects convert only to map or to MAASObject.
+// JSONObjects containing MAAS objects convert only to map or to MAASObject.
 func (suite *MAASObjectSuite) TestConversionsMAASObject(c *C) {
-	input := map[string]JSONObject{resourceURI: jsonString("someplace")}
-	obj := jsonMAASObject{jsonMap: jsonMap(input)}
+	input := map[string]interface{}{resourceURI: "someplace"}
+	obj := maasify(Client{}, input)
 
 	mp, err := obj.GetMap()
 	c.Check(err, IsNil)
@@ -35,9 +29,10 @@ func (suite *MAASObjectSuite) TestConversionsMAASObject(c *C) {
 	c.Check(err, IsNil)
 	c.Check(text, Equals, "someplace")
 
-	maasobj, err := obj.GetMAASObject()
-	c.Check(err, IsNil)
-	_ = maasobj.(jsonMAASObject)
+	var maasobj MAASObject
+	maasobj, err = obj.GetMAASObject()
+	c.Assert(err, IsNil)
+	c.Check(maasobj, NotNil)
 
 	_, err = obj.GetString()
 	c.Check(err, NotNil)
@@ -56,8 +51,9 @@ func (suite *MAASObjectSuite) TestNewJSONMAASObjectPanicsIfNoResourceURI(c *C) {
 		msg := recoveredError.(error).Error()
 		c.Check(msg, Matches, ".*no 'resource_uri' key.*")
 	}()
-	input := map[string]JSONObject{"test": jsonString("test")}
-	newJSONMAASObject(jsonMap(input), Client{})
+
+	input := map[string]interface{}{"test": "test"}
+	newJSONMAASObject(input, Client{})
 }
 
 func (suite *MAASObjectSuite) TestNewJSONMAASObjectPanicsIfResourceURINotString(c *C) {
@@ -65,10 +61,11 @@ func (suite *MAASObjectSuite) TestNewJSONMAASObjectPanicsIfResourceURINotString(
 		recoveredError := recover()
 		c.Check(recoveredError, NotNil)
 		msg := recoveredError.(error).Error()
-		c.Check(msg, Matches, ".*the value of 'resource_uri' is not a string.*")
+		c.Check(msg, Matches, ".*invalid resource_uri.*")
 	}()
-	input := map[string]JSONObject{resourceURI: jsonFloat64(77.7)}
-	newJSONMAASObject(jsonMap(input), Client{})
+
+	input := map[string]interface{}{resourceURI: 77.77}
+	newJSONMAASObject(input, Client{})
 }
 
 func (suite *MAASObjectSuite) TestNewJSONMAASObjectPanicsIfResourceURINotURL(c *C) {
@@ -76,16 +73,17 @@ func (suite *MAASObjectSuite) TestNewJSONMAASObjectPanicsIfResourceURINotURL(c *
 		recoveredError := recover()
 		c.Check(recoveredError, NotNil)
 		msg := recoveredError.(error).Error()
-		c.Check(msg, Matches, ".*the value of 'resource_uri' is not a valid URL.*")
+		c.Check(msg, Matches, ".*resource_uri.*valid URL.*")
 	}()
-	input := map[string]JSONObject{resourceURI: jsonString("")}
-	newJSONMAASObject(jsonMap(input), Client{})
+
+	input := map[string]interface{}{resourceURI: ""}
+	newJSONMAASObject(input, Client{})
 }
 
 func (suite *MAASObjectSuite) TestNewJSONMAASObjectSetsUpURI(c *C) {
 	URI, _ := url.Parse("http://example.com/a/resource")
-	input := map[string]JSONObject{resourceURI: jsonString(URI.String())}
-	obj := newJSONMAASObject(jsonMap(input), Client{})
+	attrs := map[string]interface{}{resourceURI: URI.String()}
+	obj := newJSONMAASObject(attrs, Client{})
 	c.Check(obj.uri, DeepEquals, URI)
 }
 
@@ -93,9 +91,9 @@ func (suite *MAASObjectSuite) TestURL(c *C) {
 	baseURL, _ := url.Parse("http://example.com/")
 	uri := "http://example.com/a/resource"
 	resourceURL, _ := url.Parse(uri)
-	input := map[string]JSONObject{resourceURI: jsonString(uri)}
+	input := map[string]interface{}{resourceURI: uri}
 	client := Client{BaseURL: baseURL}
-	obj := newJSONMAASObject(jsonMap(input), client)
+	obj := newJSONMAASObject(input, client)
 
 	URL := obj.URL()
 
@@ -105,9 +103,9 @@ func (suite *MAASObjectSuite) TestURL(c *C) {
 func (suite *MAASObjectSuite) TestGetSubObjectRelative(c *C) {
 	baseURL, _ := url.Parse("http://example.com/")
 	uri := "http://example.com/a/resource/"
-	input := map[string]JSONObject{resourceURI: jsonString(uri)}
+	input := map[string]interface{}{resourceURI: uri}
 	client := Client{BaseURL: baseURL}
-	obj := newJSONMAASObject(jsonMap(input), client)
+	obj := newJSONMAASObject(input, client)
 	subName := "test"
 
 	subObj := obj.GetSubObject(subName)
@@ -122,9 +120,9 @@ func (suite *MAASObjectSuite) TestGetSubObjectRelative(c *C) {
 func (suite *MAASObjectSuite) TestGetSubObjectAbsolute(c *C) {
 	baseURL, _ := url.Parse("http://example.com/")
 	uri := "http://example.com/a/resource/"
-	input := map[string]JSONObject{resourceURI: jsonString(uri)}
+	input := map[string]interface{}{resourceURI: uri}
 	client := Client{BaseURL: baseURL}
-	obj := newJSONMAASObject(jsonMap(input), client)
+	obj := newJSONMAASObject(input, client)
 	subName := "/b/test"
 
 	subObj := obj.GetSubObject(subName)
@@ -138,10 +136,10 @@ func (suite *MAASObjectSuite) TestGetField(c *C) {
 	uri := "http://example.com/a/resource"
 	fieldName := "field name"
 	fieldValue := "a value"
-	input := map[string]JSONObject{
-		resourceURI: jsonString(uri), fieldName: jsonString(fieldValue),
+	input := map[string]interface{}{
+		resourceURI: uri, fieldName: fieldValue,
 	}
-	obj := jsonMAASObject{jsonMap: jsonMap(input)}
+	obj := newJSONMAASObject(input, Client{})
 	value, err := obj.GetField(fieldName)
 	c.Check(err, IsNil)
 	c.Check(value, Equals, fieldValue)

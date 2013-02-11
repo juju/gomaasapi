@@ -14,7 +14,7 @@ var _ = Suite(&JSONObjectSuite{})
 
 // maasify() converts nil.
 func (suite *JSONObjectSuite) TestMaasifyConvertsNil(c *C) {
-	c.Check(maasify(Client{}, nil), Equals, nil)
+	c.Check(maasify(Client{}, nil).IsNil(), Equals, true)
 }
 
 // maasify() converts strings.
@@ -45,9 +45,10 @@ func (suite *JSONObjectSuite) TestMaasifyConvertsArray(c *C) {
 func (suite *JSONObjectSuite) TestMaasifyArrayContainsJSONObjects(c *C) {
 	arr, err := maasify(Client{}, []interface{}{9.9}).GetArray()
 	c.Assert(err, IsNil)
-	var entry JSONObject
-	entry = arr[0]
-	c.Check((float64)(entry.(jsonFloat64)), Equals, 9.9)
+	_ = JSONObject(arr[0])
+	entry, err := arr[0].GetFloat64()
+	c.Assert(err, IsNil)
+	c.Check(entry, Equals, 9.9)
 }
 
 // maasify() converts maps.
@@ -62,10 +63,10 @@ func (suite *JSONObjectSuite) TestMaasifyConvertsMap(c *C) {
 func (suite *JSONObjectSuite) TestMaasifyMapContainsJSONObjects(c *C) {
 	jsonobj := maasify(Client{}, map[string]interface{}{"key": "value"})
 	mp, err := jsonobj.GetMap()
+	_ = JSONObject(mp["key"])
 	c.Assert(err, IsNil)
-	var entry JSONObject
-	entry = mp["key"]
-	c.Check((string)(entry.(jsonString)), Equals, "value")
+	entry, err := mp["key"].GetString()
+	c.Check(entry, Equals, "value")
 }
 
 // maasify() converts MAAS objects.
@@ -74,11 +75,10 @@ func (suite *JSONObjectSuite) TestMaasifyConvertsMAASObject(c *C) {
 		"resource_uri": "http://example.com/foo",
 		"size":         "3",
 	}
-	output, err := maasify(Client{}, original).GetMAASObject()
+	obj, err := maasify(Client{}, original).GetMAASObject()
 	c.Assert(err, IsNil)
-	mp := output.(jsonMAASObject).jsonMap
-	c.Check(len(mp), Equals, len(original))
-	size, err := mp["size"].GetString()
+	c.Check(len(obj.GetMap()), Equals, len(original))
+	size, err := obj.GetMap()["size"].GetString()
 	c.Assert(err, IsNil)
 	c.Check(size, Equals, "3")
 }
@@ -89,7 +89,7 @@ func (suite *JSONObjectSuite) TestMaasifyPassesClientToMAASObject(c *C) {
 	original := map[string]interface{}{"resource_uri": "/foo"}
 	output, err := maasify(client, original).GetMAASObject()
 	c.Assert(err, IsNil)
-	c.Check(output.(jsonMAASObject).client, Equals, client)
+	c.Check(output.client, Equals, client)
 }
 
 // maasify() passes its client into an array of MAASObjects it creates.
@@ -101,7 +101,7 @@ func (suite *JSONObjectSuite) TestMaasifyPassesClientIntoArray(c *C) {
 	c.Assert(err, IsNil)
 	out, err := jsonobj[0].GetMAASObject()
 	c.Assert(err, IsNil)
-	c.Check(out.(jsonMAASObject).client, Equals, client)
+	c.Check(out.client, Equals, client)
 }
 
 // maasify() passes its client into a map of MAASObjects it creates.
@@ -113,7 +113,7 @@ func (suite *JSONObjectSuite) TestMaasifyPassesClientIntoMap(c *C) {
 	c.Assert(err, IsNil)
 	out, err := jsonobj["key"].GetMAASObject()
 	c.Assert(err, IsNil)
-	c.Check(out.(jsonMAASObject).client, Equals, client)
+	c.Check(out.client, Equals, client)
 }
 
 // maasify() passes its client all the way down into any MAASObjects in the
@@ -128,7 +128,8 @@ func (suite *JSONObjectSuite) TestMaasifyPassesClientAllTheWay(c *C) {
 	outerMap, err := jsonobj[0].GetMap()
 	c.Assert(err, IsNil)
 	out, err := outerMap["key"].GetMAASObject()
-	c.Check(out.(jsonMAASObject).client, Equals, client)
+	c.Assert(err, IsNil)
+	c.Check(out.client, Equals, client)
 }
 
 // maasify() converts Booleans.
@@ -156,7 +157,7 @@ func (suite *JSONObjectSuite) TestParseMaasifiesJSONBlob(c *C) {
 
 // String-type JSONObjects convert only to string.
 func (suite *JSONObjectSuite) TestConversionsString(c *C) {
-	obj := jsonString("Test string")
+	obj := maasify(Client{}, "Test string")
 
 	value, err := obj.GetString()
 	c.Check(err, IsNil)
@@ -176,7 +177,7 @@ func (suite *JSONObjectSuite) TestConversionsString(c *C) {
 
 // Number-type JSONObjects convert only to float64.
 func (suite *JSONObjectSuite) TestConversionsFloat64(c *C) {
-	obj := jsonFloat64(1.1)
+	obj := maasify(Client{}, 1.1)
 
 	value, err := obj.GetFloat64()
 	c.Check(err, IsNil)
@@ -196,8 +197,7 @@ func (suite *JSONObjectSuite) TestConversionsFloat64(c *C) {
 
 // Map-type JSONObjects convert only to map.
 func (suite *JSONObjectSuite) TestConversionsMap(c *C) {
-	input := map[string]JSONObject{"x": jsonString("y")}
-	obj := jsonMap(input)
+	obj := maasify(Client{}, map[string]interface{}{"x": "y"})
 
 	value, err := obj.GetMap()
 	c.Check(err, IsNil)
@@ -219,7 +219,7 @@ func (suite *JSONObjectSuite) TestConversionsMap(c *C) {
 
 // Array-type JSONObjects convert only to array.
 func (suite *JSONObjectSuite) TestConversionsArray(c *C) {
-	obj := jsonArray([]JSONObject{jsonString("item")})
+	obj := maasify(Client{}, []interface{}{"item"})
 
 	value, err := obj.GetArray()
 	c.Check(err, IsNil)
@@ -241,7 +241,7 @@ func (suite *JSONObjectSuite) TestConversionsArray(c *C) {
 
 // Boolean-type JSONObjects convert only to bool.
 func (suite *JSONObjectSuite) TestConversionsBool(c *C) {
-	obj := jsonBool(false)
+	obj := maasify(Client{}, false)
 
 	value, err := obj.GetBool()
 	c.Check(err, IsNil)

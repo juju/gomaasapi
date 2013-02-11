@@ -21,9 +21,6 @@ type TestMAASObject struct {
 	TestServer *TestServer
 }
 
-// TestMAASObject implements the MAASObject interface.
-var _ MAASObject = (*TestMAASObject)(nil)
-
 // NewTestMAAS returns a TestMAASObject that implements the MAASObject
 // interface and thus can be used as a test object instead of the one returned
 // by gomaasapi.NewMAAS().
@@ -84,28 +81,21 @@ func (server *TestServer) addNodeOperation(systemId, operation string) {
 // string representing a map and contain a string value for the key 
 // 'system_id'.  e.g. `{"system_id": "mysystemid"}`.
 // If one of these conditions is not met, NewNode panics.
-func (server *TestServer) NewNode(json string) MAASObject {
-	obj, err := Parse(server.client, []byte(json))
+func (server *TestServer) NewNode(jsonText string) MAASObject {
+	var attrs map[string]interface{}
+	err := json.Unmarshal([]byte(jsonText), &attrs)
 	if err != nil {
 		panic(err)
 	}
-	mapobj, err := obj.GetMap()
-	if err != nil {
-		panic(err)
-	}
-	systemId, hasSystemId := mapobj["system_id"]
+	systemIdEntry, hasSystemId := attrs["system_id"]
 	if !hasSystemId {
 		panic("The given map json string does not contain a 'system_id' value.")
 	}
-	stringSystemId, err := systemId.GetString()
-	if err != nil {
-		panic(err)
-	}
-	resourceUri := getNodeURI(server.version, stringSystemId)
-	mapobj[resourceURI] = jsonString(resourceUri)
-	maasobj := newJSONMAASObject(mapobj, server.client)
-	server.nodes[stringSystemId] = maasobj
-	return maasobj
+	systemId := systemIdEntry.(string)
+	attrs[resourceURI] = getNodeURI(server.version, systemId)
+	obj := newJSONMAASObject(attrs, server.client)
+	server.nodes[systemId] = obj
+	return obj
 }
 
 // Returns a map associating all the nodes' system ids with the nodes'
@@ -129,8 +119,7 @@ func (server *TestServer) ChangeNode(systemId, key, value string) {
 	if !found {
 		panic("No node with such 'system_id'.")
 	}
-	mapObj, _ := node.GetMap()
-	mapObj[key] = jsonString(value)
+	node.GetMap()[key] = maasify(server.client, value)
 }
 
 func getNodeListingURL(version string) string {
@@ -191,9 +180,19 @@ func nodesHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (obj JSONObject) MarshalJSON() ([]byte, error) {
+	if obj.IsNil() {
+		return json.Marshal(nil)
+	}
+	return json.Marshal(obj.value)
+}
+
+func (obj MAASObject) MarshalJSON() ([]byte, error) {
+	return json.Marshal(obj.GetMap())
+}
+
 func marshalNode(node MAASObject) string {
-	mapObj, _ := node.GetMap()
-	res, _ := json.Marshal(mapObj)
+	res, _ := json.Marshal(node)
 	return string(res)
 
 }
@@ -253,8 +252,7 @@ func nodeListingHandler(server *TestServer, w http.ResponseWriter, r *http.Reque
 	var convertedNodes = []map[string]JSONObject{}
 	for systemId, node := range server.nodes {
 		if !hasId || contains(ids, systemId) {
-			mapp, _ := node.GetMap()
-			convertedNodes = append(convertedNodes, mapp)
+			convertedNodes = append(convertedNodes, node.GetMap())
 		}
 	}
 	res, _ := json.Marshal(convertedNodes)
