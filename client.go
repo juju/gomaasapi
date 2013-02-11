@@ -117,6 +117,7 @@ var _ OAuthSigner = anonSigner{}
 
 // NewAnonymousClient creates a client that issues anonymous requests.
 func NewAnonymousClient(BaseURL string) (*Client, error) {
+	BaseURL = EnsureTrailingSlash(BaseURL)
 	parsedBaseURL, err := url.Parse(BaseURL)
 	if err != nil {
 		return nil, err
@@ -128,6 +129,7 @@ func NewAnonymousClient(BaseURL string) (*Client, error) {
 // OAuth tokens and creates an Client that will use these tokens to sign the
 // requests it issues.
 func NewAuthenticatedClient(BaseURL string, apiKey string) (*Client, error) {
+	BaseURL = EnsureTrailingSlash(BaseURL)
 	elements := strings.Split(apiKey, ":")
 	if len(elements) != 3 {
 		errString := "invalid API key %q; expected \"<consumer secret>:<token key>:<token secret>\""
