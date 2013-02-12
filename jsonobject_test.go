@@ -208,9 +208,13 @@ func (suite *JSONObjectSuite) TestParseTreatsEmptyJSONAsBinary(c *C) {
 	c.Check(data, DeepEquals, blob)
 }
 
-func (suite *JSONObjectSuite) TestParseTreatsNilJSONAsError(c *C) {
-	_, err := Parse(Client{}, nil)
-	c.Check(err, NotNil)
+func (suite *JSONObjectSuite) TestParsePanicsOnNilJSON(c *C) {
+	defer func () {
+		failure := recover()
+		c.Assert(failure, NotNil)
+		c.Check(failure.(error).Error(), Matches, "nil")
+	}()
+	Parse(Client{}, nil)
 }
 
 func (suite *JSONObjectSuite) TestParseNullProducesIsNil(c *C) {
