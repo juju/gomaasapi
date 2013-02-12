@@ -104,6 +104,8 @@ func (obj JSONObject) IsNil() bool {
 	return obj.value == nil
 }
 
+// GetString retrieves the object's value as a string.  If the value wasn't
+// a JSON string, that's an error.
 func (obj JSONObject) GetString() (value string, err error) {
 	value, ok := obj.value.(string)
 	if !ok {
@@ -112,6 +114,8 @@ func (obj JSONObject) GetString() (value string, err error) {
 	return
 }
 
+// GetFloat64 retrieves the object's value as a float64.  If the value wasn't
+// a JSON number, that's an error.
 func (obj JSONObject) GetFloat64() (value float64, err error) {
 	value, ok := obj.value.(float64)
 	if !ok {
@@ -120,6 +124,8 @@ func (obj JSONObject) GetFloat64() (value float64, err error) {
 	return
 }
 
+// GetMap retrieves the object's value as a map.  If the value wasn't a JSON
+// object, that's an error.
 func (obj JSONObject) GetMap() (value map[string]JSONObject, err error) {
 	value, ok := obj.value.(map[string]JSONObject)
 	if !ok {
@@ -128,6 +134,8 @@ func (obj JSONObject) GetMap() (value map[string]JSONObject, err error) {
 	return
 }
 
+// GetArray retrieves the object's value as an array.  If the value wasn't a
+// JSON list, that's an error.
 func (obj JSONObject) GetArray() (value []JSONObject, err error) {
 	value, ok := obj.value.([]JSONObject)
 	if !ok {
@@ -136,10 +144,23 @@ func (obj JSONObject) GetArray() (value []JSONObject, err error) {
 	return
 }
 
+// GetBool retrieves the object's value as a bool.  If the value wasn't a JSON
+// bool, that's an error.
 func (obj JSONObject) GetBool() (value bool, err error) {
 	value, ok := obj.value.(bool)
 	if !ok {
 		err = failConversion("bool", obj)
 	}
 	return
+}
+
+// GetBytes retrieves the object's value as raw bytes.  A JSONObject that was
+// parsed from the original input (as opposed to one that's embedded in
+// another JSONObject) can contain both the raw bytes and the parsed JSON
+// value, but either can be the case without the other.
+// If this object wasn't parsed directly from the original input, that's an
+// error.
+// If the object was parsed from an original input that just said "null", then
+// IsNil will return true but the raw bytes are still available from GetBytes.
+func (obj JSONObject) GetBytes() ([]byte, error) {
 }
