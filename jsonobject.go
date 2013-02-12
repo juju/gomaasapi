@@ -28,7 +28,7 @@ type JSONObject struct {
 	// Parsed value.  May actually be any of the types a JSONObject can
 	// wrap, except raw bytes.  If the object can only be interpreted
 	// as raw bytes, this will be nil.
-	value  interface{}
+	value interface{}
 	// Raw bytes, if this object was parsed directly from an API response.
 	// Is nil for sub-objects found within other objects.  An object that
 	// was parsed directly from a response can be both raw bytes and some
@@ -37,7 +37,7 @@ type JSONObject struct {
 	// array.  But it may also be the raw contents of a file that just
 	// happens to look like JSON, and so you can read it as raw bytes as
 	// well.
-	bytes	[]byte
+	bytes []byte
 	// Client for further communication with the API.
 	client Client
 }
