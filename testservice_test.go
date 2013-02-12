@@ -78,8 +78,8 @@ func (suite *TestServerSuite) TestChangeNode(c *C) {
 	suite.server.ChangeNode("mysystemid", "newfield", "newvalue")
 
 	node, _ := suite.server.nodes["mysystemid"]
-	mapObj, _ := node.GetMap()
-	field, _ := mapObj["newfield"].GetString()
+	field, err := node.GetField("newfield")
+	c.Assert(err, IsNil)
 	c.Check(field, Equals, "newvalue")
 }
 
@@ -234,13 +234,16 @@ func (suite *TestMAASObjectSuite) TestListNodes(c *C) {
 
 	c.Check(err, IsNil)
 	listNodes, err := listNodeObjects.GetArray()
-	c.Check(err, IsNil)
+	c.Assert(err, IsNil)
 	c.Check(len(listNodes), Equals, 1)
-	node, _ := listNodes[0].GetMAASObject()
-	systemId, _ := node.GetField("system_id")
+	node, err := listNodes[0].GetMAASObject()
+	c.Assert(err, IsNil)
+	systemId, err := node.GetField("system_id")
+	c.Assert(err, IsNil)
 	c.Check(systemId, Equals, "mysystemid")
 	resourceURI, _ := node.GetField(resourceURI)
-	expectedResourceURI := fmt.Sprintf("/api/%s/nodes/mysystemid/", suite.TestMAASObject.TestServer.version)
+	apiVersion := suite.TestMAASObject.TestServer.version
+	expectedResourceURI := fmt.Sprintf("/api/%s/nodes/mysystemid/", apiVersion)
 	c.Check(resourceURI, Equals, expectedResourceURI)
 }
 

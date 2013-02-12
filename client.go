@@ -19,6 +19,7 @@ type Client struct {
 	Signer  OAuthSigner
 }
 
+// dispatchRequest sends a request to the server, and interprets the response.
 func (client Client) dispatchRequest(request *http.Request) ([]byte, error) {
 	client.Signer.OAuthSign(request)
 	httpClient := http.Client{}
@@ -36,10 +37,16 @@ func (client Client) dispatchRequest(request *http.Request) ([]byte, error) {
 	return body, nil
 }
 
+// GetURL returns the URL to a given resource on the API, based on its URI.
+// The resource URI may be absolute or relative; either way the result is a
+// full absolute URL including the network part.
 func (client Client) GetURL(uri *url.URL) *url.URL {
 	return client.BaseURL.ResolveReference(uri)
 }
 
+// Get performs an HTTP "GET" to the API.  This may be either an API method
+// invocation (if you pass its name in "operation") or plain resource
+// retrieval (if you leave "operation" blank).
 func (client Client) Get(uri *url.URL, operation string, parameters url.Values) ([]byte, error) {
 	opParameter := parameters.Get("op")
 	if opParameter != "" {
@@ -58,7 +65,8 @@ func (client Client) Get(uri *url.URL, operation string, parameters url.Values) 
 	return client.dispatchRequest(request)
 }
 
-// nonIdempotentRequest is a utility method to issue a PUT or a POST request.
+// nonIdempotentRequest implements the common functionality of PUT and POST
+// requests (but not GET or DELETE requests).
 func (client Client) nonIdempotentRequest(method string, uri *url.URL, parameters url.Values) ([]byte, error) {
 	url := client.GetURL(uri)
 	request, err := http.NewRequest(method, url.String(), strings.NewReader(string(parameters.Encode())))
@@ -69,16 +77,21 @@ func (client Client) nonIdempotentRequest(method string, uri *url.URL, parameter
 	return client.dispatchRequest(request)
 }
 
+// Post performs an HTTP "POST" to the API.  This may be either an API method
+// invocation (if you pass its name in "operation") or plain resource
+// retrieval (if you leave "operation" blank).
 func (client Client) Post(uri *url.URL, operation string, parameters url.Values) ([]byte, error) {
 	queryParams := url.Values{"op": {operation}}
 	uri.RawQuery = queryParams.Encode()
 	return client.nonIdempotentRequest("POST", uri, parameters)
 }
 
+// Put updates an object on the API, using an HTTP "PUT" request.
 func (client Client) Put(uri *url.URL, parameters url.Values) ([]byte, error) {
 	return client.nonIdempotentRequest("PUT", uri, parameters)
 }
 
+// Delete deletes an object on the API, using an HTTP "DELETE" request.
 func (client Client) Delete(uri *url.URL) error {
 	url := client.GetURL(uri)
 	request, err := http.NewRequest("DELETE", url.String(), strings.NewReader(""))
@@ -92,13 +105,14 @@ func (client Client) Delete(uri *url.URL) error {
 	return nil
 }
 
+// Anonymous "signature method" implementation.
 type anonSigner struct{}
 
 func (signer anonSigner) OAuthSign(request *http.Request) error {
 	return nil
 }
 
-// Trick to ensure *anonSigner implements the OAuthSigner interface.
+// *anonSigner implements the OAuthSigner interface.
 var _ OAuthSigner = anonSigner{}
 
 // NewAnonymousClient creates a client that issues anonymous requests.

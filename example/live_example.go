@@ -77,9 +77,7 @@ func main() {
 	updateParams := url.Values{"hostname": {"mynewname"}}
 	newNodeObj2, err := newNode.Update(updateParams)
 	checkError(err)
-	newNode2, err := newNodeObj2.GetMAASObject()
-	checkError(err)
-	newNodeName2, err := newNode2.GetField("hostname")
+	newNodeName2, err := newNodeObj2.GetField("hostname")
 	checkError(err)
 	fmt.Printf("New node updated, now named: %s\n", newNodeName2)
 
