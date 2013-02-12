@@ -209,8 +209,7 @@ func (suite *JSONObjectSuite) TestParseTreatsEmptyJSONAsBinary(c *C) {
 }
 
 func (suite *JSONObjectSuite) TestParseTreatsNilJSONAsError(c *C) {
-	var blob []byte
-	_, err := Parse(Client{}, blob)
+	_, err := Parse(Client{}, nil)
 	c.Check(err, NotNil)
 }
 
