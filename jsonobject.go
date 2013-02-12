@@ -116,7 +116,10 @@ func failConversion(wantedType string, obj JSONObject) error {
 // blob consisted of a null, then IsNil returns true even though you can
 // still retrieve binary data from it.
 func (obj JSONObject) IsNil() bool {
-	return obj.value == nil
+	if obj.value != nil {
+		return false
+	}
+	return obj.bytes == nil
 }
 
 // GetString retrieves the object's value as a string.  If the value wasn't
