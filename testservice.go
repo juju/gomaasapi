@@ -180,31 +180,6 @@ func nodesHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// MarshalJSON tells the standard json package how to serialize a JSONObject.
-func (obj JSONObject) MarshalJSON() ([]byte, error) {
-	if obj.IsNil() {
-		return json.Marshal(nil)
-	}
-	return json.Marshal(obj.value)
-}
-
-// With MarshalJSON, JSONObject implements json.Marshaler.
-var _ json.Marshaler = (*JSONObject)(nil)
-
-// MarshalJSON tells the standard json package how to serialize a MAASObject.
-func (obj MAASObject) MarshalJSON() ([]byte, error) {
-	return json.Marshal(obj.GetMap())
-}
-
-// With MarshalJSON, MAASObject implements json.Marshaler.
-var _ json.Marshaler = (*MAASObject)(nil)
-
-func marshalNode(node MAASObject) string {
-	res, _ := json.Marshal(node)
-	return string(res)
-
-}
-
 // nodeHandler handles requests for '/api/<version>/nodes/<system_id>/'.
 func nodeHandler(server *TestServer, w http.ResponseWriter, r *http.Request, systemId string, operation string) {
 	node, ok := server.nodes[systemId]

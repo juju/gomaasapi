@@ -4,6 +4,8 @@
 package gomaasapi
 
 import (
+	"encoding/json"
+	"fmt"
 	. "launchpad.net/gocheck"
 )
 
@@ -340,4 +342,115 @@ func (suite *JSONObjectSuite) TestConversionsBool(c *C) {
 	c.Check(err, NotNil)
 	_, err = obj.GetArray()
 	c.Check(err, NotNil)
+}
+
+func (suite *JSONObjectSuite) TestNilSerializesToJSON(c *C) {
+	output, err := json.Marshal(maasify(Client{}, nil))
+	c.Assert(err, IsNil)
+	c.Check(output, DeepEquals, []byte("null"))
+}
+
+func (suite *JSONObjectSuite) TestStringSerializesToJSON(c *C) {
+	text := "Text wrapped in JSON"
+	output, err := json.Marshal(maasify(Client{}, text))
+	c.Assert(err, IsNil)
+	c.Check(output, DeepEquals, []byte(fmt.Sprintf(`"%s"`, text)))
+}
+
+func (suite *JSONObjectSuite) TestStringIsEscapedInJSON(c *C) {
+	text := `\"Quote,\" \\backslash, and \'apostrophe\'.`
+	output, err := json.Marshal(maasify(Client{}, text))
+	c.Assert(err, IsNil)
+	var deserialized string
+	err = json.Unmarshal(output, &deserialized)
+	c.Assert(err, IsNil)
+	c.Check(deserialized, Equals, text)
+}
+
+func (suite *JSONObjectSuite) TestFloat64SerializesToJSON(c *C) {
+	number := 3.1415926535
+	output, err := json.Marshal(maasify(Client{}, number))
+	c.Assert(err, IsNil)
+	var deserialized float64
+	err = json.Unmarshal(output, &deserialized)
+	c.Assert(err, IsNil)
+	c.Check(deserialized, Equals, number)
+}
+
+func (suite *JSONObjectSuite) TestEmptyMapSerializesToJSON(c *C) {
+	mp := map[string]interface{}{}
+	output, err := json.Marshal(maasify(Client{}, mp))
+	c.Assert(err, IsNil)
+	var deserialized interface{}
+	err = json.Unmarshal(output, &deserialized)
+	c.Assert(err, IsNil)
+	c.Check(deserialized.(map[string]interface{}), DeepEquals, mp)
+}
+
+func (suite *JSONObjectSuite) TestMapSerializesToJSON(c *C) {
+	// Sample data: counting in Japanese.
+	mp := map[string]interface{}{"one": "ichi", "two": "nii", "three": "san"}
+	output, err := json.Marshal(maasify(Client{}, mp))
+	c.Assert(err, IsNil)
+	var deserialized interface{}
+	err = json.Unmarshal(output, &deserialized)
+	c.Assert(err, IsNil)
+	c.Check(deserialized.(map[string]interface{}), DeepEquals, mp)
+}
+
+func (suite *JSONObjectSuite) TestEmptyArraySerializesToJSON(c *C) {
+	arr := []interface{}{}
+	output, err := json.Marshal(maasify(Client{}, arr))
+	c.Assert(err, IsNil)
+	var deserialized interface{}
+	err = json.Unmarshal(output, &deserialized)
+	c.Assert(err, IsNil)
+	// The deserialized value is a slice, and it contains no elements.
+	// Can't do a regular comparison here because at least in the current
+	// json implementation, an empty list deserializes as a nil slice,
+	// not as an empty slice!
+	// (It doesn't work that way for maps though, for some reason).
+	c.Check(len(deserialized.([]interface{})), Equals, len(arr))
+}
+
+func (suite *JSONObjectSuite) TestArrayOfStringsSerializesToJSON(c *C) {
+	value := "item"
+	output, err := json.Marshal(maasify(Client{}, []interface{}{value}))
+	c.Assert(err, IsNil)
+	var deserialized []string
+	err = json.Unmarshal(output, &deserialized)
+	c.Assert(err, IsNil)
+	c.Check(deserialized, DeepEquals, []string{value})
+}
+
+func (suite *JSONObjectSuite) TestArrayOfNumbersSerializesToJSON(c *C) {
+	value := 9.0
+	output, err := json.Marshal(maasify(Client{}, []interface{}{value}))
+	c.Assert(err, IsNil)
+	var deserialized []float64
+	err = json.Unmarshal(output, &deserialized)
+	c.Assert(err, IsNil)
+	c.Check(deserialized, DeepEquals, []float64{value})
+}
+
+func (suite *JSONObjectSuite) TestArrayPreservesOrderInJSON(c *C) {
+	// Sample data: counting in Korean.
+	arr := []interface{}{"jong", "il", "ee", "sam"}
+	output, err := json.Marshal(maasify(Client{}, arr))
+	c.Assert(err, IsNil)
+
+	var deserialized []interface{}
+	err = json.Unmarshal(output, &deserialized)
+	c.Assert(err, IsNil)
+	c.Check(deserialized, DeepEquals, arr)
+}
+
+func (suite *JSONObjectSuite) TestBoolSerializesToJSON(c *C) {
+	f, err := json.Marshal(maasify(Client{}, false))
+	c.Assert(err, IsNil)
+	t, err := json.Marshal(maasify(Client{}, true))
+	c.Assert(err, IsNil)
+
+	c.Check(f, DeepEquals, []byte("false"))
+	c.Check(t, DeepEquals, []byte("true"))
 }
