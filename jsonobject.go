@@ -78,10 +78,14 @@ func maasify(client Client, value interface{}) JSONObject {
 	panic(msg)
 }
 
+
 // Parse a JSON blob into a JSONObject.
 func Parse(client Client, input []byte) (JSONObject, error) {
-	var parsed interface{}
 	var obj JSONObject
+	if input == nil {
+		panic(errors.New("Parse() called with nil input"))
+	}
+	var parsed interface{}
 	err := json.Unmarshal(input, &parsed)
 	if err == nil {
 		obj = maasify(client, parsed)
@@ -92,7 +96,7 @@ func Parse(client Client, input []byte) (JSONObject, error) {
 		case *json.SyntaxError:
 			// This isn't JSON.  Treat it as raw binary data.
 		default:
-			return JSONObject{}, err
+			return obj, err
 		}
 		obj = JSONObject{value: nil, client: client, bytes: input}
 	}

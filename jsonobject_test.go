@@ -212,7 +212,7 @@ func (suite *JSONObjectSuite) TestParsePanicsOnNilJSON(c *C) {
 	defer func () {
 		failure := recover()
 		c.Assert(failure, NotNil)
-		c.Check(failure.(error).Error(), Matches, "nil")
+		c.Check(failure.(error).Error(), Matches, ".*nil input")
 	}()
 	Parse(Client{}, nil)
 }
