@@ -45,7 +45,7 @@ func (suite *JSONObjectSuite) TestMaasifyConvertsArray(c *C) {
 func (suite *JSONObjectSuite) TestMaasifyArrayContainsJSONObjects(c *C) {
 	arr, err := maasify(Client{}, []interface{}{9.9}).GetArray()
 	c.Assert(err, IsNil)
-	_ = JSONObject(arr[0])
+	var _ JSONObject = arr[0]
 	entry, err := arr[0].GetFloat64()
 	c.Assert(err, IsNil)
 	c.Check(entry, Equals, 9.9)
@@ -63,7 +63,7 @@ func (suite *JSONObjectSuite) TestMaasifyConvertsMap(c *C) {
 func (suite *JSONObjectSuite) TestMaasifyMapContainsJSONObjects(c *C) {
 	jsonobj := maasify(Client{}, map[string]interface{}{"key": "value"})
 	mp, err := jsonobj.GetMap()
-	_ = JSONObject(mp["key"])
+	var _ JSONObject = mp["key"]
 	c.Assert(err, IsNil)
 	entry, err := mp["key"].GetString()
 	c.Check(entry, Equals, "value")
