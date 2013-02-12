@@ -32,7 +32,7 @@ type JSONObject struct {
 	// Raw bytes, if this object was parsed directly from an API response.
 	// Is nil for sub-objects found within other objects.  An object that
 	// was parsed directly from a response can be both raw bytes and some
-	// other value at the same  time.
+	// other value at the same time.
 	// For example, "[]" looks like a JSON list, so you can read it as an
 	// array.  But it may also be the raw contents of a file that just
 	// happens to look like JSON, and so you can read it as raw bytes as
