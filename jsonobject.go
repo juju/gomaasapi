@@ -80,7 +80,6 @@ func maasify(client Client, value interface{}) JSONObject {
 	panic(msg)
 }
 
-
 // Parse a JSON blob into a JSONObject.
 func Parse(client Client, input []byte) (JSONObject, error) {
 	var obj JSONObject

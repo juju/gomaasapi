@@ -209,7 +209,7 @@ func (suite *JSONObjectSuite) TestParseTreatsEmptyJSONAsBinary(c *C) {
 }
 
 func (suite *JSONObjectSuite) TestParsePanicsOnNilJSON(c *C) {
-	defer func () {
+	defer func() {
 		failure := recover()
 		c.Assert(failure, NotNil)
 		c.Check(failure.(error).Error(), Matches, ".*nil input")
