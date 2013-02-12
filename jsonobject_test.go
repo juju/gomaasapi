@@ -231,6 +231,13 @@ func (suite *JSONObjectSuite) TestParseNonNullProducesNonIsNil(c *C) {
 	c.Check(obj.IsNil(), Equals, false)
 }
 
+func (suite *JSONObjectSuite) TestParseSpacedNullProducesIsNil(c *C) {
+	blob := []byte("      null     ")
+	obj, err := Parse(Client{}, blob)
+	c.Assert(err, IsNil)
+	c.Check(obj.IsNil(), Equals, true)
+}
+
 // String-type JSONObjects convert only to string.
 func (suite *JSONObjectSuite) TestConversionsString(c *C) {
 	obj := maasify(Client{}, "Test string")

@@ -40,6 +40,8 @@ type JSONObject struct {
 	bytes []byte
 	// Client for further communication with the API.
 	client Client
+	// Is this a JSON null?
+	isNull bool
 }
 
 // Our JSON processor distinguishes a MAASObject from a jsonMap by the fact
@@ -54,7 +56,7 @@ const resourceURI = "resource_uri"
 // being converted to a JSONObject type.
 func maasify(client Client, value interface{}) JSONObject {
 	if value == nil {
-		return JSONObject{}
+		return JSONObject{isNull: true}
 	}
 	switch value.(type) {
 	case string, float64, bool:
@@ -119,7 +121,12 @@ func (obj JSONObject) IsNil() bool {
 	if obj.value != nil {
 		return false
 	}
-	return obj.bytes == nil
+	if obj.bytes == nil {
+		return true
+	}
+	// This may be a JSON null.  We can't expect every JSON null to look
+	// the same; there may be leading or trailing space.
+	return obj.isNull
 }
 
 // GetString retrieves the object's value as a string.  If the value wasn't
