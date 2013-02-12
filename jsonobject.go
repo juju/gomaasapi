@@ -80,12 +80,14 @@ func maasify(client Client, value interface{}) JSONObject {
 
 // Parse a JSON blob into a JSONObject.
 func Parse(client Client, input []byte) (JSONObject, error) {
-	var obj interface{}
-	err := json.Unmarshal(input, &obj)
+	var parsed interface{}
+	err := json.Unmarshal(input, &parsed)
 	if err != nil {
 		return JSONObject{}, err
 	}
-	return maasify(client, obj), nil
+	obj := maasify(client, parsed)
+	obj.bytes = input
+	return obj, nil
 }
 
 // Return error value for failed type conversion.
@@ -163,4 +165,8 @@ func (obj JSONObject) GetBool() (value bool, err error) {
 // If the object was parsed from an original input that just said "null", then
 // IsNil will return true but the raw bytes are still available from GetBytes.
 func (obj JSONObject) GetBytes() ([]byte, error) {
+	if obj.bytes == nil {
+		return nil, failConversion("bytes", obj)
+	}
+	return obj.bytes, nil
 }
