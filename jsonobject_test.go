@@ -261,7 +261,6 @@ func (suite *JSONObjectSuite) TestConversionsBool(c *C) {
 	c.Check(err, NotNil)
 }
 
-
 func (suite *JSONObjectSuite) TestNilSerializesToJSON(c *C) {
 	output, err := json.Marshal(maasify(Client{}, nil))
 	c.Assert(err, IsNil)
