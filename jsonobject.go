@@ -94,8 +94,12 @@ func failConversion(wantedType string, obj JSONObject) error {
 	return errors.New(msg)
 }
 
-// IsNil tells you whether a JSONObject is a JSON "null."  Regardless of the
-// answer, the object may still contain raw bytes.
+// IsNil tells you whether a JSONObject is a JSON "null."
+// There is one irregularity.  If the original JSON blob was actually raw
+// data, not JSON, then its IsNil will return false because the object
+// contains the binary data as a non-nil value.  But, if the original JSON
+// blob consisted of a null, then IsNil returns true even though you can
+// still retrieve binary data from it.
 func (obj JSONObject) IsNil() bool {
 	return obj.value == nil
 }
