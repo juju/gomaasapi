@@ -81,6 +81,18 @@ func failConversion(wantedType string, obj JSONObject) error {
 	return errors.New(msg)
 }
 
+// MarshalJSON tells the standard json package how to serialize a JSONObject
+// back to JSON.
+func (obj JSONObject) MarshalJSON() ([]byte, error) {
+	if obj.IsNil() {
+		return json.Marshal(nil)
+	}
+	return json.Marshal(obj.value)
+}
+
+// With MarshalJSON, JSONObject implements json.Marshaler.
+var _ json.Marshaler = (*JSONObject)(nil)
+
 func (obj JSONObject) IsNil() bool {
 	return obj.value == nil
 }
