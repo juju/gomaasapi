@@ -350,6 +350,12 @@ func (suite *JSONObjectSuite) TestNilSerializesToJSON(c *C) {
 	c.Check(output, DeepEquals, []byte("null"))
 }
 
+func (suite *JSONObjectSuite) TestEmptyStringSerializesToJSON(c *C) {
+	output, err := json.Marshal(maasify(Client{}, ""))
+	c.Assert(err, IsNil)
+	c.Check(string(output), Equals, `""`)
+}
+
 func (suite *JSONObjectSuite) TestStringSerializesToJSON(c *C) {
 	text := "Text wrapped in JSON"
 	output, err := json.Marshal(maasify(Client{}, text))
