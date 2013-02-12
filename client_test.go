@@ -77,7 +77,7 @@ func (suite *ClientSuite) TestClientGetFormatsOperationAsGetParameter(c *C) {
 func (suite *ClientSuite) TestClientPostSendsRequestWithParams(c *C) {
 	URI, _ := url.Parse("/some/url")
 	expectedResult := "expected:result"
-	fullURI := URI.String()
+	fullURI := URI.String() + "?op=list"
 	params := url.Values{"test": {"123"}}
 	server := newSingleServingServer(fullURI, expectedResult, http.StatusOK)
 	defer server.Close()
@@ -89,32 +89,30 @@ func (suite *ClientSuite) TestClientPostSendsRequestWithParams(c *C) {
 	c.Check(string(result), Equals, expectedResult)
 	postedValues, err := url.ParseQuery(*server.requestContent)
 	c.Check(err, IsNil)
-	expectedPostedValues, _ := url.ParseQuery("test=123&op=list")
+	expectedPostedValues, _ := url.ParseQuery("test=123")
 	c.Check(postedValues, DeepEquals, expectedPostedValues)
 }
 
 func (suite *ClientSuite) TestClientPostSendsMultipartRequest(c *C) {
 	URI, _ := url.Parse("/some/url")
 	expectedResult := "expected:result"
-	fullURI := URI.String()
+	fullURI := URI.String() + "?op=add"
 	server := newSingleServingServer(fullURI, expectedResult, http.StatusOK)
 	defer server.Close()
 	client, _ := NewAnonymousClient(server.URL)
 	fileContent := []byte("content")
 	files := map[string][]byte{"testfile": fileContent}
 
-	result, err := client.Post(URI, "list", url.Values{}, files)
+	result, err := client.Post(URI, "add", url.Values{}, files)
 
 	c.Check(err, IsNil)
 	c.Check(string(result), Equals, expectedResult)
 	// Recreate the request from server.requestContent to use the parsing
-	// utility from the http package (http.Request.{FormFile,FormValu}).
+	// utility from the http package (http.Request.FormFile).
 	request, err := http.NewRequest("POST", fullURI, bytes.NewBufferString(*server.requestContent))
 	c.Assert(err, IsNil)
 	request.Header.Set("Content-Type", server.requestHeader.Get("Content-Type"))
 
-	operation := request.FormValue("op")
-	c.Check(operation, Equals, "list")
 	file, _, err := request.FormFile("testfile")
 	c.Check(err, IsNil)
 	receivedFileContent, err := ioutil.ReadAll(file)

@@ -130,7 +130,8 @@ func (client Client) nonIdempotentRequest(method string, uri *url.URL, parameter
 // invocation (if you pass its name in "operation") or plain resource
 // retrieval (if you leave "operation" blank).
 func (client Client) Post(uri *url.URL, operation string, parameters url.Values, files map[string][]byte) ([]byte, error) {
-	parameters.Set("op", operation)
+	queryParams := url.Values{"op": {operation}}
+	uri.RawQuery = queryParams.Encode()
 	return client.nonIdempotentRequest("POST", uri, parameters, files)
 }
 
