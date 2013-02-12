@@ -4,6 +4,7 @@
 package gomaasapi
 
 import (
+	"encoding/json"
 	"fmt"
 	. "launchpad.net/gocheck"
 	"math/rand"
@@ -143,4 +144,21 @@ func (suite *MAASObjectSuite) TestGetField(c *C) {
 	value, err := obj.GetField(fieldName)
 	c.Check(err, IsNil)
 	c.Check(value, Equals, fieldValue)
+}
+
+func (suite *MAASObjectSuite) TestSerializesToJSON(c *C) {
+	attrs := map[string]interface{}{
+		resourceURI: "http://maas.example.com/",
+		"counter":   5.0,
+		"active":    true,
+		"macs":      map[string]interface{}{"eth0": "AA:BB:CC:DD:EE:FF"},
+	}
+	obj := maasify(Client{}, attrs)
+	output, err := json.Marshal(obj)
+	c.Assert(err, IsNil)
+
+	var deserialized map[string]interface{}
+	err = json.Unmarshal(output, &deserialized)
+	c.Assert(err, IsNil)
+	c.Check(deserialized, DeepEquals, attrs)
 }

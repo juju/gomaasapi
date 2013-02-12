@@ -4,6 +4,7 @@
 package gomaasapi
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
@@ -31,6 +32,20 @@ func newJSONMAASObject(jmap map[string]interface{}, client Client) MAASObject {
 		panic(err)
 	}
 	return obj
+}
+
+// MarshalJSON tells the standard json package how to serialize a MAASObject.
+func (obj MAASObject) MarshalJSON() ([]byte, error) {
+	return json.Marshal(obj.GetMap())
+}
+
+// With MarshalJSON, MAASObject implements json.Marshaler.
+var _ json.Marshaler = (*MAASObject)(nil)
+
+func marshalNode(node MAASObject) string {
+	res, _ := json.Marshal(node)
+	return string(res)
+
 }
 
 var noResourceURI = errors.New("not a MAAS object: no 'resource_uri' key")
