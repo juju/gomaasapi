@@ -157,6 +157,89 @@ func (suite *JSONObjectSuite) TestParseMaasifiesJSONBlob(c *C) {
 	c.Check(out, Equals, 12.0)
 }
 
+func (suite *JSONObjectSuite) TestParseKeepsBinaryOriginal(c *C) {
+	blob := []byte(`"Hi"`)
+
+	obj, err := Parse(Client{}, blob)
+	c.Assert(err, IsNil)
+
+	text, err := obj.GetString()
+	c.Assert(err, IsNil)
+	c.Check(text, Equals, "Hi")
+	binary, err := obj.GetBytes()
+	c.Assert(err, IsNil)
+	c.Check(binary, DeepEquals, blob)
+}
+
+func (suite *JSONObjectSuite) TestParseTreatsInvalidJSONAsBinary(c *C) {
+	blob := []byte("?x]}y![{z")
+
+	obj, err := Parse(Client{}, blob)
+	c.Assert(err, IsNil)
+
+	c.Check(obj.IsNil(), Equals, false)
+	c.Check(obj.value, IsNil)
+	binary, err := obj.GetBytes()
+	c.Assert(err, IsNil)
+	c.Check(binary, DeepEquals, blob)
+}
+
+func (suite *JSONObjectSuite) TestParseTreatsInvalidUTF8AsBinary(c *C) {
+	// Arbitrary data that is definitely not UTF-8.
+	blob := []byte{220, 8, 129}
+
+	obj, err := Parse(Client{}, blob)
+	c.Assert(err, IsNil)
+
+	c.Check(obj.IsNil(), Equals, false)
+	c.Check(obj.value, IsNil)
+	binary, err := obj.GetBytes()
+	c.Assert(err, IsNil)
+	c.Check(binary, DeepEquals, blob)
+}
+
+func (suite *JSONObjectSuite) TestParseTreatsEmptyJSONAsBinary(c *C) {
+	blob := []byte{}
+
+	obj, err := Parse(Client{}, blob)
+	c.Assert(err, IsNil)
+
+	c.Check(obj.IsNil(), Equals, false)
+	data, err := obj.GetBytes()
+	c.Assert(err, IsNil)
+	c.Check(data, DeepEquals, blob)
+}
+
+func (suite *JSONObjectSuite) TestParsePanicsOnNilJSON(c *C) {
+	defer func() {
+		failure := recover()
+		c.Assert(failure, NotNil)
+		c.Check(failure.(error).Error(), Matches, ".*nil input")
+	}()
+	Parse(Client{}, nil)
+}
+
+func (suite *JSONObjectSuite) TestParseNullProducesIsNil(c *C) {
+	blob := []byte("null")
+	obj, err := Parse(Client{}, blob)
+	c.Assert(err, IsNil)
+	c.Check(obj.IsNil(), Equals, true)
+}
+
+func (suite *JSONObjectSuite) TestParseNonNullProducesNonIsNil(c *C) {
+	blob := []byte("1")
+	obj, err := Parse(Client{}, blob)
+	c.Assert(err, IsNil)
+	c.Check(obj.IsNil(), Equals, false)
+}
+
+func (suite *JSONObjectSuite) TestParseSpacedNullProducesIsNil(c *C) {
+	blob := []byte("      null     ")
+	obj, err := Parse(Client{}, blob)
+	c.Assert(err, IsNil)
+	c.Check(obj.IsNil(), Equals, true)
+}
+
 // String-type JSONObjects convert only to string.
 func (suite *JSONObjectSuite) TestConversionsString(c *C) {
 	obj := maasify(Client{}, "Test string")
@@ -265,6 +348,12 @@ func (suite *JSONObjectSuite) TestNilSerializesToJSON(c *C) {
 	output, err := json.Marshal(maasify(Client{}, nil))
 	c.Assert(err, IsNil)
 	c.Check(output, DeepEquals, []byte("null"))
+}
+
+func (suite *JSONObjectSuite) TestEmptyStringSerializesToJSON(c *C) {
+	output, err := json.Marshal(maasify(Client{}, ""))
+	c.Assert(err, IsNil)
+	c.Check(string(output), Equals, `""`)
 }
 
 func (suite *JSONObjectSuite) TestStringSerializesToJSON(c *C) {

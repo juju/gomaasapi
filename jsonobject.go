@@ -25,8 +25,23 @@ import (
 // Reading a null item is also an error.  So before you try obj.Get*(),
 // first check obj.IsNil().
 type JSONObject struct {
-	value  interface{}
+	// Parsed value.  May actually be any of the types a JSONObject can
+	// wrap, except raw bytes.  If the object can only be interpreted
+	// as raw bytes, this will be nil.
+	value interface{}
+	// Raw bytes, if this object was parsed directly from an API response.
+	// Is nil for sub-objects found within other objects.  An object that
+	// was parsed directly from a response can be both raw bytes and some
+	// other value at the same time.
+	// For example, "[]" looks like a JSON list, so you can read it as an
+	// array.  But it may also be the raw contents of a file that just
+	// happens to look like JSON, and so you can read it as raw bytes as
+	// well.
+	bytes []byte
+	// Client for further communication with the API.
 	client Client
+	// Is this a JSON null?
+	isNull bool
 }
 
 // Our JSON processor distinguishes a MAASObject from a jsonMap by the fact
@@ -41,7 +56,7 @@ const resourceURI = "resource_uri"
 // being converted to a JSONObject type.
 func maasify(client Client, value interface{}) JSONObject {
 	if value == nil {
-		return JSONObject{}
+		return JSONObject{isNull: true}
 	}
 	switch value.(type) {
 	case string, float64, bool:
@@ -67,12 +82,26 @@ func maasify(client Client, value interface{}) JSONObject {
 
 // Parse a JSON blob into a JSONObject.
 func Parse(client Client, input []byte) (JSONObject, error) {
-	var obj interface{}
-	err := json.Unmarshal(input, &obj)
-	if err != nil {
-		return JSONObject{}, err
+	var obj JSONObject
+	if input == nil {
+		panic(errors.New("Parse() called with nil input"))
 	}
-	return maasify(client, obj), nil
+	var parsed interface{}
+	err := json.Unmarshal(input, &parsed)
+	if err == nil {
+		obj = maasify(client, parsed)
+		obj.bytes = input
+	} else {
+		switch err.(type) {
+		case *json.InvalidUTF8Error:
+		case *json.SyntaxError:
+			// This isn't JSON.  Treat it as raw binary data.
+		default:
+			return obj, err
+		}
+		obj = JSONObject{value: nil, client: client, bytes: input}
+	}
+	return obj, nil
 }
 
 // Return error value for failed type conversion.
@@ -93,10 +122,26 @@ func (obj JSONObject) MarshalJSON() ([]byte, error) {
 // With MarshalJSON, JSONObject implements json.Marshaler.
 var _ json.Marshaler = (*JSONObject)(nil)
 
+// IsNil tells you whether a JSONObject is a JSON "null."
+// There is one irregularity.  If the original JSON blob was actually raw
+// data, not JSON, then its IsNil will return false because the object
+// contains the binary data as a non-nil value.  But, if the original JSON
+// blob consisted of a null, then IsNil returns true even though you can
+// still retrieve binary data from it.
 func (obj JSONObject) IsNil() bool {
-	return obj.value == nil
+	if obj.value != nil {
+		return false
+	}
+	if obj.bytes == nil {
+		return true
+	}
+	// This may be a JSON null.  We can't expect every JSON null to look
+	// the same; there may be leading or trailing space.
+	return obj.isNull
 }
 
+// GetString retrieves the object's value as a string.  If the value wasn't
+// a JSON string, that's an error.
 func (obj JSONObject) GetString() (value string, err error) {
 	value, ok := obj.value.(string)
 	if !ok {
@@ -105,6 +150,8 @@ func (obj JSONObject) GetString() (value string, err error) {
 	return
 }
 
+// GetFloat64 retrieves the object's value as a float64.  If the value wasn't
+// a JSON number, that's an error.
 func (obj JSONObject) GetFloat64() (value float64, err error) {
 	value, ok := obj.value.(float64)
 	if !ok {
@@ -113,6 +160,8 @@ func (obj JSONObject) GetFloat64() (value float64, err error) {
 	return
 }
 
+// GetMap retrieves the object's value as a map.  If the value wasn't a JSON
+// object, that's an error.
 func (obj JSONObject) GetMap() (value map[string]JSONObject, err error) {
 	value, ok := obj.value.(map[string]JSONObject)
 	if !ok {
@@ -121,6 +170,8 @@ func (obj JSONObject) GetMap() (value map[string]JSONObject, err error) {
 	return
 }
 
+// GetArray retrieves the object's value as an array.  If the value wasn't a
+// JSON list, that's an error.
 func (obj JSONObject) GetArray() (value []JSONObject, err error) {
 	value, ok := obj.value.([]JSONObject)
 	if !ok {
@@ -129,10 +180,27 @@ func (obj JSONObject) GetArray() (value []JSONObject, err error) {
 	return
 }
 
+// GetBool retrieves the object's value as a bool.  If the value wasn't a JSON
+// bool, that's an error.
 func (obj JSONObject) GetBool() (value bool, err error) {
 	value, ok := obj.value.(bool)
 	if !ok {
 		err = failConversion("bool", obj)
 	}
 	return
+}
+
+// GetBytes retrieves the object's value as raw bytes.  A JSONObject that was
+// parsed from the original input (as opposed to one that's embedded in
+// another JSONObject) can contain both the raw bytes and the parsed JSON
+// value, but either can be the case without the other.
+// If this object wasn't parsed directly from the original input, that's an
+// error.
+// If the object was parsed from an original input that just said "null", then
+// IsNil will return true but the raw bytes are still available from GetBytes.
+func (obj JSONObject) GetBytes() ([]byte, error) {
+	if obj.bytes == nil {
+		return nil, failConversion("bytes", obj)
+	}
+	return obj.bytes, nil
 }
