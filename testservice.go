@@ -163,16 +163,17 @@ func NewTestServer(version string) *TestServer {
 // nodesHandler handles requests for '/api/<version>/nodes/*'.
 func nodesHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
 	values, _ := url.ParseQuery(r.URL.RawQuery)
+	op := values.Get("op")
 	nodeURLRE := getNodeURLRE(server.version)
 	nodeURLMatch := nodeURLRE.FindStringSubmatch(r.URL.Path)
 	nodeListingURL := getNodeListingURL(server.version)
 	switch {
-	case r.Method == "GET" && values.Get("op") == "list" && r.URL.Path == nodeListingURL:
+	case r.Method == "GET" && op == "list" && r.URL.Path == nodeListingURL:
 		// Node listing operation.
 		nodeListingHandler(server, w, r)
 	case nodeURLMatch != nil:
 		// Request for a single node.
-		nodeHandler(server, w, r, nodeURLMatch[1])
+		nodeHandler(server, w, r, nodeURLMatch[1], op)
 	default:
 		// Default handler: not found.
 		http.NotFoundHandler().ServeHTTP(w, r)
@@ -180,15 +181,13 @@ func nodesHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
 }
 
 // nodeHandler handles requests for '/api/<version>/nodes/<system_id>/'.
-func nodeHandler(server *TestServer, w http.ResponseWriter, r *http.Request, systemId string) {
+func nodeHandler(server *TestServer, w http.ResponseWriter, r *http.Request, systemId string, operation string) {
 	node, ok := server.nodes[systemId]
 	if !ok {
 		http.NotFoundHandler().ServeHTTP(w, r)
 		return
 	}
 	if r.Method == "GET" {
-		values, _ := url.ParseQuery(r.URL.RawQuery)
-		operation := values.Get("op")
 		if operation == "" {
 			w.WriteHeader(http.StatusOK)
 			fmt.Fprint(w, marshalNode(node))
@@ -200,7 +199,6 @@ func nodeHandler(server *TestServer, w http.ResponseWriter, r *http.Request, sys
 	}
 	if r.Method == "POST" {
 		// The only operations supported are "start", "stop" and "release".
-		operation := r.FormValue("op")
 		if operation == "start" || operation == "stop" || operation == "release" {
 			// Record operation on node.
 			server.addNodeOperation(systemId, operation)
