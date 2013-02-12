@@ -4,9 +4,12 @@
 package gomaasapi
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"strings"
@@ -65,30 +68,75 @@ func (client Client) Get(uri *url.URL, operation string, parameters url.Values) 
 	return client.dispatchRequest(request)
 }
 
+// writeMultiPartFiles writes the given files as parts of a multipart message
+// using the given writer.
+func writeMultiPartFiles(writer *multipart.Writer, files map[string][]byte) {
+	for fileName, fileContent := range files {
+
+		fw, err := writer.CreateFormFile(fileName, fileName)
+		if err != nil {
+			panic(err)
+		}
+		io.Copy(fw, bytes.NewBuffer(fileContent))
+	}
+}
+
+// writeMultiPartParams writes the given parameters as parts of a multipart
+// message using the given writer.
+func writeMultiPartParams(writer *multipart.Writer, parameters url.Values) {
+	for key, values := range parameters {
+		for _, value := range values {
+			fw, err := writer.CreateFormField(key)
+			if err != nil {
+				panic(err)
+			}
+			buffer := bytes.NewBufferString(value)
+			io.Copy(fw, buffer)
+		}
+	}
+
+}
+
 // nonIdempotentRequest implements the common functionality of PUT and POST
 // requests (but not GET or DELETE requests).
-func (client Client) nonIdempotentRequest(method string, uri *url.URL, parameters url.Values) ([]byte, error) {
-	url := client.GetURL(uri)
-	request, err := http.NewRequest(method, url.String(), strings.NewReader(string(parameters.Encode())))
-	if err != nil {
-		return nil, err
+func (client Client) nonIdempotentRequest(method string, uri *url.URL, parameters url.Values, files map[string][]byte) ([]byte, error) {
+	var request *http.Request
+	var err error
+	if files != nil {
+		// files is not nil, create a multipart request.
+		buf := new(bytes.Buffer)
+		writer := multipart.NewWriter(buf)
+		writeMultiPartFiles(writer, files)
+		writeMultiPartParams(writer, parameters)
+		writer.Close()
+		url := client.GetURL(uri)
+		request, err = http.NewRequest(method, url.String(), buf)
+		if err != nil {
+			return nil, err
+		}
+		request.Header.Set("Content-Type", writer.FormDataContentType())
+	} else {
+		url := client.GetURL(uri)
+		request, err = http.NewRequest(method, url.String(), strings.NewReader(string(parameters.Encode())))
+		if err != nil {
+			return nil, err
+		}
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	}
-	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	return client.dispatchRequest(request)
 }
 
 // Post performs an HTTP "POST" to the API.  This may be either an API method
 // invocation (if you pass its name in "operation") or plain resource
 // retrieval (if you leave "operation" blank).
-func (client Client) Post(uri *url.URL, operation string, parameters url.Values) ([]byte, error) {
-	queryParams := url.Values{"op": {operation}}
-	uri.RawQuery = queryParams.Encode()
-	return client.nonIdempotentRequest("POST", uri, parameters)
+func (client Client) Post(uri *url.URL, operation string, parameters url.Values, files map[string][]byte) ([]byte, error) {
+	parameters.Set("op", operation)
+	return client.nonIdempotentRequest("POST", uri, parameters, files)
 }
 
 // Put updates an object on the API, using an HTTP "PUT" request.
 func (client Client) Put(uri *url.URL, parameters url.Values) ([]byte, error) {
-	return client.nonIdempotentRequest("PUT", uri, parameters)
+	return client.nonIdempotentRequest("PUT", uri, parameters, nil)
 }
 
 // Delete deletes an object on the API, using an HTTP "DELETE" request.

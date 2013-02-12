@@ -4,6 +4,8 @@
 package gomaasapi
 
 import (
+	"bytes"
+	"io/ioutil"
 	. "launchpad.net/gocheck"
 	"net/http"
 	"net/url"
@@ -72,20 +74,51 @@ func (suite *ClientSuite) TestClientGetFormatsOperationAsGetParameter(c *C) {
 	c.Check(string(result), Equals, expectedResult)
 }
 
-func (suite *ClientSuite) TestClientPostSendsRequest(c *C) {
+func (suite *ClientSuite) TestClientPostSendsRequestWithParams(c *C) {
 	URI, _ := url.Parse("/some/url")
 	expectedResult := "expected:result"
-	fullURI := URI.String() + "?op=list"
+	fullURI := URI.String()
 	params := url.Values{"test": {"123"}}
 	server := newSingleServingServer(fullURI, expectedResult, http.StatusOK)
 	defer server.Close()
 	client, _ := NewAnonymousClient(server.URL)
 
-	result, err := client.Post(URI, "list", params)
+	result, err := client.Post(URI, "list", params, nil)
 
 	c.Check(err, IsNil)
 	c.Check(string(result), Equals, expectedResult)
-	c.Check(*server.requestContent, Equals, "test=123")
+	postedValues, err := url.ParseQuery(*server.requestContent)
+	c.Check(err, IsNil)
+	expectedPostedValues, _ := url.ParseQuery("test=123&op=list")
+	c.Check(postedValues, DeepEquals, expectedPostedValues)
+}
+
+func (suite *ClientSuite) TestClientPostSendsMultipartRequest(c *C) {
+	URI, _ := url.Parse("/some/url")
+	expectedResult := "expected:result"
+	fullURI := URI.String()
+	server := newSingleServingServer(fullURI, expectedResult, http.StatusOK)
+	defer server.Close()
+	client, _ := NewAnonymousClient(server.URL)
+	fileContent := []byte("content")
+	files := map[string][]byte{"testfile": fileContent}
+
+	result, err := client.Post(URI, "list", url.Values{}, files)
+
+	c.Check(err, IsNil)
+	c.Check(string(result), Equals, expectedResult)
+	// Recreate the request from server.requestContent to use the parsing
+	// utility from the http package (http.Request.{FormFile,FormValu}).
+	request, err := http.NewRequest("POST", fullURI, bytes.NewBufferString(*server.requestContent))
+	c.Assert(err, IsNil)
+	request.Header.Set("Content-Type", server.requestHeader.Get("Content-Type"))
+
+	operation := request.FormValue("op")
+	c.Check(operation, Equals, "list")
+	file, _, err := request.FormFile("testfile")
+	c.Check(err, IsNil)
+	receivedFileContent, err := ioutil.ReadAll(file)
+	c.Check(receivedFileContent, DeepEquals, fileContent)
 }
 
 func (suite *ClientSuite) TestClientPutSendsRequest(c *C) {

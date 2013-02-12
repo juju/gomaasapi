@@ -144,7 +144,7 @@ func (obj MAASObject) Get() (MAASObject, error) {
 // in "params."  It returns the object's new value as received from the API.
 func (obj MAASObject) Post(params url.Values) (JSONObject, error) {
 	uri := obj.URI()
-	result, err := obj.client.Post(uri, "", params)
+	result, err := obj.client.Post(uri, "", params, nil)
 	if err != nil {
 		return JSONObject{}, err
 	}
@@ -184,8 +184,15 @@ func (obj MAASObject) CallGet(operation string, params url.Values) (JSONObject, 
 
 // CallPost invokes a non-idempotent API method on this object.
 func (obj MAASObject) CallPost(operation string, params url.Values) (JSONObject, error) {
+	return obj.CallPostFiles(operation, params, nil)
+}
+
+// CallPostFiles invokes a non-idempotent API method on this object.  It is
+// similar to CallPost but has an extra parameter, 'files', which should
+// contain the files that will be uploaded to the API.
+func (obj MAASObject) CallPostFiles(operation string, params url.Values, files map[string][]byte) (JSONObject, error) {
 	uri := obj.URI()
-	result, err := obj.client.Post(uri, operation, params)
+	result, err := obj.client.Post(uri, operation, params, files)
 	if err != nil {
 		return JSONObject{}, err
 	}
