@@ -27,7 +27,8 @@ type TestMAASObject struct {
 func NewTestMAAS(version string) *TestMAASObject {
 	server := NewTestServer(version)
 	authClient, _ := NewAnonymousClient(server.URL + fmt.Sprintf("/api/%s/", version))
-	return &TestMAASObject{NewMAAS(*authClient), server}
+	maas := NewMAAS(*authClient)
+	return &TestMAASObject{*maas, server}
 }
 
 // Close shuts down the test server.

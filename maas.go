@@ -3,8 +3,9 @@
 
 package gomaasapi
 
-// NewMAAS returns an interface to the MAAS API as a MAASObject.
-func NewMAAS(client Client) MAASObject {
+// NewMAAS returns an interface to the MAAS API as a *MAASObject.
+func NewMAAS(client Client) *MAASObject {
 	attrs := map[string]interface{}{resourceURI: client.BaseURL.String()}
-	return newJSONMAASObject(attrs, client)
+	obj := newJSONMAASObject(attrs, client)
+	return &obj
 }
