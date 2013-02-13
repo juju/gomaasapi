@@ -4,6 +4,8 @@
 package gomaasapi
 
 import (
+	"bytes"
+	"io/ioutil"
 	. "launchpad.net/gocheck"
 	"net/http"
 	"net/url"
@@ -72,20 +74,65 @@ func (suite *ClientSuite) TestClientGetFormatsOperationAsGetParameter(c *C) {
 	c.Check(string(result), Equals, expectedResult)
 }
 
-func (suite *ClientSuite) TestClientPostSendsRequest(c *C) {
-	URI, _ := url.Parse("/some/url")
+func (suite *ClientSuite) TestClientPostSendsRequestWithParams(c *C) {
+	URI, err := url.Parse("/some/url")
+	c.Check(err, IsNil)
 	expectedResult := "expected:result"
 	fullURI := URI.String() + "?op=list"
 	params := url.Values{"test": {"123"}}
 	server := newSingleServingServer(fullURI, expectedResult, http.StatusOK)
 	defer server.Close()
-	client, _ := NewAnonymousClient(server.URL)
+	client, err := NewAnonymousClient(server.URL)
+	c.Check(err, IsNil)
 
-	result, err := client.Post(URI, "list", params)
+	result, err := client.Post(URI, "list", params, nil)
 
 	c.Check(err, IsNil)
 	c.Check(string(result), Equals, expectedResult)
-	c.Check(*server.requestContent, Equals, "test=123")
+	postedValues, err := url.ParseQuery(*server.requestContent)
+	c.Check(err, IsNil)
+	expectedPostedValues, err := url.ParseQuery("test=123")
+	c.Check(err, IsNil)
+	c.Check(postedValues, DeepEquals, expectedPostedValues)
+}
+
+// extractFileContent extracts from the request built using 'requestContent',
+// 'requestHeader' and 'requestURL', the file named 'filename'.
+func extractFileContent(requestContent string, requestHeader *http.Header, requestURL string, filename string) ([]byte, error) {
+	// Recreate the request from server.requestContent to use the parsing
+	// utility from the http package (http.Request.FormFile).
+	request, err := http.NewRequest("POST", requestURL, bytes.NewBufferString(requestContent))
+	if err != nil {
+		return nil, err
+	}
+	request.Header.Set("Content-Type", requestHeader.Get("Content-Type"))
+	file, _, err := request.FormFile("testfile")
+	if err != nil {
+		return nil, err
+	}
+	fileContent, err := ioutil.ReadAll(file)
+	if err != nil {
+		return nil, err
+	}
+	return fileContent, nil
+}
+
+func (suite *ClientSuite) TestClientPostSendsMultipartRequest(c *C) {
+	URI, _ := url.Parse("/some/url")
+	expectedResult := "expected:result"
+	fullURI := URI.String() + "?op=add"
+	server := newSingleServingServer(fullURI, expectedResult, http.StatusOK)
+	defer server.Close()
+	client, _ := NewAnonymousClient(server.URL)
+	fileContent := []byte("content")
+	files := map[string][]byte{"testfile": fileContent}
+
+	result, err := client.Post(URI, "add", url.Values{}, files)
+
+	c.Check(err, IsNil)
+	c.Check(string(result), Equals, expectedResult)
+	receivedFileContent, _ := extractFileContent(*server.requestContent, server.requestHeader, fullURI, "testfile")
+	c.Check(receivedFileContent, DeepEquals, fileContent)
 }
 
 func (suite *ClientSuite) TestClientPutSendsRequest(c *C) {

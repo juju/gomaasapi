@@ -9,6 +9,7 @@ Note that this is a provided only as an example and that real code should probab
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"launchpad.net/gomaasapi"
 	"net/url"
@@ -39,11 +40,50 @@ func checkError(err error) {
 
 func main() {
 	getParams()
+
+	// Create API server endpoint.
 	authClient, err := gomaasapi.NewAuthenticatedClient(apiURL, apiKey)
 	checkError(err)
-
 	maas := gomaasapi.NewMAAS(*authClient)
 
+	// Exercise the API.
+	ManipulateNodes(maas)
+	ManipulateFiles(maas)
+
+	fmt.Println("All done.")
+}
+
+// ManipulateFiles exercises the /api/1.0/files/ API endpoint.  Most precisely,
+// it uploads a files and then fetches it, making sure the received content
+// is the same as the one that was sent.
+func ManipulateFiles(maas gomaasapi.MAASObject) {
+	files := maas.GetSubObject("files")
+	fileContent := []byte("test file content")
+	fileName := "filename"
+	filesToUpload := map[string][]byte{"file": fileContent}
+
+	// Upload a file.
+	fmt.Println("Uploading a file...")
+	_, err := files.CallPostFiles("add", url.Values{"filename": {fileName}}, filesToUpload)
+	checkError(err)
+	fmt.Println("File sent.")
+
+	// Fetch the file.
+	fmt.Println("Fetching the file...")
+	fileResult, err := files.CallGet("get", url.Values{"filename": {fileName}})
+	checkError(err)
+	receivedFileContent, err := fileResult.GetBytes()
+	checkError(err)
+	if bytes.Compare(receivedFileContent, fileContent) != 0 {
+		panic("Received content differs from the content sent!")
+	}
+	fmt.Println("Got file.")
+}
+
+// ManipulateFiles exercises the /api/1.0/nodes/ API endpoint.  Most precisely,
+// it lists the existing nodes, creates a new node, updates it and then
+// deletes it.
+func ManipulateNodes(maas gomaasapi.MAASObject) {
 	nodeListing := maas.GetSubObject("nodes")
 
 	// List nodes.
@@ -99,6 +139,4 @@ func main() {
 	listNodes3, err := listNodeObjects3.GetArray()
 	checkError(err)
 	fmt.Printf("We've got %v nodes\n", len(listNodes3))
-
-	fmt.Println("All done.")
 }
