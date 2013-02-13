@@ -115,6 +115,20 @@ func (suite *ClientSuite) TestClientDeleteSendsRequest(c *C) {
 	c.Check(err, IsNil)
 }
 
+func (suite *ClientSuite) TestNewAnonymousClientEnsuresTrailingSlash(c *C) {
+	client, err := NewAnonymousClient("http://example.com/api/1.0")
+	c.Check(err, IsNil)
+	expectedURL, _ := url.Parse("http://example.com/api/1.0/")
+	c.Check(client.BaseURL, DeepEquals, expectedURL)
+}
+
+func (suite *ClientSuite) TestNewAuthenticatedClientEnsuresTrailingSlash(c *C) {
+	client, err := NewAuthenticatedClient("http://example.com/api/1.0", "a:b:c")
+	c.Check(err, IsNil)
+	expectedURL, _ := url.Parse("http://example.com/api/1.0/")
+	c.Check(client.BaseURL, DeepEquals, expectedURL)
+}
+
 func (suite *ClientSuite) TestNewAuthenticatedClientParsesApiKey(c *C) {
 	// NewAuthenticatedClient returns a plainTextOAuthSigneri configured
 	// to use the given API key.
