@@ -23,8 +23,9 @@ type Client struct {
 }
 
 // dispatchRequest sends a request to the server, and interprets the response.
-// Note that if the server returns a response with a non 2XX status code, the
-// returned error will contain a warning but the body of the response will
+// Client-side error will return an empty response and a non-nil error but
+// for server-side errors (i.e. responses with a non 2XX status code), the
+// returned error will contain a warning and the body of the response will
 // still be returned.
 func (client Client) dispatchRequest(request *http.Request) ([]byte, error) {
 	client.Signer.OAuthSign(request)

@@ -75,13 +75,15 @@ func (suite *ClientSuite) TestClientGetFormatsOperationAsGetParameter(c *C) {
 }
 
 func (suite *ClientSuite) TestClientPostSendsRequestWithParams(c *C) {
-	URI, _ := url.Parse("/some/url")
+	URI, err := url.Parse("/some/url")
+	c.Check(err, IsNil)
 	expectedResult := "expected:result"
 	fullURI := URI.String() + "?op=list"
 	params := url.Values{"test": {"123"}}
 	server := newSingleServingServer(fullURI, expectedResult, http.StatusOK)
 	defer server.Close()
-	client, _ := NewAnonymousClient(server.URL)
+	client, err := NewAnonymousClient(server.URL)
+	c.Check(err, IsNil)
 
 	result, err := client.Post(URI, "list", params, nil)
 
@@ -89,7 +91,8 @@ func (suite *ClientSuite) TestClientPostSendsRequestWithParams(c *C) {
 	c.Check(string(result), Equals, expectedResult)
 	postedValues, err := url.ParseQuery(*server.requestContent)
 	c.Check(err, IsNil)
-	expectedPostedValues, _ := url.ParseQuery("test=123")
+	expectedPostedValues, err := url.ParseQuery("test=123")
+	c.Check(err, IsNil)
 	c.Check(postedValues, DeepEquals, expectedPostedValues)
 }
 
@@ -128,8 +131,7 @@ func (suite *ClientSuite) TestClientPostSendsMultipartRequest(c *C) {
 
 	c.Check(err, IsNil)
 	c.Check(string(result), Equals, expectedResult)
-	receivedFileContent, err := extractFileContent(*server.requestContent, server.requestHeader, fullURI, "testfile")
-	c.Check(err, IsNil)
+	receivedFileContent, _ := extractFileContent(*server.requestContent, server.requestHeader, fullURI, "testfile")
 	c.Check(receivedFileContent, DeepEquals, fileContent)
 }
 
