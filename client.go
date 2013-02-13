@@ -23,6 +23,9 @@ type Client struct {
 }
 
 // dispatchRequest sends a request to the server, and interprets the response.
+// Note that if the server returns a response with a non 2XX status code, the
+// returned error will contain a warning but the body of the response will
+// still be returned.
 func (client Client) dispatchRequest(request *http.Request) ([]byte, error) {
 	client.Signer.OAuthSign(request)
 	httpClient := http.Client{}
@@ -70,59 +73,69 @@ func (client Client) Get(uri *url.URL, operation string, parameters url.Values) 
 
 // writeMultiPartFiles writes the given files as parts of a multipart message
 // using the given writer.
-func writeMultiPartFiles(writer *multipart.Writer, files map[string][]byte) {
+func writeMultiPartFiles(writer *multipart.Writer, files map[string][]byte) error {
 	for fileName, fileContent := range files {
 
 		fw, err := writer.CreateFormFile(fileName, fileName)
 		if err != nil {
-			panic(err)
+			return err
 		}
 		io.Copy(fw, bytes.NewBuffer(fileContent))
 	}
+	return nil
 }
 
 // writeMultiPartParams writes the given parameters as parts of a multipart
 // message using the given writer.
-func writeMultiPartParams(writer *multipart.Writer, parameters url.Values) {
+func writeMultiPartParams(writer *multipart.Writer, parameters url.Values) error {
 	for key, values := range parameters {
 		for _, value := range values {
 			fw, err := writer.CreateFormField(key)
 			if err != nil {
-				panic(err)
+				return err
 			}
 			buffer := bytes.NewBufferString(value)
 			io.Copy(fw, buffer)
 		}
 	}
+	return nil
+
+}
+
+// nonIdempotentRequestFiles implements the common functionality of PUT and
+// POST requests (but not GET or DELETE requests) when uploading files is
+// needed.
+func (client Client) nonIdempotentRequestFiles(method string, uri *url.URL, parameters url.Values, files map[string][]byte) ([]byte, error) {
+	buf := new(bytes.Buffer)
+	writer := multipart.NewWriter(buf)
+	err := writeMultiPartFiles(writer, files)
+	if err != nil {
+		return nil, err
+	}
+	err = writeMultiPartParams(writer, parameters)
+	if err != nil {
+		return nil, err
+	}
+	writer.Close()
+	url := client.GetURL(uri)
+	request, err := http.NewRequest(method, url.String(), buf)
+	if err != nil {
+		return nil, err
+	}
+	request.Header.Set("Content-Type", writer.FormDataContentType())
+	return client.dispatchRequest(request)
 
 }
 
 // nonIdempotentRequest implements the common functionality of PUT and POST
 // requests (but not GET or DELETE requests).
-func (client Client) nonIdempotentRequest(method string, uri *url.URL, parameters url.Values, files map[string][]byte) ([]byte, error) {
-	var request *http.Request
-	var err error
-	if files != nil {
-		// files is not nil, create a multipart request.
-		buf := new(bytes.Buffer)
-		writer := multipart.NewWriter(buf)
-		writeMultiPartFiles(writer, files)
-		writeMultiPartParams(writer, parameters)
-		writer.Close()
-		url := client.GetURL(uri)
-		request, err = http.NewRequest(method, url.String(), buf)
-		if err != nil {
-			return nil, err
-		}
-		request.Header.Set("Content-Type", writer.FormDataContentType())
-	} else {
-		url := client.GetURL(uri)
-		request, err = http.NewRequest(method, url.String(), strings.NewReader(string(parameters.Encode())))
-		if err != nil {
-			return nil, err
-		}
-		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+func (client Client) nonIdempotentRequest(method string, uri *url.URL, parameters url.Values) ([]byte, error) {
+	url := client.GetURL(uri)
+	request, err := http.NewRequest(method, url.String(), strings.NewReader(string(parameters.Encode())))
+	if err != nil {
+		return nil, err
 	}
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	return client.dispatchRequest(request)
 }
 
@@ -132,12 +145,15 @@ func (client Client) nonIdempotentRequest(method string, uri *url.URL, parameter
 func (client Client) Post(uri *url.URL, operation string, parameters url.Values, files map[string][]byte) ([]byte, error) {
 	queryParams := url.Values{"op": {operation}}
 	uri.RawQuery = queryParams.Encode()
-	return client.nonIdempotentRequest("POST", uri, parameters, files)
+	if files != nil {
+		return client.nonIdempotentRequestFiles("POST", uri, parameters, files)
+	}
+	return client.nonIdempotentRequest("POST", uri, parameters)
 }
 
 // Put updates an object on the API, using an HTTP "PUT" request.
 func (client Client) Put(uri *url.URL, parameters url.Values) ([]byte, error) {
-	return client.nonIdempotentRequest("PUT", uri, parameters, nil)
+	return client.nonIdempotentRequest("PUT", uri, parameters)
 }
 
 // Delete deletes an object on the API, using an HTTP "DELETE" request.

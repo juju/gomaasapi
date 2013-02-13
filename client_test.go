@@ -93,6 +93,27 @@ func (suite *ClientSuite) TestClientPostSendsRequestWithParams(c *C) {
 	c.Check(postedValues, DeepEquals, expectedPostedValues)
 }
 
+// extractFileContent extracts from the request built using 'requestContent',
+// 'requestHeader' and 'requestURL', the file named 'filename'.
+func extractFileContent(requestContent string, requestHeader *http.Header, requestURL string, filename string) ([]byte, error) {
+	// Recreate the request from server.requestContent to use the parsing
+	// utility from the http package (http.Request.FormFile).
+	request, err := http.NewRequest("POST", requestURL, bytes.NewBufferString(requestContent))
+	if err != nil {
+		return nil, err
+	}
+	request.Header.Set("Content-Type", requestHeader.Get("Content-Type"))
+	file, _, err := request.FormFile("testfile")
+	if err != nil {
+		return nil, err
+	}
+	fileContent, err := ioutil.ReadAll(file)
+	if err != nil {
+		return nil, err
+	}
+	return fileContent, nil
+}
+
 func (suite *ClientSuite) TestClientPostSendsMultipartRequest(c *C) {
 	URI, _ := url.Parse("/some/url")
 	expectedResult := "expected:result"
@@ -107,15 +128,8 @@ func (suite *ClientSuite) TestClientPostSendsMultipartRequest(c *C) {
 
 	c.Check(err, IsNil)
 	c.Check(string(result), Equals, expectedResult)
-	// Recreate the request from server.requestContent to use the parsing
-	// utility from the http package (http.Request.FormFile).
-	request, err := http.NewRequest("POST", fullURI, bytes.NewBufferString(*server.requestContent))
-	c.Assert(err, IsNil)
-	request.Header.Set("Content-Type", server.requestHeader.Get("Content-Type"))
-
-	file, _, err := request.FormFile("testfile")
+	receivedFileContent, err := extractFileContent(*server.requestContent, server.requestHeader, fullURI, "testfile")
 	c.Check(err, IsNil)
-	receivedFileContent, err := ioutil.ReadAll(file)
 	c.Check(receivedFileContent, DeepEquals, fileContent)
 }
 
