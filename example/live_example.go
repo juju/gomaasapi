@@ -56,7 +56,7 @@ func main() {
 // ManipulateFiles exercises the /api/1.0/files/ API endpoint.  Most precisely,
 // it uploads a files and then fetches it, making sure the received content
 // is the same as the one that was sent.
-func ManipulateFiles(maas gomaasapi.MAASObject) {
+func ManipulateFiles(maas *gomaasapi.MAASObject) {
 	files := maas.GetSubObject("files")
 	fileContent := []byte("test file content")
 	fileName := "filename"
@@ -78,12 +78,33 @@ func ManipulateFiles(maas gomaasapi.MAASObject) {
 		panic("Received content differs from the content sent!")
 	}
 	fmt.Println("Got file.")
+
+	// Fetch list of files.
+	listFiles, err := files.CallGet("list", url.Values{})
+	checkError(err)
+	listFilesArray, err := listFiles.GetArray()
+	checkError(err)
+	fmt.Printf("We've got %v file(s)\n", len(listFilesArray))
+
+	// Delete the file.
+	fmt.Println("Deleting the file...")
+	fileObject, err := listFilesArray[0].GetMAASObject()
+	checkError(err)
+	errDelete := fileObject.Delete()
+	checkError(errDelete)
+
+	// Count the files.
+	listFiles, err = files.CallGet("list", url.Values{})
+	checkError(err)
+	listFilesArray, err = listFiles.GetArray()
+	checkError(err)
+	fmt.Printf("We've got %v file(s)\n", len(listFilesArray))
 }
 
 // ManipulateFiles exercises the /api/1.0/nodes/ API endpoint.  Most precisely,
 // it lists the existing nodes, creates a new node, updates it and then
 // deletes it.
-func ManipulateNodes(maas gomaasapi.MAASObject) {
+func ManipulateNodes(maas *gomaasapi.MAASObject) {
 	nodeListing := maas.GetSubObject("nodes")
 
 	// List nodes.
