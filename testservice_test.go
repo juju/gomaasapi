@@ -249,6 +249,7 @@ func (suite *TestServerSuite) TestDeleteFile(c *C) {
 	fileName1 := "filename1"
 	suite.server.NewFile(fileName1, []byte("test file content"))
 	deleteURI := fmt.Sprintf("/api/%s/files/filename1/", suite.server.version)
+
 	req, err := http.NewRequest("DELETE", suite.server.Server.URL+deleteURI, nil)
 	c.Check(err, IsNil)
 	var client http.Client
