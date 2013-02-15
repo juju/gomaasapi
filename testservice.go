@@ -327,6 +327,11 @@ func fileHandler(server *TestServer, w http.ResponseWriter, r *http.Request, fil
 	}
 }
 
+// InternalError replies to the request with an HTTP 500 internal error.
+func InternalError(w http.ResponseWriter, r *http.Request, err error) {
+	http.Error(w, err.Error(), http.StatusInternalServerError)
+}
+
 // getFileHandler handles requests for
 // '/api/<version>/files/?op=get&filename=filename'.
 func getFileHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
@@ -339,11 +344,13 @@ func getFileHandler(server *TestServer, w http.ResponseWriter, r *http.Request) 
 	}
 	base64Content, err := file.GetField("content")
 	if err != nil {
-		http.NotFoundHandler().ServeHTTP(w, r)
+		InternalError(w, r, err)
+		return
 	}
 	content, err := base64.StdEncoding.DecodeString(base64Content)
 	if err != nil {
-		http.NotFoundHandler().ServeHTTP(w, r)
+		InternalError(w, r, err)
+		return
 	}
 	w.Write(content)
 }
