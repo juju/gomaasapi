@@ -82,16 +82,19 @@ func (suite *MAASObjectSuite) TestNewJSONMAASObjectPanicsIfResourceURINotURL(c *
 }
 
 func (suite *MAASObjectSuite) TestNewJSONMAASObjectSetsUpURI(c *C) {
-	URI, _ := url.Parse("http://example.com/a/resource")
+	URI, err := url.Parse("http://example.com/a/resource")
+	c.Assert(err, IsNil)
 	attrs := map[string]interface{}{resourceURI: URI.String()}
 	obj := newJSONMAASObject(attrs, Client{})
 	c.Check(obj.uri, DeepEquals, URI)
 }
 
 func (suite *MAASObjectSuite) TestURL(c *C) {
-	baseURL, _ := url.Parse("http://example.com/")
+	baseURL, err := url.Parse("http://example.com/")
+	c.Assert(err, IsNil)
 	uri := "http://example.com/a/resource"
-	resourceURL, _ := url.Parse(uri)
+	resourceURL, err := url.Parse(uri)
+	c.Assert(err, IsNil)
 	input := map[string]interface{}{resourceURI: uri}
 	client := Client{BaseURL: baseURL}
 	obj := newJSONMAASObject(input, client)
@@ -101,35 +104,62 @@ func (suite *MAASObjectSuite) TestURL(c *C) {
 	c.Check(URL, DeepEquals, resourceURL)
 }
 
-func (suite *MAASObjectSuite) TestGetSubObjectRelative(c *C) {
-	baseURL, _ := url.Parse("http://example.com/")
-	uri := "http://example.com/a/resource/"
+// makeFakeMAASObject creates a MAASObject for some imaginary resource.
+// There is no actual HTTP service or resource attached.
+// serviceURL is the base URL of the service, and resourceURI is the path for
+// the object, relative to serviceURL.
+func makeFakeMAASObject(serviceURL, resourcePath string) MAASObject {
+	baseURL, err := url.Parse(serviceURL)
+	if err != nil {
+		panic(fmt.Errorf("creation of fake object failed: %v", err))
+	}
+	uri := serviceURL + resourcePath
 	input := map[string]interface{}{resourceURI: uri}
 	client := Client{BaseURL: baseURL}
-	obj := newJSONMAASObject(input, client)
-	subName := "test"
+	return newJSONMAASObject(input, client)
+}
 
-	subObj := obj.GetSubObject(subName)
+// Passing GetSubObject a relative path effectively concatenates that path to
+// the original object's resource URI.
+func (suite *MAASObjectSuite) TestGetSubObjectRelative(c *C) {
+	obj := makeFakeMAASObject("http://example.com/", "a/resource/")
+
+	subObj := obj.GetSubObject("test")
 	subURL := subObj.URL()
 
 	// uri ends with a slash and subName starts with one, but the two paths
 	// should be concatenated as "http://example.com/a/resource/test/".
-	expectedSubURL, _ := url.Parse("http://example.com/a/resource/test/")
+	expectedSubURL, err := url.Parse("http://example.com/a/resource/test/")
+	c.Assert(err, IsNil)
 	c.Check(subURL, DeepEquals, expectedSubURL)
 }
 
+// Passing GetSubObject an absolute path effectively substitutes that path for
+// the path component in the original object's resource URI.
 func (suite *MAASObjectSuite) TestGetSubObjectAbsolute(c *C) {
-	baseURL, _ := url.Parse("http://example.com/")
-	uri := "http://example.com/a/resource/"
-	input := map[string]interface{}{resourceURI: uri}
-	client := Client{BaseURL: baseURL}
-	obj := newJSONMAASObject(input, client)
-	subName := "/b/test"
+	obj := makeFakeMAASObject("http://example.com/", "a/resource/")
 
-	subObj := obj.GetSubObject(subName)
+	subObj := obj.GetSubObject("/b/test")
 	subURL := subObj.URL()
 
-	expectedSubURL, _ := url.Parse("http://example.com/b/test/")
+	expectedSubURL, err := url.Parse("http://example.com/b/test/")
+	c.Assert(err, IsNil)
+	c.Check(subURL, DeepEquals, expectedSubURL)
+}
+
+// An absolute path passed to GetSubObject is rooted at the server root, not
+// at the service root.  So every absolute resource URI must repeat the part
+// of the path that leads to the service root.  This does not double that part
+// of the URI.
+func (suite *MAASObjectSuite) TestGetSubObjectAbsoluteDoesNotDoubleServiceRoot(c *C) {
+	obj := makeFakeMAASObject("http://example.com/service", "a/resource/")
+
+	subObj := obj.GetSubObject("/service/test")
+	subURL := subObj.URL()
+
+	// The "/service" part is not repeated; it must be included.
+	expectedSubURL, err := url.Parse("http://example.com/service/test/")
+	c.Assert(err, IsNil)
 	c.Check(subURL, DeepEquals, expectedSubURL)
 }
 

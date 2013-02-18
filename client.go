@@ -22,11 +22,19 @@ type Client struct {
 	Signer  OAuthSigner
 }
 
+// ServerError is an http error (or at least, a non-2xx result) received from
+// the server.  It contains the numerical HTTP status code as well as an error
+// string.
+type ServerError struct {
+	error
+	StatusCode int
+}
+
 // dispatchRequest sends a request to the server, and interprets the response.
-// Client-side error will return an empty response and a non-nil error but
-// for server-side errors (i.e. responses with a non 2XX status code), the
-// returned error will contain a warning and the body of the response will
-// still be returned.
+// Client-side errors will return an empty response and a non-nil error.  For
+// server-side errors however (i.e. responses with a non 2XX status code), the
+// returned error will be ServerError and the returned body will reflect the
+// server's response.
 func (client Client) dispatchRequest(request *http.Request) ([]byte, error) {
 	client.Signer.OAuthSign(request)
 	httpClient := http.Client{}
@@ -39,7 +47,8 @@ func (client Client) dispatchRequest(request *http.Request) ([]byte, error) {
 		return nil, err
 	}
 	if response.StatusCode < 200 || response.StatusCode > 299 {
-		return body, fmt.Errorf("gomaasapi: got error back from server: %v", response.Status)
+		msg := fmt.Errorf("gomaasapi: got error back from server: %v", response.Status)
+		return body, ServerError{error: msg, StatusCode: response.StatusCode}
 	}
 	return body, nil
 }

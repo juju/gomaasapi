@@ -16,7 +16,7 @@ type ClientSuite struct{}
 
 var _ = Suite(&ClientSuite{})
 
-func (suite *ClientSuite) TestClientdispatchRequestReturnsError(c *C) {
+func (suite *ClientSuite) TestClientdispatchRequestReturnsServerError(c *C) {
 	URI := "/some/url/?param1=test"
 	expectedResult := "expected:result"
 	server := newSingleServingServer(URI, expectedResult, http.StatusBadRequest)
@@ -27,7 +27,24 @@ func (suite *ClientSuite) TestClientdispatchRequestReturnsError(c *C) {
 	result, err := client.dispatchRequest(request)
 
 	c.Check(err, ErrorMatches, "gomaasapi: got error back from server: 400 Bad Request.*")
+	c.Check(err.(ServerError).StatusCode, Equals, 400)
 	c.Check(string(result), Equals, expectedResult)
+}
+
+func (suite *ClientSuite) TestClientDispatchRequestReturnsNonServerError(c *C) {
+	client, err := NewAnonymousClient("/foo")
+	c.Assert(err, IsNil)
+	// Create a bad request that will fail to dispatch.
+	request, err := http.NewRequest("GET", "/", nil)
+	c.Assert(err, IsNil)
+
+	result, err := client.dispatchRequest(request)
+
+	// This type of failure is an error, but not a ServerError.
+	c.Check(err, NotNil)
+	c.Check(err, Not(FitsTypeOf), ServerError{})
+	// For this kind of error, result is guaranteed to be nil.
+	c.Check(result, IsNil)
 }
 
 func (suite *ClientSuite) TestClientdispatchRequestSignsRequest(c *C) {
