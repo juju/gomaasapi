@@ -23,17 +23,18 @@ type Client struct {
 }
 
 // ServerError is an http error (or at least, a non-2xx result) received from
-// the server.
+// the server.  It contains the numerical HTTP status code as well as an error
+// string.
 type ServerError struct {
 	error
 	StatusCode int
 }
 
 // dispatchRequest sends a request to the server, and interprets the response.
-// Client-side error will return an empty response and a non-nil error but
-// for server-side errors (i.e. responses with a non 2XX status code), the
-// returned error will contain a warning and the body of the response will
-// still be returned.
+// Client-side errors will return an empty response and a non-nil error.  For
+// server-side errors however (i.e. responses with a non 2XX status code), the
+// returned error will be ServerError and the returned body will reflect the
+// server's response.
 func (client Client) dispatchRequest(request *http.Request) ([]byte, error) {
 	client.Signer.OAuthSign(request)
 	httpClient := http.Client{}
