@@ -151,7 +151,7 @@ func (suite *MAASObjectSuite) TestGetSubObjectAbsolute(c *C) {
 // at the service root.  So every absolute resource URI must repeat the part
 // of the path that leads to the service root.  This does not double that part
 // of the URI.
-func (suite *MAASObjectSuite) TestGetSubObjectAbsoluteDoesNotIncludeServiceRoot(c *C) {
+func (suite *MAASObjectSuite) TestGetSubObjectAbsoluteDoesNotDoubleServiceRoot(c *C) {
 	obj := makeFakeMAASObject("http://example.com/service", "a/resource/")
 
 	subObj := obj.GetSubObject("/service/test")
