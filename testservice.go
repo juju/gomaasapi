@@ -142,7 +142,7 @@ func getNodeListingURL(version string) string {
 }
 
 func getNodeURLRE(version string) *regexp.Regexp {
-	reString := fmt.Sprintf("^/api/%s/nodes/([^/]*)/$", version)
+	reString := fmt.Sprintf("^/api/%s/nodes/([^/]*)/$", regexp.QuoteMeta(version))
 	return regexp.MustCompile(reString)
 }
 
@@ -151,7 +151,7 @@ func getFilesURL(version string) string {
 }
 
 func getFileURLRE(version string) *regexp.Regexp {
-	reString := fmt.Sprintf("^/api/%s/files/([^/]*)/$", version)
+	reString := fmt.Sprintf("^/api/%s/files/([^/]*)/$", regexp.QuoteMeta(version))
 	return regexp.MustCompile(reString)
 }
 
@@ -302,7 +302,7 @@ func fileListingHandler(server *TestServer, w http.ResponseWriter, r *http.Reque
 	}
 	// Sort filenames.
 	sort.Strings(filenames)
-	// Build result. 
+	// Build a sorted list of the files as map[string]JSONObject objects. 
 	for _, filename := range filenames {
 		file, _ := server.files[filename]
 		fileMap := file.GetMap()
