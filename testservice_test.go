@@ -5,6 +5,7 @@ package gomaasapi
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -184,8 +185,10 @@ func (suite *TestServerSuite) TestHandlesUploadFile(c *C) {
 	c.Check(err, IsNil)
 	c.Check(resp.StatusCode, Equals, http.StatusOK)
 	c.Check(len(suite.server.files), Equals, 1)
-	expectedFiles := map[string][]byte{"filename": fileContent}
-	c.Check(suite.server.files, DeepEquals, expectedFiles)
+	file, _ := suite.server.files["filename"]
+	field, err := file.GetField("content")
+	c.Assert(err, IsNil)
+	c.Check(field, Equals, base64.StdEncoding.EncodeToString(fileContent))
 }
 
 func (suite *TestServerSuite) TestHandlesGetFile(c *C) {
@@ -204,8 +207,61 @@ func (suite *TestServerSuite) TestHandlesGetFile(c *C) {
 	c.Check(content, DeepEquals, fileContent)
 }
 
+func (suite *TestServerSuite) TestHandlesListReturnedSortedFilenames(c *C) {
+	fileName1 := "filename1"
+	suite.server.NewFile(fileName1, []byte("test file content"))
+	fileName2 := "filename2"
+	suite.server.NewFile(fileName2, []byte("test file content"))
+	getURI := fmt.Sprintf("/api/%s/files/?op=list", suite.server.version)
+
+	resp, err := http.Get(suite.server.Server.URL + getURI)
+	c.Check(err, IsNil)
+	c.Check(resp.StatusCode, Equals, http.StatusOK)
+	content, err := ioutil.ReadAll(resp.Body)
+	c.Check(err, IsNil)
+	var files []map[string]string
+	err = json.Unmarshal(content, &files)
+	c.Check(len(files), Equals, 2)
+	c.Check(files[0]["filename"], Equals, fileName1)
+	c.Check(files[1]["filename"], Equals, fileName2)
+}
+
+func (suite *TestServerSuite) TestHandlesListReturnedFilteredFiles(c *C) {
+	fileName1 := "filename1"
+	suite.server.NewFile(fileName1, []byte("test file content"))
+	fileName2 := "prefixFilename"
+	suite.server.NewFile(fileName2, []byte("test file content"))
+	getURI := fmt.Sprintf("/api/%s/files/?op=list&prefix=prefix", suite.server.version)
+
+	resp, err := http.Get(suite.server.Server.URL + getURI)
+
+	c.Check(err, IsNil)
+	c.Check(resp.StatusCode, Equals, http.StatusOK)
+	content, err := ioutil.ReadAll(resp.Body)
+	c.Check(err, IsNil)
+	var files []map[string]string
+	err = json.Unmarshal(content, &files)
+	c.Check(len(files), Equals, 1)
+	c.Check(files[0]["filename"], Equals, fileName2)
+}
+
+func (suite *TestServerSuite) TestDeleteFile(c *C) {
+	fileName1 := "filename1"
+	suite.server.NewFile(fileName1, []byte("test file content"))
+	deleteURI := fmt.Sprintf("/api/%s/files/filename1/", suite.server.version)
+
+	req, err := http.NewRequest("DELETE", suite.server.Server.URL+deleteURI, nil)
+	c.Check(err, IsNil)
+	var client http.Client
+	resp, err := client.Do(req)
+
+	c.Check(err, IsNil)
+	c.Check(resp.StatusCode, Equals, http.StatusOK)
+	c.Check(suite.server.Files(), DeepEquals, map[string]MAASObject{})
+}
+
 // TestMAASObjectSuite validates that the object created by
-// TestMAASObject can be used by the gomaasapi library as if it were a real
+// NewTestMAAS can be used by the gomaasapi library as if it were a real
 // MAAS server.
 type TestMAASObjectSuite struct {
 	TestMAASObject *TestMAASObject
