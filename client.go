@@ -5,7 +5,6 @@ package gomaasapi
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -69,8 +68,8 @@ func (client Client) Get(uri *url.URL, operation string, parameters url.Values) 
 	}
 	opParameter := parameters.Get("op")
 	if opParameter != "" {
-		errString := fmt.Sprintf("The parameters contain a value for '%s' which is reserved parameter.")
-		return nil, errors.New(errString)
+		msg := fmt.Errorf("reserved parameter 'op' passed (with value '%s')", opParameter)
+		return nil, msg
 	}
 	if operation != "" {
 		parameters.Set("op", operation)
