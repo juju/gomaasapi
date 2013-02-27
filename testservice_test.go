@@ -212,7 +212,9 @@ func (suite *TestServerSuite) TestHandlesFile(c *C) {
 	c.Check(anon_url.(string), Equals, anon_uri)
 	base64Content, ok := obj["content"]
 	c.Check(ok, Equals, true)
-	c.Check(string(base64Content.([]byte)), Equals, fileContent)
+	decodedContent, err := base64.StdEncoding.DecodeString(base64Content.(string))
+	c.Assert(err, IsNil)
+	c.Check(string(decodedContent), Equals, fileContent)
 }
 
 func (suite *TestServerSuite) TestHandlesGetFile(c *C) {
