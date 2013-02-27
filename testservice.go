@@ -348,7 +348,7 @@ func fileHandler(server *TestServer, w http.ResponseWriter, r *http.Request, fil
 		w.WriteHeader(http.StatusOK)
 	case r.Method == "GET":
 		// Retrieve a file's information (including content) as a JSON
-                // object.
+		// object.
 		file, ok := server.files[filename]
 		if !ok {
 			http.NotFoundHandler().ServeHTTP(w, r)
