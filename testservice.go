@@ -24,12 +24,17 @@ type TestMAASObject struct {
 	TestServer *TestServer
 }
 
+// checkError is a shorthand helper that panics if err is not nil.
+func checkError(err error) {
+}
+
 // NewTestMAAS returns a TestMAASObject that implements the MAASObject
 // interface and thus can be used as a test object instead of the one returned
 // by gomaasapi.NewMAAS().
 func NewTestMAAS(version string) *TestMAASObject {
 	server := NewTestServer(version)
-	authClient, _ := NewAnonymousClient(server.URL + fmt.Sprintf("/api/%s/", version))
+	authClient, err := NewAnonymousClient(server.URL + fmt.Sprintf("/api/%s/", version))
+	checkError(err)
 	maas := NewMAAS(*authClient)
 	return &TestMAASObject{*maas, server}
 }
@@ -172,7 +177,8 @@ func NewTestServer(version string) *TestServer {
 	})
 
 	newServer := httptest.NewServer(serveMux)
-	client, _ := NewAnonymousClient(newServer.URL)
+	client, err := NewAnonymousClient(newServer.URL)
+	checkError(err)
 	server.Server = newServer
 	server.serveMux = serveMux
 	server.client = *client
@@ -182,7 +188,8 @@ func NewTestServer(version string) *TestServer {
 
 // nodesHandler handles requests for '/api/<version>/nodes/*'.
 func nodesHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
-	values, _ := url.ParseQuery(r.URL.RawQuery)
+	values, err := url.ParseQuery(r.URL.RawQuery)
+	checkError(err)
 	op := values.Get("op")
 	nodeURLRE := getNodeURLRE(server.version)
 	nodeURLMatch := nodeURLRE.FindStringSubmatch(r.URL.Path)
@@ -250,7 +257,8 @@ func contains(slice []string, val string) bool {
 
 // nodeListingHandler handles requests for '/nodes/'.
 func nodeListingHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
-	values, _ := url.ParseQuery(r.URL.RawQuery)
+	values, err := url.ParseQuery(r.URL.RawQuery)
+	checkError(err)
 	ids, hasId := values["id"]
 	var convertedNodes = []map[string]JSONObject{}
 	for systemId, node := range server.nodes {
@@ -258,14 +266,16 @@ func nodeListingHandler(server *TestServer, w http.ResponseWriter, r *http.Reque
 			convertedNodes = append(convertedNodes, node.GetMap())
 		}
 	}
-	res, _ := json.Marshal(convertedNodes)
+	res, err := json.Marshal(convertedNodes)
+	checkError(err)
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, string(res))
 }
 
 // filesHandler handles requests for '/api/<version>/files/*'.
 func filesHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
-	values, _ := url.ParseQuery(r.URL.RawQuery)
+	values, err := url.ParseQuery(r.URL.RawQuery)
+	checkError(err)
 	op := values.Get("op")
 	fileURLRE := getFileURLRE(server.version)
 	fileURLMatch := fileURLRE.FindStringSubmatch(r.URL.Path)
@@ -315,7 +325,8 @@ func stripContent(original map[string]JSONObject) map[string]JSONObject {
 
 // fileListingHandler handles requests for '/api/<version>/files/?op=list'.
 func fileListingHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
-	values, _ := url.ParseQuery(r.URL.RawQuery)
+	values, err := url.ParseQuery(r.URL.RawQuery)
+	checkError(err)
 	prefix := values.Get("prefix")
 	filenames := listFilenames(server, prefix)
 
@@ -355,7 +366,8 @@ func InternalError(w http.ResponseWriter, r *http.Request, err error) {
 // getFileHandler handles requests for
 // '/api/<version>/files/?op=get&filename=filename'.
 func getFileHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
-	values, _ := url.ParseQuery(r.URL.RawQuery)
+	values, err := url.ParseQuery(r.URL.RawQuery)
+	checkError(err)
 	filename := values.Get("filename")
 	file, found := server.files[filename]
 	if !found {
@@ -392,7 +404,8 @@ func addFileHandler(server *TestServer, w http.ResponseWriter, r *http.Request) 
 		panic(err)
 	}
 
-	values, _ := url.ParseQuery(r.URL.RawQuery)
+	values, err := url.ParseQuery(r.URL.RawQuery)
+	checkError(err)
 	filename := values.Get("filename")
 
 	uploads := r.MultipartForm.File
