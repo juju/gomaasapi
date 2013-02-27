@@ -64,6 +64,9 @@ func (client Client) GetURL(uri *url.URL) *url.URL {
 // invocation (if you pass its name in "operation") or plain resource
 // retrieval (if you leave "operation" blank).
 func (client Client) Get(uri *url.URL, operation string, parameters url.Values) ([]byte, error) {
+	if parameters == nil {
+		parameters = make(url.Values)
+	}
 	opParameter := parameters.Get("op")
 	if opParameter != "" {
 		errString := fmt.Sprintf("The parameters contain a value for '%s' which is reserved parameter.")
