@@ -191,6 +191,33 @@ func (suite *TestServerSuite) TestHandlesUploadFile(c *C) {
 	c.Check(field, Equals, base64.StdEncoding.EncodeToString(fileContent))
 }
 
+func (suite *TestServerSuite) TestHandlesFile(c *C) {
+	const filename = "my-file"
+	const fileContent = "test file content"
+	file := suite.server.NewFile(filename, []byte(fileContent))
+	getURI := fmt.Sprintf("/api/%s/files/%s/", suite.server.version, filename)
+	fileURI, err := file.GetField("anon_resource_uri")
+	c.Assert(err, IsNil)
+
+	resp, err := http.Get(suite.server.Server.URL + getURI)
+	c.Check(err, IsNil)
+	c.Check(resp.StatusCode, Equals, http.StatusOK)
+
+	content, err := ioutil.ReadAll(resp.Body)
+	c.Assert(err, IsNil)
+	var obj map[string]interface{}
+	err = json.Unmarshal(content, &obj)
+	c.Assert(err, IsNil)
+	anon_url, ok := obj["anon_resource_uri"]
+	c.Check(ok, Equals, true)
+	c.Check(anon_url.(string), Equals, fileURI)
+	base64Content, ok := obj["content"]
+	c.Check(ok, Equals, true)
+	decodedContent, err := base64.StdEncoding.DecodeString(base64Content.(string))
+	c.Assert(err, IsNil)
+	c.Check(string(decodedContent), Equals, fileContent)
+}
+
 func (suite *TestServerSuite) TestHandlesGetFile(c *C) {
 	fileContent := []byte("test file content")
 	fileName := "filename"
