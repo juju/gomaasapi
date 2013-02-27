@@ -26,6 +26,9 @@ type TestMAASObject struct {
 
 // checkError is a shorthand helper that panics if err is not nil.
 func checkError(err error) {
+	if err != nil {
+		panic(err)
+	}
 }
 
 // NewTestMAAS returns a TestMAASObject that implements the MAASObject
@@ -97,9 +100,7 @@ func (server *TestServer) addNodeOperation(systemId, operation string) {
 func (server *TestServer) NewNode(jsonText string) MAASObject {
 	var attrs map[string]interface{}
 	err := json.Unmarshal([]byte(jsonText), &attrs)
-	if err != nil {
-		panic(err)
-	}
+	checkError(err)
 	systemIdEntry, hasSystemId := attrs["system_id"]
 	if !hasSystemId {
 		panic("The given map json string does not contain a 'system_id' value.")
@@ -338,9 +339,7 @@ func fileListingHandler(server *TestServer, w http.ResponseWriter, r *http.Reque
 		convertedFiles = append(convertedFiles, fileMap)
 	}
 	res, err := json.Marshal(convertedFiles)
-	if err != nil {
-		panic(err)
-	}
+	checkError(err)
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, string(res))
 }
@@ -400,9 +399,7 @@ func readMultipart(upload *multipart.FileHeader) ([]byte, error) {
 // filesHandler handles requests for '/api/<version>/files/?op=add&filename=filename'.
 func addFileHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
 	err := r.ParseMultipartForm(10000000)
-	if err != nil {
-		panic(err)
-	}
+	checkError(err)
 
 	values, err := url.ParseQuery(r.URL.RawQuery)
 	checkError(err)
@@ -417,9 +414,7 @@ func addFileHandler(server *TestServer, w http.ResponseWriter, r *http.Request) 
 		upload = uploadContent[0]
 	}
 	content, err := readMultipart(upload)
-	if err != nil {
-		panic(err)
-	}
+	checkError(err)
 	server.NewFile(filename, content)
 	w.WriteHeader(http.StatusOK)
 }
