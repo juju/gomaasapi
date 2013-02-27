@@ -207,7 +207,7 @@ func (suite *TestServerSuite) TestHandlesGetFile(c *C) {
 	c.Check(content, DeepEquals, fileContent)
 }
 
-func (suite *TestServerSuite) TestHandlesListReturnedSortedFilenames(c *C) {
+func (suite *TestServerSuite) TestHandlesListReturnsSortedFilenames(c *C) {
 	fileName1 := "filename1"
 	suite.server.NewFile(fileName1, []byte("test file content"))
 	fileName2 := "filename2"
@@ -218,15 +218,16 @@ func (suite *TestServerSuite) TestHandlesListReturnedSortedFilenames(c *C) {
 	c.Check(err, IsNil)
 	c.Check(resp.StatusCode, Equals, http.StatusOK)
 	content, err := ioutil.ReadAll(resp.Body)
-	c.Check(err, IsNil)
+	c.Assert(err, IsNil)
 	var files []map[string]string
 	err = json.Unmarshal(content, &files)
+	c.Assert(err, IsNil)
 	c.Check(len(files), Equals, 2)
 	c.Check(files[0]["filename"], Equals, fileName1)
 	c.Check(files[1]["filename"], Equals, fileName2)
 }
 
-func (suite *TestServerSuite) TestHandlesListReturnedFilteredFiles(c *C) {
+func (suite *TestServerSuite) TestHandlesListFiltersFiles(c *C) {
 	fileName1 := "filename1"
 	suite.server.NewFile(fileName1, []byte("test file content"))
 	fileName2 := "prefixFilename"
@@ -238,11 +239,39 @@ func (suite *TestServerSuite) TestHandlesListReturnedFilteredFiles(c *C) {
 	c.Check(err, IsNil)
 	c.Check(resp.StatusCode, Equals, http.StatusOK)
 	content, err := ioutil.ReadAll(resp.Body)
-	c.Check(err, IsNil)
+	c.Assert(err, IsNil)
 	var files []map[string]string
 	err = json.Unmarshal(content, &files)
+	c.Assert(err, IsNil)
 	c.Check(len(files), Equals, 1)
 	c.Check(files[0]["filename"], Equals, fileName2)
+}
+
+func (suite *TestServerSuite) TestHandlesListOmitsContent(c *C) {
+	const filename = "myfile"
+	fileContent := []byte("test file content")
+	suite.server.NewFile(filename, fileContent)
+	getURI := fmt.Sprintf("/api/%s/files/?op=list", suite.server.version)
+
+	resp, err := http.Get(suite.server.Server.URL + getURI)
+	c.Assert(err, IsNil)
+
+	content, err := ioutil.ReadAll(resp.Body)
+	c.Assert(err, IsNil)
+	var files []map[string]string
+	err = json.Unmarshal(content, &files)
+
+	// The resulting dict does not have a "content" entry.
+	file := files[0]
+	_, ok := file["content"]
+	c.Check(ok, Equals, false)
+
+	// But the original as stored in the test service still has it.
+	contentAfter, err := suite.server.files[filename].GetField("content")
+	c.Assert(err, IsNil)
+	bytes, err := base64.StdEncoding.DecodeString(contentAfter)
+	c.Assert(err, IsNil)
+	c.Check(string(bytes), Equals, string(fileContent))
 }
 
 func (suite *TestServerSuite) TestDeleteFile(c *C) {

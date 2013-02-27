@@ -288,28 +288,48 @@ func filesHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
 
 }
 
+// listFilenames returns the names of those uploaded files whose names start
+// with the given prefix, sorted lexicographically.
+func listFilenames(server *TestServer, prefix string) []string {
+	var filenames = make([]string, 0)
+	for filename, _ := range server.files {
+		if strings.HasPrefix(filename, prefix) {
+			filenames = append(filenames, filename)
+		}
+	}
+	sort.Strings(filenames)
+	return filenames
+}
+
+// stripFileContent copies a map of attributes representing an uploaded file,
+// but with the "content" attribute removed.
+func stripContent(original map[string]JSONObject) map[string]JSONObject {
+	newMap := make(map[string]JSONObject, len(original)-1)
+	for key, value := range original {
+		if key != "content" {
+			newMap[key] = value
+		}
+	}
+	return newMap
+}
+
 // fileListingHandler handles requests for '/api/<version>/files/?op=list'.
 func fileListingHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
 	values, _ := url.ParseQuery(r.URL.RawQuery)
 	prefix := values.Get("prefix")
-	var convertedFiles = []map[string]JSONObject{}
-	// Create slice of selected filenames.
-	var filenames = []string{}
-	for filename, _ := range server.files {
-		if strings.Index(filename, prefix) == 0 {
-			filenames = append(filenames, filename)
-		}
-	}
-	// Sort filenames.
-	sort.Strings(filenames)
+	filenames := listFilenames(server, prefix)
+
 	// Build a sorted list of the files as map[string]JSONObject objects. 
+	convertedFiles := make([]map[string]JSONObject, 0)
 	for _, filename := range filenames {
-		file, _ := server.files[filename]
-		fileMap := file.GetMap()
-		delete(fileMap, "content")
+		// The "content" attribute is not in the listing.
+		fileMap := stripContent(server.files[filename].GetMap())
 		convertedFiles = append(convertedFiles, fileMap)
 	}
-	res, _ := json.Marshal(convertedFiles)
+	res, err := json.Marshal(convertedFiles)
+	if err != nil {
+		panic(err)
+	}
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, string(res))
 }
