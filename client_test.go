@@ -85,7 +85,7 @@ func (suite *ClientSuite) TestClientGetFormatsOperationAsGetParameter(c *C) {
 	defer server.Close()
 	client, _ := NewAnonymousClient(server.URL)
 
-	result, err := client.Get(URI, "list", url.Values{})
+	result, err := client.Get(URI, "list", nil)
 
 	c.Check(err, IsNil)
 	c.Check(string(result), Equals, expectedResult)
@@ -144,7 +144,7 @@ func (suite *ClientSuite) TestClientPostSendsMultipartRequest(c *C) {
 	fileContent := []byte("content")
 	files := map[string][]byte{"testfile": fileContent}
 
-	result, err := client.Post(URI, "add", url.Values{}, files)
+	result, err := client.Post(URI, "add", nil, files)
 
 	c.Check(err, IsNil)
 	c.Check(string(result), Equals, expectedResult)
