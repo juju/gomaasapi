@@ -197,11 +197,12 @@ func (suite *TestServerSuite) TestHandlesFile(c *C) {
 	file := suite.server.NewFile(filename, []byte(fileContent))
 	getURI := fmt.Sprintf("/api/%s/files/%s/", suite.server.version, filename)
 	fileURI, err := file.GetField("anon_resource_uri")
+	c.Assert(err, IsNil)
 
 	resp, err := http.Get(suite.server.Server.URL + getURI)
 	c.Check(err, IsNil)
-
 	c.Check(resp.StatusCode, Equals, http.StatusOK)
+
 	content, err := ioutil.ReadAll(resp.Body)
 	c.Assert(err, IsNil)
 	var obj map[string]interface{}

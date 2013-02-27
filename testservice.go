@@ -359,7 +359,7 @@ func fileHandler(server *TestServer, w http.ResponseWriter, r *http.Request, fil
 			panic(err)
 		}
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprint(w, string(jsonText))
+		w.Write(jsonText)
 	default:
 		// Default handler: not found.
 		http.NotFoundHandler().ServeHTTP(w, r)
