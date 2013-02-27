@@ -196,7 +196,7 @@ func (suite *TestServerSuite) TestHandlesFile(c *C) {
 	const fileContent = "test file content"
 	file := suite.server.NewFile(filename, []byte(fileContent))
 	getURI := fmt.Sprintf("/api/%s/files/%s/", suite.server.version, filename)
-	anon_uri, err := file.GetField("anon_resource_uri")
+	fileURI, err := file.GetField("anon_resource_uri")
 
 	resp, err := http.Get(suite.server.Server.URL + getURI)
 	c.Check(err, IsNil)
@@ -209,7 +209,7 @@ func (suite *TestServerSuite) TestHandlesFile(c *C) {
 	c.Assert(err, IsNil)
 	anon_url, ok := obj["anon_resource_uri"]
 	c.Check(ok, Equals, true)
-	c.Check(anon_url.(string), Equals, anon_uri)
+	c.Check(anon_url.(string), Equals, fileURI)
 	base64Content, ok := obj["content"]
 	c.Check(ok, Equals, true)
 	decodedContent, err := base64.StdEncoding.DecodeString(base64Content.(string))

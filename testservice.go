@@ -119,6 +119,12 @@ func (server *TestServer) NewFile(filename string, filecontent []byte) MAASObjec
 	base64Content := base64.StdEncoding.EncodeToString(filecontent)
 	attrs["content"] = base64Content
 	attrs["filename"] = filename
+
+	// Allocate an arbitrary URL here.  It would be nice if the caller
+	// could do this, but that would change the API and require many
+	// changes.
+	attrs["anon_resource_uri"] = "/maas/1.0/files/?op=get_by_key&key=" + filename + "_key"
+
 	obj := newJSONMAASObject(attrs, server.client)
 	server.files[filename] = obj
 	return obj
@@ -340,7 +346,20 @@ func fileHandler(server *TestServer, w http.ResponseWriter, r *http.Request, fil
 	case r.Method == "DELETE":
 		delete(server.files, filename)
 		w.WriteHeader(http.StatusOK)
-		return
+	case r.Method == "GET":
+		// Retrieve a file's information (including content) as a JSON
+                // object.
+		file, ok := server.files[filename]
+		if !ok {
+			http.NotFoundHandler().ServeHTTP(w, r)
+			return
+		}
+		jsonText, err := json.Marshal(file)
+		if err != nil {
+			panic(err)
+		}
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprint(w, string(jsonText))
 	default:
 		// Default handler: not found.
 		http.NotFoundHandler().ServeHTTP(w, r)
