@@ -163,6 +163,17 @@ func (suite *MAASObjectSuite) TestGetSubObjectAbsoluteDoesNotDoubleServiceRoot(c
 	c.Check(subURL, DeepEquals, expectedSubURL)
 }
 
+// The argument to GetSubObject is a relative path, not a URL.  So it won't
+// take a query part.  The special characters that mark a query are escaped
+// so they are recognized as parts of the path.
+func (suite *MAASObjectSuite) TestGetSubObjectTakesPathNotURL(c *C) {
+	obj := makeFakeMAASObject("http://example.com/", "x/")
+
+	subObj := obj.GetSubObject("/y?z")
+
+	c.Check(subObj.URL().String(), Equals, "http://example.com/y%3Fz/")
+}
+
 func (suite *MAASObjectSuite) TestGetField(c *C) {
 	uri := "http://example.com/a/resource"
 	fieldName := "field name"
