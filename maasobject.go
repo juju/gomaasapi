@@ -114,11 +114,8 @@ func (obj MAASObject) GetMap() map[string]JSONObject {
 // at a given sub-path of the current object's resource URI.
 func (obj MAASObject) GetSubObject(name string) MAASObject {
 	uri := obj.URI()
-	newUrl, err := url.Parse(name)
-	if err != nil {
-		panic(err)
-	}
-	resUrl := uri.ResolveReference(newUrl)
+	newURL := url.URL{Path: name}
+	resUrl := uri.ResolveReference(&newURL)
 	resUrl.Path = EnsureTrailingSlash(resUrl.Path)
 	input := map[string]interface{}{resourceURI: resUrl.String()}
 	return newJSONMAASObject(input, obj.client)
