@@ -423,6 +423,9 @@ func addFileHandler(server *TestServer, w http.ResponseWriter, r *http.Request) 
 	values, err := url.ParseQuery(r.URL.RawQuery)
 	checkError(err)
 	filename := values.Get("filename")
+	if filename == "" {
+		panic("upload has no filename")
+	}
 
 	uploads := r.MultipartForm.File
 	if len(uploads) != 1 {

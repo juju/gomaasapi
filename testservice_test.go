@@ -185,7 +185,8 @@ func (suite *TestServerSuite) TestHandlesUploadFile(c *C) {
 	c.Check(err, IsNil)
 	c.Check(resp.StatusCode, Equals, http.StatusOK)
 	c.Check(len(suite.server.files), Equals, 1)
-	file, _ := suite.server.files["filename"]
+	file, ok := suite.server.files["filename"]
+	c.Assert(ok, Equals, true)
 	field, err := file.GetField("content")
 	c.Assert(err, IsNil)
 	c.Check(field, Equals, base64.StdEncoding.EncodeToString(fileContent))
