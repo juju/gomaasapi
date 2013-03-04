@@ -420,3 +420,22 @@ func (suite *TestMAASObjectSuite) TestOperationsOnNodeGetRecorded(c *C) {
 	operations := nodeOperations["mysystemid"]
 	c.Check(operations, DeepEquals, []string{"start"})
 }
+
+func (suite *TestMAASObjectSuite) TestUploadFile(c *C) {
+	const filename = "myfile.txt"
+	const fileContent = "uploaded contents"
+	files := suite.TestMAASObject.GetSubObject("files")
+	params := url.Values{"filename": {filename}}
+	filesMap := map[string][]byte{"file": []byte(fileContent)}
+
+	// Upload a file.
+	_, err := files.CallPostFiles("add", params, filesMap)
+	c.Assert(err, IsNil)
+
+	// The file can now be downloaded.
+	downloadedFile, err := files.CallGet("get", params)
+	c.Assert(err, IsNil)
+	bytes, err := downloadedFile.GetBytes()
+	c.Assert(err, IsNil)
+	c.Check(string(bytes), Equals, fileContent)
+}
