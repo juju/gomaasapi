@@ -21,7 +21,8 @@ func (suite *ClientSuite) TestClientdispatchRequestReturnsServerError(c *C) {
 	expectedResult := "expected:result"
 	server := newSingleServingServer(URI, expectedResult, http.StatusBadRequest)
 	defer server.Close()
-	client, _ := NewAnonymousClient(server.URL)
+	client, err := NewAnonymousClient(server.URL)
+	c.Assert(err, IsNil)
 	request, err := http.NewRequest("GET", server.URL+URI, nil)
 
 	result, err := client.dispatchRequest(request)
@@ -52,8 +53,10 @@ func (suite *ClientSuite) TestClientdispatchRequestSignsRequest(c *C) {
 	expectedResult := "expected:result"
 	server := newSingleServingServer(URI, expectedResult, http.StatusOK)
 	defer server.Close()
-	client, _ := NewAuthenticatedClient(server.URL, "the:api:key")
+	client, err := NewAuthenticatedClient(server.URL, "the:api:key")
+	c.Assert(err, IsNil)
 	request, err := http.NewRequest("GET", server.URL+URI, nil)
+	c.Assert(err, IsNil)
 
 	result, err := client.dispatchRequest(request)
 
@@ -63,13 +66,15 @@ func (suite *ClientSuite) TestClientdispatchRequestSignsRequest(c *C) {
 }
 
 func (suite *ClientSuite) TestClientGetFormatsGetParameters(c *C) {
-	URI, _ := url.Parse("/some/url")
+	URI, err := url.Parse("/some/url")
+	c.Assert(err, IsNil)
 	expectedResult := "expected:result"
 	params := url.Values{"test": {"123"}}
 	fullURI := URI.String() + "?test=123"
 	server := newSingleServingServer(fullURI, expectedResult, http.StatusOK)
 	defer server.Close()
-	client, _ := NewAnonymousClient(server.URL)
+	client, err := NewAnonymousClient(server.URL)
+	c.Assert(err, IsNil)
 
 	result, err := client.Get(URI, "", params)
 
@@ -78,12 +83,14 @@ func (suite *ClientSuite) TestClientGetFormatsGetParameters(c *C) {
 }
 
 func (suite *ClientSuite) TestClientGetFormatsOperationAsGetParameter(c *C) {
-	URI, _ := url.Parse("/some/url")
+	URI, err := url.Parse("/some/url")
+	c.Assert(err, IsNil)
 	expectedResult := "expected:result"
 	fullURI := URI.String() + "?op=list"
 	server := newSingleServingServer(fullURI, expectedResult, http.StatusOK)
 	defer server.Close()
-	client, _ := NewAnonymousClient(server.URL)
+	client, err := NewAnonymousClient(server.URL)
+	c.Assert(err, IsNil)
 
 	result, err := client.Get(URI, "list", nil)
 
@@ -135,12 +142,14 @@ func extractFileContent(requestContent string, requestHeader *http.Header, reque
 }
 
 func (suite *ClientSuite) TestClientPostSendsMultipartRequest(c *C) {
-	URI, _ := url.Parse("/some/url")
+	URI, err := url.Parse("/some/url")
+	c.Assert(err, IsNil)
 	expectedResult := "expected:result"
 	fullURI := URI.String() + "?op=add"
 	server := newSingleServingServer(fullURI, expectedResult, http.StatusOK)
 	defer server.Close()
-	client, _ := NewAnonymousClient(server.URL)
+	client, err := NewAnonymousClient(server.URL)
+	c.Assert(err, IsNil)
 	fileContent := []byte("content")
 	files := map[string][]byte{"testfile": fileContent}
 
@@ -148,17 +157,20 @@ func (suite *ClientSuite) TestClientPostSendsMultipartRequest(c *C) {
 
 	c.Check(err, IsNil)
 	c.Check(string(result), Equals, expectedResult)
-	receivedFileContent, _ := extractFileContent(*server.requestContent, server.requestHeader, fullURI, "testfile")
+	receivedFileContent, err := extractFileContent(*server.requestContent, server.requestHeader, fullURI, "testfile")
+	c.Assert(err, IsNil)
 	c.Check(receivedFileContent, DeepEquals, fileContent)
 }
 
 func (suite *ClientSuite) TestClientPutSendsRequest(c *C) {
-	URI, _ := url.Parse("/some/url")
+	URI, err := url.Parse("/some/url")
+	c.Assert(err, IsNil)
 	expectedResult := "expected:result"
 	params := url.Values{"test": {"123"}}
 	server := newSingleServingServer(URI.String(), expectedResult, http.StatusOK)
 	defer server.Close()
-	client, _ := NewAnonymousClient(server.URL)
+	client, err := NewAnonymousClient(server.URL)
+	c.Assert(err, IsNil)
 
 	result, err := client.Put(URI, params)
 
@@ -168,13 +180,15 @@ func (suite *ClientSuite) TestClientPutSendsRequest(c *C) {
 }
 
 func (suite *ClientSuite) TestClientDeleteSendsRequest(c *C) {
-	URI, _ := url.Parse("/some/url")
+	URI, err := url.Parse("/some/url")
+	c.Assert(err, IsNil)
 	expectedResult := "expected:result"
 	server := newSingleServingServer(URI.String(), expectedResult, http.StatusOK)
 	defer server.Close()
-	client, _ := NewAnonymousClient(server.URL)
+	client, err := NewAnonymousClient(server.URL)
+	c.Assert(err, IsNil)
 
-	err := client.Delete(URI)
+	err = client.Delete(URI)
 
 	c.Check(err, IsNil)
 }
@@ -182,14 +196,16 @@ func (suite *ClientSuite) TestClientDeleteSendsRequest(c *C) {
 func (suite *ClientSuite) TestNewAnonymousClientEnsuresTrailingSlash(c *C) {
 	client, err := NewAnonymousClient("http://example.com/api/1.0")
 	c.Check(err, IsNil)
-	expectedURL, _ := url.Parse("http://example.com/api/1.0/")
+	expectedURL, err := url.Parse("http://example.com/api/1.0/")
+	c.Assert(err, IsNil)
 	c.Check(client.BaseURL, DeepEquals, expectedURL)
 }
 
 func (suite *ClientSuite) TestNewAuthenticatedClientEnsuresTrailingSlash(c *C) {
 	client, err := NewAuthenticatedClient("http://example.com/api/1.0", "a:b:c")
 	c.Check(err, IsNil)
-	expectedURL, _ := url.Parse("http://example.com/api/1.0/")
+	expectedURL, err := url.Parse("http://example.com/api/1.0/")
+	c.Assert(err, IsNil)
 	c.Check(client.BaseURL, DeepEquals, expectedURL)
 }
 
