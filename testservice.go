@@ -66,7 +66,9 @@ func getNodeURI(version, systemId string) string {
 }
 
 func getFileURI(version, filename string) string {
-	return fmt.Sprintf("/api/%s/files/%s/", version, filename)
+	uri := url.URL{}
+	uri.Path = fmt.Sprintf("/api/%s/files/%s/", version, filename)
+	return uri.String()
 }
 
 // Clear clears all the fake data stored and recorded by the test server
@@ -129,7 +131,8 @@ func (server *TestServer) NewFile(filename string, filecontent []byte) MAASObjec
 	// Allocate an arbitrary URL here.  It would be nice if the caller
 	// could do this, but that would change the API and require many
 	// changes.
-	attrs["anon_resource_uri"] = "/maas/1.0/files/?op=get_by_key&key=" + filename + "_key"
+	escapedName := url.QueryEscape(filename)
+	attrs["anon_resource_uri"] = "/maas/1.0/files/?op=get_by_key&key=" + escapedName + "_key"
 
 	obj := newJSONMAASObject(attrs, server.client)
 	server.files[filename] = obj
