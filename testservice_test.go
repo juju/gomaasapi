@@ -201,7 +201,7 @@ func (suite *TestServerSuite) TestNewFileEscapesName(c *C) {
 	anonURI, err := obj.GetField("anon_resource_uri")
 	c.Assert(err, IsNil)
 	c.Check(strings.Contains(anonURI, "aa?bb"), Equals, false)
-	c.Check(strings.Contains(anonURI, "aa%3Fbb"), Equals, true)
+	c.Check(strings.Contains(anonURI, url.QueryEscape("aa?bb")), Equals, true)
 }
 
 func (suite *TestServerSuite) TestHandlesFile(c *C) {
