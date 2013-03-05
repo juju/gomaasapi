@@ -129,7 +129,8 @@ func (server *TestServer) NewFile(filename string, filecontent []byte) MAASObjec
 	// Allocate an arbitrary URL here.  It would be nice if the caller
 	// could do this, but that would change the API and require many
 	// changes.
-	attrs["anon_resource_uri"] = "/maas/1.0/files/?op=get_by_key&key=" + filename + "_key"
+	escapedName := url.QueryEscape(filename)
+	attrs["anon_resource_uri"] = "/maas/1.0/files/?op=get_by_key&key=" + escapedName + "_key"
 
 	obj := newJSONMAASObject(attrs, server.client)
 	server.files[filename] = obj

@@ -195,9 +195,10 @@ func (suite *TestServerSuite) TestHandlesUploadFile(c *C) {
 
 func (suite *TestServerSuite) TestNewFileEscapesName(c *C) {
 	obj := suite.server.NewFile("aa?bb", []byte("bytes"))
-	uri := obj.URI().String()
+	uri, err := obj.GetField("anon_resource_uri")
+	c.Assert(err, IsNil)
 	c.Check(strings.Contains(uri, "aa?bb"), Equals, false)
-	c.Check(strings.Contains(uri, "aa%63bb"), Equals, true)
+	c.Check(strings.Contains(uri, "aa%3Fbb"), Equals, true)
 }
 
 func (suite *TestServerSuite) TestHandlesFile(c *C) {
