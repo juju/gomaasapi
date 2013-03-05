@@ -14,6 +14,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 type TestServerSuite struct {
@@ -190,6 +191,13 @@ func (suite *TestServerSuite) TestHandlesUploadFile(c *C) {
 	field, err := file.GetField("content")
 	c.Assert(err, IsNil)
 	c.Check(field, Equals, base64.StdEncoding.EncodeToString(fileContent))
+}
+
+func (suite *TestServerSuite) TestNewFileEscapesName(c *C) {
+	obj := suite.server.NewFile("aa?bb", []byte("bytes"))
+	uri := obj.URI().String()
+	c.Check(strings.Contains(uri, "aa?bb"), Equals, false)
+	c.Check(strings.Contains(uri, "aa%63bb"), Equals, true)
 }
 
 func (suite *TestServerSuite) TestHandlesFile(c *C) {
