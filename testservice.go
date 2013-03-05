@@ -66,7 +66,9 @@ func getNodeURI(version, systemId string) string {
 }
 
 func getFileURI(version, filename string) string {
-	return fmt.Sprintf("/api/%s/files/%s/", version, filename)
+	uri := url.URL{}
+	uri.Path = fmt.Sprintf("/api/%s/files/%s/", version, filename)
+	return uri.String()
 }
 
 // Clear clears all the fake data stored and recorded by the test server
