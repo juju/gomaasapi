@@ -451,3 +451,20 @@ func (suite *TestMAASObjectSuite) TestUploadFile(c *C) {
 	c.Assert(err, IsNil)
 	c.Check(string(bytes), Equals, fileContent)
 }
+
+func (suite *TestMAASObjectSuite) TestFileNamesMayContainSlashes(c *C) {
+	const filename = "filename/with/slashes/in/it"
+	const fileContent = "file contents"
+	files := suite.TestMAASObject.GetSubObject("files")
+	params := url.Values{"filename": {filename}}
+	filesMap := map[string][]byte{"file": []byte(fileContent)}
+
+	_, err := files.CallPostFiles("add", params, filesMap)
+	c.Assert(err, IsNil)
+
+	file, err := files.GetSubObject(filename).Get()
+	c.Assert(err, IsNil)
+	field, err := file.GetField("content")
+	c.Assert(err, IsNil)
+	c.Check(field, Equals, base64.StdEncoding.EncodeToString([]byte(fileContent)))
+}
