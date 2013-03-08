@@ -166,7 +166,7 @@ func getFilesURL(version string) string {
 }
 
 func getFileURLRE(version string) *regexp.Regexp {
-	reString := fmt.Sprintf("^/api/%s/files/([^/]*)/$", regexp.QuoteMeta(version))
+	reString := fmt.Sprintf("^/api/%s/files/(.*)/$", regexp.QuoteMeta(version))
 	return regexp.MustCompile(reString)
 }
 
