@@ -468,3 +468,29 @@ func (suite *TestMAASObjectSuite) TestFileNamesMayContainSlashes(c *C) {
 	c.Assert(err, IsNil)
 	c.Check(field, Equals, base64.StdEncoding.EncodeToString([]byte(fileContent)))
 }
+
+func (suite *TestMAASObjectSuite) TestAcquireNodeGrabsAvailableNode(c *C) {
+	input := `{"system_id": "nodeid"}`
+	freeNode := suite.TestMAASObject.TestServer.NewNode(input)
+
+	acquiredNode, err := suite.TestMAASObject.CallPost("acquire", nil)
+	c.Assert(err, IsNil)
+
+	c.Check(acquiredNode, DeepEquals, freeNode)
+}
+
+func (suite *TestMAASObjectSuite) TestAcquireNodeNeedsANode(c *C) {
+	_, err := suite.TestMAASObject.CallPost("acquire", nil)
+	c.Check(err.(ServerError).StatusCode, Equals, http.StatusConflict)
+}
+
+func (suite *TestMAASObjectSuite) TestAcquireNodeIgnoresOwnedNodes(c *C) {
+	input := `{"system_id": "nodeid"}`
+	suite.TestMAASObject.TestServer.NewNode(input)
+	// Ensure that the one node in the MAAS is not available.
+	_, err := suite.TestMAASObject.CallPost("acquire", nil)
+	c.Assert(err, IsNil)
+
+	_, err = suite.TestMAASObject.CallPost("acquire", nil)
+	c.Check(err.(ServerError).StatusCode, Equals, http.StatusConflict)
+}
