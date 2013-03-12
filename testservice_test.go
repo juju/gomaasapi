@@ -47,6 +47,12 @@ func (suite *TestServerSuite) TestGetResourceURI(c *C) {
 	c.Check(getNodeURI("version", "test"), Equals, "/api/version/nodes/test/")
 }
 
+func (suite *TestServerSuite) TestInvalidOperationOnNodesIsBadRequest(c *C) {
+	badURL := getNodeListingURL(suite.server.version) + "?op=procrastinate"
+	_, err := http.Get(suite.server.Server.URL + badURL)
+	c.Check(err.(ServerError).StatusCode, Equals, http.StatusBadRequest)
+}
+
 func (suite *TestServerSuite) TestHandlesNodeListingUnknownPath(c *C) {
 	invalidPath := fmt.Sprintf("/api/%s/nodes/invalid/path/", suite.server.version)
 	resp, err := http.Get(suite.server.Server.URL + invalidPath)
