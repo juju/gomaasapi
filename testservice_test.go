@@ -48,7 +48,7 @@ func (suite *TestServerSuite) TestGetResourceURI(c *C) {
 }
 
 func (suite *TestServerSuite) TestInvalidOperationOnNodesIsBadRequest(c *C) {
-	badURL := getNodeListingURL(suite.server.version) + "?op=procrastinate"
+	badURL := getTopLevelNodesURL(suite.server.version) + "?op=procrastinate"
 
 	response, err := http.Get(suite.server.Server.URL + badURL)
 	c.Assert(err, IsNil)

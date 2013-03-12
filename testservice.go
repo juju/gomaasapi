@@ -160,7 +160,7 @@ func (server *TestServer) ChangeNode(systemId, key, value string) {
 	node.GetMap()[key] = maasify(server.client, value)
 }
 
-func getNodeListingURL(version string) string {
+func getTopLevelNodesURL(version string) string {
 	return fmt.Sprintf("/api/%s/nodes/", version)
 }
 
@@ -183,9 +183,9 @@ func NewTestServer(version string) *TestServer {
 	server := &TestServer{version: version}
 
 	serveMux := http.NewServeMux()
-	nodeListingURL := getNodeListingURL(server.version)
+	nodesURL := getTopLevelNodesURL(server.version)
 	// Register handler for '/api/<version>/nodes/*'.
-	serveMux.HandleFunc(nodeListingURL, func(w http.ResponseWriter, r *http.Request) {
+	serveMux.HandleFunc(nodesURL, func(w http.ResponseWriter, r *http.Request) {
 		nodesHandler(server, w, r)
 	})
 	filesURL := getFilesURL(server.version)
@@ -211,9 +211,9 @@ func nodesHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
 	op := values.Get("op")
 	nodeURLRE := getNodeURLRE(server.version)
 	nodeURLMatch := nodeURLRE.FindStringSubmatch(r.URL.Path)
-	nodeListingURL := getNodeListingURL(server.version)
+	nodesURL := getTopLevelNodesURL(server.version)
 	switch {
-	case r.URL.Path == nodeListingURL:
+	case r.URL.Path == nodesURL:
 		nodesTopLevelHandler(server, w, r, op)
 	case nodeURLMatch != nil:
 		// Request for a single node.
