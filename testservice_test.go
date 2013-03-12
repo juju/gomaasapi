@@ -483,9 +483,11 @@ func (suite *TestMAASObjectSuite) TestAcquireNodeGrabsAvailableNode(c *C) {
 	freeNode := suite.TestMAASObject.TestServer.NewNode(input)
 	nodesObj := suite.TestMAASObject.GetSubObject("nodes/")
 
-	acquiredNode, err := nodesObj.CallPost("acquire", nil)
+	jsonResponse, err := nodesObj.CallPost("acquire", nil)
 	c.Assert(err, IsNil)
 
+	acquiredNode, err := jsonResponse.GetMAASObject()
+	c.Assert(err, IsNil)
 	c.Check(acquiredNode, DeepEquals, freeNode)
 }
 
