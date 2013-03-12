@@ -56,6 +56,7 @@ type TestServer struct {
 	serveMux       *http.ServeMux
 	client         Client
 	nodes          map[string]MAASObject
+	ownedNodes     map[string]bool
 	nodeOperations map[string][]string
 	files          map[string]MAASObject
 	version        string
@@ -75,6 +76,7 @@ func getFileURI(version, filename string) string {
 // (nodes, recorded operations, etc.).
 func (server *TestServer) Clear() {
 	server.nodes = make(map[string]MAASObject)
+	server.ownedNodes = make(map[string]bool)
 	server.nodeOperations = make(map[string][]string)
 	server.files = make(map[string]MAASObject)
 }
@@ -114,10 +116,16 @@ func (server *TestServer) NewNode(jsonText string) MAASObject {
 	return obj
 }
 
-// Returns a map associating all the nodes' system ids with the nodes'
+// Nodes returns a map associating all the nodes' system ids with the nodes'
 // objects.
 func (server *TestServer) Nodes() map[string]MAASObject {
 	return server.nodes
+}
+
+// OwnedNodes returns a map whose keys represent the nodes that are currently
+// allocated.
+func (server *TestServer) OwnedNodes() map[string]bool {
+	return server.ownedNodes
 }
 
 // NewFile creates a file in the test MAAS server.
@@ -152,7 +160,7 @@ func (server *TestServer) ChangeNode(systemId, key, value string) {
 	node.GetMap()[key] = maasify(server.client, value)
 }
 
-func getNodeListingURL(version string) string {
+func getTopLevelNodesURL(version string) string {
 	return fmt.Sprintf("/api/%s/nodes/", version)
 }
 
@@ -175,9 +183,9 @@ func NewTestServer(version string) *TestServer {
 	server := &TestServer{version: version}
 
 	serveMux := http.NewServeMux()
-	nodeListingURL := getNodeListingURL(server.version)
+	nodesURL := getTopLevelNodesURL(server.version)
 	// Register handler for '/api/<version>/nodes/*'.
-	serveMux.HandleFunc(nodeListingURL, func(w http.ResponseWriter, r *http.Request) {
+	serveMux.HandleFunc(nodesURL, func(w http.ResponseWriter, r *http.Request) {
 		nodesHandler(server, w, r)
 	})
 	filesURL := getFilesURL(server.version)
@@ -203,11 +211,10 @@ func nodesHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
 	op := values.Get("op")
 	nodeURLRE := getNodeURLRE(server.version)
 	nodeURLMatch := nodeURLRE.FindStringSubmatch(r.URL.Path)
-	nodeListingURL := getNodeListingURL(server.version)
+	nodesURL := getTopLevelNodesURL(server.version)
 	switch {
-	case r.Method == "GET" && op == "list" && r.URL.Path == nodeListingURL:
-		// Node listing operation.
-		nodeListingHandler(server, w, r)
+	case r.URL.Path == nodesURL:
+		nodesTopLevelHandler(server, w, r, op)
 	case nodeURLMatch != nil:
 		// Request for a single node.
 		nodeHandler(server, w, r, nodeURLMatch[1], op)
@@ -239,6 +246,10 @@ func nodeHandler(server *TestServer, w http.ResponseWriter, r *http.Request, sys
 		if operation == "start" || operation == "stop" || operation == "release" {
 			// Record operation on node.
 			server.addNodeOperation(systemId, operation)
+
+			if operation == "release" {
+				delete(server.OwnedNodes(), systemId)
+			}
 
 			w.WriteHeader(http.StatusOK)
 			fmt.Fprint(w, marshalNode(node))
@@ -280,6 +291,47 @@ func nodeListingHandler(server *TestServer, w http.ResponseWriter, r *http.Reque
 	checkError(err)
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, string(res))
+}
+
+// findFreeNode looks for a node that is currently available.
+func findFreeNode(server *TestServer) *MAASObject {
+	for systemID, node := range server.Nodes() {
+		_, present := server.OwnedNodes()[systemID]
+		if !present {
+			return &node
+		}
+	}
+	return nil
+}
+
+// nodesAcquireHandler simulates acquiring a node.
+func nodesAcquireHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
+	node := findFreeNode(server)
+	if node == nil {
+		w.WriteHeader(http.StatusConflict)
+	} else {
+		systemID, err := node.GetField("system_id")
+		checkError(err)
+		server.OwnedNodes()[systemID] = true
+		res, err := json.Marshal(node)
+		checkError(err)
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprint(w, string(res))
+	}
+}
+
+// nodesTopLevelHandler handles a request for /api/<version>/nodes/
+// (with no node id following as part of the path).
+func nodesTopLevelHandler(server *TestServer, w http.ResponseWriter, r *http.Request, op string) {
+	switch {
+	case r.Method == "GET" && op == "list":
+		// Node listing operation.
+		nodeListingHandler(server, w, r)
+	case r.Method == "POST" && op == "acquire":
+		nodesAcquireHandler(server, w, r)
+	default:
+		w.WriteHeader(http.StatusBadRequest)
+	}
 }
 
 // filesHandler handles requests for '/api/<version>/files/*'.

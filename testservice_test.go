@@ -47,6 +47,15 @@ func (suite *TestServerSuite) TestGetResourceURI(c *C) {
 	c.Check(getNodeURI("version", "test"), Equals, "/api/version/nodes/test/")
 }
 
+func (suite *TestServerSuite) TestInvalidOperationOnNodesIsBadRequest(c *C) {
+	badURL := getTopLevelNodesURL(suite.server.version) + "?op=procrastinate"
+
+	response, err := http.Get(suite.server.Server.URL + badURL)
+	c.Assert(err, IsNil)
+
+	c.Check(response.StatusCode, Equals, http.StatusBadRequest)
+}
+
 func (suite *TestServerSuite) TestHandlesNodeListingUnknownPath(c *C) {
 	invalidPath := fmt.Sprintf("/api/%s/nodes/invalid/path/", suite.server.version)
 	resp, err := http.Get(suite.server.Server.URL + invalidPath)
@@ -467,4 +476,57 @@ func (suite *TestMAASObjectSuite) TestFileNamesMayContainSlashes(c *C) {
 	field, err := file.GetField("content")
 	c.Assert(err, IsNil)
 	c.Check(field, Equals, base64.StdEncoding.EncodeToString([]byte(fileContent)))
+}
+
+func (suite *TestMAASObjectSuite) TestAcquireNodeGrabsAvailableNode(c *C) {
+	input := `{"system_id": "nodeid"}`
+	suite.TestMAASObject.TestServer.NewNode(input)
+	nodesObj := suite.TestMAASObject.GetSubObject("nodes/")
+
+	jsonResponse, err := nodesObj.CallPost("acquire", nil)
+	c.Assert(err, IsNil)
+
+	acquiredNode, err := jsonResponse.GetMAASObject()
+	c.Assert(err, IsNil)
+	systemID, err := acquiredNode.GetField("system_id")
+	c.Assert(err, IsNil)
+	c.Check(systemID, Equals, "nodeid")
+	_, owned := suite.TestMAASObject.TestServer.OwnedNodes()[systemID]
+	c.Check(owned, Equals, true)
+}
+
+func (suite *TestMAASObjectSuite) TestAcquireNodeNeedsANode(c *C) {
+	nodesObj := suite.TestMAASObject.GetSubObject("nodes/")
+	_, err := nodesObj.CallPost("acquire", nil)
+	c.Check(err.(ServerError).StatusCode, Equals, http.StatusConflict)
+}
+
+func (suite *TestMAASObjectSuite) TestAcquireNodeIgnoresOwnedNodes(c *C) {
+	input := `{"system_id": "nodeid"}`
+	suite.TestMAASObject.TestServer.NewNode(input)
+	nodesObj := suite.TestMAASObject.GetSubObject("nodes/")
+	// Ensure that the one node in the MAAS is not available.
+	_, err := nodesObj.CallPost("acquire", nil)
+	c.Assert(err, IsNil)
+
+	_, err = nodesObj.CallPost("acquire", nil)
+	c.Check(err.(ServerError).StatusCode, Equals, http.StatusConflict)
+}
+
+func (suite *TestMAASObjectSuite) TestReleaseNodeReleasesAcquiredNode(c *C) {
+	input := `{"system_id": "nodeid"}`
+	suite.TestMAASObject.TestServer.NewNode(input)
+	nodesObj := suite.TestMAASObject.GetSubObject("nodes/")
+	jsonResponse, err := nodesObj.CallPost("acquire", nil)
+	c.Assert(err, IsNil)
+	acquiredNode, err := jsonResponse.GetMAASObject()
+	c.Assert(err, IsNil)
+	systemID, err := acquiredNode.GetField("system_id")
+	c.Assert(err, IsNil)
+	nodeObj := nodesObj.GetSubObject(systemID)
+
+	_, err = nodeObj.CallPost("release", nil)
+	c.Assert(err, IsNil)
+	_, owned := suite.TestMAASObject.TestServer.OwnedNodes()[systemID]
+	c.Check(owned, Equals, false)
 }
