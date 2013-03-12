@@ -480,7 +480,7 @@ func (suite *TestMAASObjectSuite) TestFileNamesMayContainSlashes(c *C) {
 
 func (suite *TestMAASObjectSuite) TestAcquireNodeGrabsAvailableNode(c *C) {
 	input := `{"system_id": "nodeid"}`
-	freeNode := suite.TestMAASObject.TestServer.NewNode(input)
+	suite.TestMAASObject.TestServer.NewNode(input)
 	nodesObj := suite.TestMAASObject.GetSubObject("nodes/")
 
 	jsonResponse, err := nodesObj.CallPost("acquire", nil)
@@ -488,7 +488,9 @@ func (suite *TestMAASObjectSuite) TestAcquireNodeGrabsAvailableNode(c *C) {
 
 	acquiredNode, err := jsonResponse.GetMAASObject()
 	c.Assert(err, IsNil)
-	c.Check(acquiredNode, DeepEquals, freeNode)
+	systemID, err := acquiredNode.GetField("system_id")
+	c.Assert(err, IsNil)
+	c.Check(systemID, Equals, "nodeid")
 }
 
 func (suite *TestMAASObjectSuite) TestAcquireNodeNeedsANode(c *C) {
