@@ -491,6 +491,8 @@ func (suite *TestMAASObjectSuite) TestAcquireNodeGrabsAvailableNode(c *C) {
 	systemID, err := acquiredNode.GetField("system_id")
 	c.Assert(err, IsNil)
 	c.Check(systemID, Equals, "nodeid")
+	_, owned := suite.TestMAASObject.TestServer.OwnedNodes()[systemID]
+	c.Check(owned, Equals, true)
 }
 
 func (suite *TestMAASObjectSuite) TestAcquireNodeNeedsANode(c *C) {
@@ -509,4 +511,22 @@ func (suite *TestMAASObjectSuite) TestAcquireNodeIgnoresOwnedNodes(c *C) {
 
 	_, err = nodesObj.CallPost("acquire", nil)
 	c.Check(err.(ServerError).StatusCode, Equals, http.StatusConflict)
+}
+
+func (suite *TestMAASObjectSuite) TestReleaseNodeReleasesAcquiredNode(c *C) {
+	input := `{"system_id": "nodeid"}`
+	suite.TestMAASObject.TestServer.NewNode(input)
+	nodesObj := suite.TestMAASObject.GetSubObject("nodes/")
+	jsonResponse, err := nodesObj.CallPost("acquire", nil)
+	c.Assert(err, IsNil)
+	acquiredNode, err := jsonResponse.GetMAASObject()
+	c.Assert(err, IsNil)
+	systemID, err := acquiredNode.GetField("system_id")
+	c.Assert(err, IsNil)
+	nodeObj := nodesObj.GetSubObject(systemID)
+
+	_, err = nodeObj.CallPost("release", nil)
+	c.Assert(err, IsNil)
+	_, owned := suite.TestMAASObject.TestServer.OwnedNodes()[systemID]
+	c.Check(owned, Equals, false)
 }
