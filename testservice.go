@@ -56,6 +56,7 @@ type TestServer struct {
 	serveMux       *http.ServeMux
 	client         Client
 	nodes          map[string]MAASObject
+	ownedNodes     map[string]bool
 	nodeOperations map[string][]string
 	files          map[string]MAASObject
 	version        string
@@ -75,6 +76,7 @@ func getFileURI(version, filename string) string {
 // (nodes, recorded operations, etc.).
 func (server *TestServer) Clear() {
 	server.nodes = make(map[string]MAASObject)
+	server.ownedNodes = make(map[string]bool)
 	server.nodeOperations = make(map[string][]string)
 	server.files = make(map[string]MAASObject)
 }
@@ -114,10 +116,16 @@ func (server *TestServer) NewNode(jsonText string) MAASObject {
 	return obj
 }
 
-// Returns a map associating all the nodes' system ids with the nodes'
+// Nodes returns a map associating all the nodes' system ids with the nodes'
 // objects.
 func (server *TestServer) Nodes() map[string]MAASObject {
 	return server.nodes
+}
+
+// OwnedNodes returns a map whose keys represent the nodes that are currently
+// allocated.
+func (server *TestServer) OwnedNodes() map[string]bool {
+	return server.ownedNodes
 }
 
 // NewFile creates a file in the test MAAS server.
@@ -239,6 +247,10 @@ func nodeHandler(server *TestServer, w http.ResponseWriter, r *http.Request, sys
 			// Record operation on node.
 			server.addNodeOperation(systemId, operation)
 
+			if operation == "release" {
+				delete(server.OwnedNodes(), systemId)
+			}
+
 			w.WriteHeader(http.StatusOK)
 			fmt.Fprint(w, marshalNode(node))
 			return
@@ -281,10 +293,31 @@ func nodeListingHandler(server *TestServer, w http.ResponseWriter, r *http.Reque
 	fmt.Fprint(w, string(res))
 }
 
+// findFreeNode looks for a node that is currently available.
+func findFreeNode(server *TestServer) *MAASObject {
+	for systemID, node := range server.Nodes() {
+		_, present := server.OwnedNodes()[systemID]
+		if !present {
+			return &node
+		}
+	}
+	return nil
+}
+
 // nodesAcquireHandler simulates acquiring a node.
 func nodesAcquireHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
-// TODO: Implement.  For now, return something ridiculous.
-w.WriteHeader(http.StatusPaymentRequired)
+	node := findFreeNode(server)
+	if node == nil {
+		w.WriteHeader(http.StatusConflict)
+	} else {
+		systemID, err := node.GetField("system_id")
+		checkError(err)
+		server.OwnedNodes()[systemID] = true
+		res, err := json.Marshal(node)
+		checkError(err)
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprint(w, string(res))
+	}
 }
 
 // nodesTopLevelHandler handles a request for /api/<version>/nodes/
