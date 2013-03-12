@@ -205,9 +205,8 @@ func nodesHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
 	nodeURLMatch := nodeURLRE.FindStringSubmatch(r.URL.Path)
 	nodeListingURL := getNodeListingURL(server.version)
 	switch {
-	case r.Method == "GET" && op == "list" && r.URL.Path == nodeListingURL:
-		// Node listing operation.
-		nodeListingHandler(server, w, r)
+	case r.URL.Path == nodeListingURL:
+		nodesTopLevelHandler(server, w, r, op)
 	case nodeURLMatch != nil:
 		// Request for a single node.
 		nodeHandler(server, w, r, nodeURLMatch[1], op)
@@ -280,6 +279,26 @@ func nodeListingHandler(server *TestServer, w http.ResponseWriter, r *http.Reque
 	checkError(err)
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, string(res))
+}
+
+// nodesAcquireHandler simulates acquiring a node.
+func nodesAcquireHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
+// TODO: Implement.  For now, return something ridiculous.
+w.WriteHeader(http.StatusPaymentRequired)
+}
+
+// nodesTopLevelHandler handles a request for /api/<version>/nodes/
+// (with no node id following as part of the path).
+func nodesTopLevelHandler(server *TestServer, w http.ResponseWriter, r *http.Request, op string) {
+	switch {
+	case r.Method == "GET" && op == "list":
+		// Node listing operation.
+		nodeListingHandler(server, w, r)
+	case r.Method == "POST" && op == "acquire":
+		nodesAcquireHandler(server, w, r)
+	default:
+		w.WriteHeader(http.StatusBadRequest)
+	}
 }
 
 // filesHandler handles requests for '/api/<version>/files/*'.
