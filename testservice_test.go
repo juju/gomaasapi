@@ -49,8 +49,11 @@ func (suite *TestServerSuite) TestGetResourceURI(c *C) {
 
 func (suite *TestServerSuite) TestInvalidOperationOnNodesIsBadRequest(c *C) {
 	badURL := getNodeListingURL(suite.server.version) + "?op=procrastinate"
-	_, err := http.Get(suite.server.Server.URL + badURL)
-	c.Check(err.(ServerError).StatusCode, Equals, http.StatusBadRequest)
+
+	response, err := http.Get(suite.server.Server.URL + badURL)
+	c.Assert(err, IsNil)
+
+	c.Check(response.StatusCode, Equals, http.StatusBadRequest)
 }
 
 func (suite *TestServerSuite) TestHandlesNodeListingUnknownPath(c *C) {
@@ -478,25 +481,28 @@ func (suite *TestMAASObjectSuite) TestFileNamesMayContainSlashes(c *C) {
 func (suite *TestMAASObjectSuite) TestAcquireNodeGrabsAvailableNode(c *C) {
 	input := `{"system_id": "nodeid"}`
 	freeNode := suite.TestMAASObject.TestServer.NewNode(input)
+	nodesObj := suite.TestMAASObject.GetSubObject("nodes/")
 
-	acquiredNode, err := suite.TestMAASObject.CallPost("acquire", nil)
+	acquiredNode, err := nodesObj.CallPost("acquire", nil)
 	c.Assert(err, IsNil)
 
 	c.Check(acquiredNode, DeepEquals, freeNode)
 }
 
 func (suite *TestMAASObjectSuite) TestAcquireNodeNeedsANode(c *C) {
-	_, err := suite.TestMAASObject.CallPost("acquire", nil)
+	nodesObj := suite.TestMAASObject.GetSubObject("nodes/")
+	_, err := nodesObj.CallPost("acquire", nil)
 	c.Check(err.(ServerError).StatusCode, Equals, http.StatusConflict)
 }
 
 func (suite *TestMAASObjectSuite) TestAcquireNodeIgnoresOwnedNodes(c *C) {
 	input := `{"system_id": "nodeid"}`
 	suite.TestMAASObject.TestServer.NewNode(input)
+	nodesObj := suite.TestMAASObject.GetSubObject("nodes/")
 	// Ensure that the one node in the MAAS is not available.
-	_, err := suite.TestMAASObject.CallPost("acquire", nil)
+	_, err := nodesObj.CallPost("acquire", nil)
 	c.Assert(err, IsNil)
 
-	_, err = suite.TestMAASObject.CallPost("acquire", nil)
+	_, err = nodesObj.CallPost("acquire", nil)
 	c.Check(err.(ServerError).StatusCode, Equals, http.StatusConflict)
 }
