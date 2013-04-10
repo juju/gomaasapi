@@ -53,13 +53,14 @@ func (testMAASObject *TestMAASObject) Close() {
 // library.
 type TestServer struct {
 	*httptest.Server
-	serveMux       *http.ServeMux
-	client         Client
-	nodes          map[string]MAASObject
-	ownedNodes     map[string]bool
-	nodeOperations map[string][]string
-	files          map[string]MAASObject
-	version        string
+	serveMux                   *http.ServeMux
+	client                     Client
+	nodes                      map[string]MAASObject
+	ownedNodes                 map[string]bool
+	nodeOperations             map[string][]string
+	nodeOperationRequestValues map[string][]url.Values
+	files                      map[string]MAASObject
+	version                    string
 }
 
 func getNodeURI(version, systemId string) string {
@@ -78,6 +79,7 @@ func (server *TestServer) Clear() {
 	server.nodes = make(map[string]MAASObject)
 	server.ownedNodes = make(map[string]bool)
 	server.nodeOperations = make(map[string][]string)
+	server.nodeOperationRequestValues = make(map[string][]url.Values)
 	server.files = make(map[string]MAASObject)
 }
 
@@ -87,14 +89,37 @@ func (server *TestServer) NodeOperations() map[string][]string {
 	return server.nodeOperations
 }
 
-func (server *TestServer) addNodeOperation(systemId, operation string) {
+// NodeOperationRequestValues returns the map containing the list of the
+// url.Values extracted from the request used when performing operations
+// on nodes.
+func (server *TestServer) NodeOperationRequestValues() map[string][]url.Values {
+	return server.nodeOperationRequestValues
+}
+
+func (server *TestServer) addNodeOperation(systemId, operation string, request *http.Request) {
 	operations, present := server.nodeOperations[systemId]
+	operationRequestValues, _ := server.nodeOperationRequestValues[systemId]
+	requestValues := url.Values{}
+	if request.Body != nil {
+		defer request.Body.Close()
+		body, err := ioutil.ReadAll(request.Body)
+		if err != nil {
+			panic(err)
+		}
+		requestValues, err = url.ParseQuery(string(body))
+		if err != nil {
+			panic(err)
+		}
+	}
 	if !present {
 		operations = []string{operation}
+		operationRequestValues = []url.Values{requestValues}
 	} else {
 		operations = append(operations, operation)
+		operationRequestValues = append(operationRequestValues, requestValues)
 	}
 	server.nodeOperations[systemId] = operations
+	server.nodeOperationRequestValues[systemId] = operationRequestValues
 }
 
 // NewNode creates a MAAS node.  The provided string should be a valid json
@@ -245,7 +270,7 @@ func nodeHandler(server *TestServer, w http.ResponseWriter, r *http.Request, sys
 		// The only operations supported are "start", "stop" and "release".
 		if operation == "start" || operation == "stop" || operation == "release" {
 			// Record operation on node.
-			server.addNodeOperation(systemId, operation)
+			server.addNodeOperation(systemId, operation, r)
 
 			if operation == "release" {
 				delete(server.OwnedNodes(), systemId)
