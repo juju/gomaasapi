@@ -96,7 +96,7 @@ func (suite *MAASObjectSuite) TestURL(c *C) {
 	resourceURL, err := url.Parse(uri)
 	c.Assert(err, IsNil)
 	input := map[string]interface{}{resourceURI: uri}
-	client := Client{BaseURL: baseURL}
+	client := Client{APIURL: baseURL}
 	obj := newJSONMAASObject(input, client)
 
 	URL := obj.URL()
@@ -115,7 +115,7 @@ func makeFakeMAASObject(serviceURL, resourcePath string) MAASObject {
 	}
 	uri := serviceURL + resourcePath
 	input := map[string]interface{}{resourceURI: uri}
-	client := Client{BaseURL: baseURL}
+	client := Client{APIURL: baseURL}
 	return newJSONMAASObject(input, client)
 }
 

@@ -17,8 +17,8 @@ import (
 // Client represents a way ot communicating with a MAAS API instance.
 // It is stateless, so it can have concurrent requests in progress.
 type Client struct {
-	BaseURL *url.URL
-	Signer  OAuthSigner
+	APIURL *url.URL
+	Signer OAuthSigner
 }
 
 // ServerError is an http error (or at least, a non-2xx result) received from
@@ -56,7 +56,7 @@ func (client Client) dispatchRequest(request *http.Request) ([]byte, error) {
 // The resource URI may be absolute or relative; either way the result is a
 // full absolute URL including the network part.
 func (client Client) GetURL(uri *url.URL) *url.URL {
-	return client.BaseURL.ResolveReference(uri)
+	return client.APIURL.ResolveReference(uri)
 }
 
 // Get performs an HTTP "GET" to the API.  This may be either an API method
@@ -192,21 +192,31 @@ func (signer anonSigner) OAuthSign(request *http.Request) error {
 // *anonSigner implements the OAuthSigner interface.
 var _ OAuthSigner = anonSigner{}
 
+func composeAPIURL(BaseURL string, apiVersion string) (*url.URL, error) {
+	baseurl := EnsureTrailingSlash(BaseURL)
+	apiurl := fmt.Sprintf("%sapi/%s/", baseurl, apiVersion)
+	return url.Parse(apiurl)
+}
+
 // NewAnonymousClient creates a client that issues anonymous requests.
-func NewAnonymousClient(BaseURL string) (*Client, error) {
-	BaseURL = EnsureTrailingSlash(BaseURL)
-	parsedBaseURL, err := url.Parse(BaseURL)
+// BaseURL should refer to the root of the MAAS server path, e.g.
+// http://my.maas.server.example.com/MAAS/
+// apiVersion should contain the version of the MAAS API that you want to use.
+func NewAnonymousClient(BaseURL string, apiVersion string) (*Client, error) {
+	parsedBaseURL, err := composeAPIURL(BaseURL, apiVersion)
 	if err != nil {
 		return nil, err
 	}
-	return &Client{Signer: &anonSigner{}, BaseURL: parsedBaseURL}, nil
+	return &Client{Signer: &anonSigner{}, APIURL: parsedBaseURL}, nil
 }
 
 // NewAuthenticatedClient parses the given MAAS API key into the individual
 // OAuth tokens and creates an Client that will use these tokens to sign the
 // requests it issues.
-func NewAuthenticatedClient(BaseURL string, apiKey string) (*Client, error) {
-	BaseURL = EnsureTrailingSlash(BaseURL)
+// BaseURL should refer to the root of the MAAS server path, e.g.
+// http://my.maas.server.example.com/MAAS/
+// apiVersion should contain the version of the MAAS API that you want to use.
+func NewAuthenticatedClient(BaseURL string, apiKey string, apiVersion string) (*Client, error) {
 	elements := strings.Split(apiKey, ":")
 	if len(elements) != 3 {
 		errString := "invalid API key %q; expected \"<consumer secret>:<token key>:<token secret>\""
@@ -223,9 +233,9 @@ func NewAuthenticatedClient(BaseURL string, apiKey string) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	parsedBaseURL, err := url.Parse(BaseURL)
+	parsedBaseURL, err := composeAPIURL(BaseURL, apiVersion)
 	if err != nil {
 		return nil, err
 	}
-	return &Client{Signer: signer, BaseURL: parsedBaseURL}, nil
+	return &Client{Signer: signer, APIURL: parsedBaseURL}, nil
 }
