@@ -198,7 +198,7 @@ var _ OAuthSigner = anonSigner{}
 // apiVersion should contain the version of the MAAS API that you want to use.
 func NewAnonymousClient(BaseURL string, apiVersion string) (*Client, error) {
 	BaseURL = EnsureTrailingSlash(BaseURL)
-    BaseURL += "api/" + apiVersion + "/"
+	BaseURL += "api/" + apiVersion + "/"
 	parsedBaseURL, err := url.Parse(BaseURL)
 	if err != nil {
 		return nil, err
@@ -214,7 +214,7 @@ func NewAnonymousClient(BaseURL string, apiVersion string) (*Client, error) {
 // apiVersion should contain the version of the MAAS API that you want to use.
 func NewAuthenticatedClient(BaseURL string, apiKey string, apiVersion string) (*Client, error) {
 	BaseURL = EnsureTrailingSlash(BaseURL)
-    BaseURL += "api/" + apiVersion + "/"
+	BaseURL += "api/" + apiVersion + "/"
 	elements := strings.Split(apiKey, ":")
 	if len(elements) != 3 {
 		errString := "invalid API key %q; expected \"<consumer secret>:<token key>:<token secret>\""
