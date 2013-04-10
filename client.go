@@ -18,7 +18,7 @@ import (
 // It is stateless, so it can have concurrent requests in progress.
 type Client struct {
 	APIURL *url.URL
-	Signer  OAuthSigner
+	Signer OAuthSigner
 }
 
 // ServerError is an http error (or at least, a non-2xx result) received from
@@ -193,9 +193,9 @@ func (signer anonSigner) OAuthSign(request *http.Request) error {
 var _ OAuthSigner = anonSigner{}
 
 func composeAPIURL(BaseURL string, apiVersion string) (*url.URL, error) {
-    baseurl := EnsureTrailingSlash(BaseURL)
-    apiurl := fmt.Sprintf("%sapi/%s/", baseurl, apiVersion)
-    return url.Parse(apiurl)
+	baseurl := EnsureTrailingSlash(BaseURL)
+	apiurl := fmt.Sprintf("%sapi/%s/", baseurl, apiVersion)
+	return url.Parse(apiurl)
 }
 
 // NewAnonymousClient creates a client that issues anonymous requests.
