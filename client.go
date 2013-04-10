@@ -14,6 +14,10 @@ import (
 	"strings"
 )
 
+const (
+    APIVERSION = "1.0"
+)
+
 // Client represents a way ot communicating with a MAAS API instance.
 // It is stateless, so it can have concurrent requests in progress.
 type Client struct {
@@ -191,6 +195,12 @@ func (signer anonSigner) OAuthSign(request *http.Request) error {
 
 // *anonSigner implements the OAuthSigner interface.
 var _ OAuthSigner = anonSigner{}
+
+func composeAPIURL(BaseURL string) (*url.URL, error) {
+    baseurl := EnsureTrailingSlash(BaseURL)
+    apiurl := fmt.Sprintf("%sapi/%s/", baseurl, APIVERSION)
+    return url.Parse(apiurl)
+}
 
 // NewAnonymousClient creates a client that issues anonymous requests.
 // BaseURL should refer to the root of the MAAS server path, e.g.
