@@ -13,7 +13,7 @@ type MAASSuite struct{}
 var _ = Suite(&MAASSuite{})
 
 func (suite *MAASSuite) TestNewMAASUsesBaseURLFromClient(c *C) {
-	baseURLString := "https://server.com:888/path/to/api"
+	baseURLString := "https://server.com:888/"
 	baseURL, _ := url.Parse(baseURLString)
 	client := Client{BaseURL: baseURL}
 	maas := NewMAAS(client)

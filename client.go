@@ -193,8 +193,12 @@ func (signer anonSigner) OAuthSign(request *http.Request) error {
 var _ OAuthSigner = anonSigner{}
 
 // NewAnonymousClient creates a client that issues anonymous requests.
-func NewAnonymousClient(BaseURL string) (*Client, error) {
+// BaseURL should refer to the root of the MAAS server path, e.g.
+// http://my.maas.server.example.com/MAAS/
+// apiVersion should contain the version of the MAAS API that you want to use.
+func NewAnonymousClient(BaseURL string, apiVersion string) (*Client, error) {
 	BaseURL = EnsureTrailingSlash(BaseURL)
+    BaseURL += "api/" + apiVersion + "/"
 	parsedBaseURL, err := url.Parse(BaseURL)
 	if err != nil {
 		return nil, err
@@ -205,8 +209,12 @@ func NewAnonymousClient(BaseURL string) (*Client, error) {
 // NewAuthenticatedClient parses the given MAAS API key into the individual
 // OAuth tokens and creates an Client that will use these tokens to sign the
 // requests it issues.
-func NewAuthenticatedClient(BaseURL string, apiKey string) (*Client, error) {
+// BaseURL should refer to the root of the MAAS server path, e.g.
+// http://my.maas.server.example.com/MAAS/
+// apiVersion should contain the version of the MAAS API that you want to use.
+func NewAuthenticatedClient(BaseURL string, apiKey string, apiVersion string) (*Client, error) {
 	BaseURL = EnsureTrailingSlash(BaseURL)
+    BaseURL += "api/" + apiVersion + "/"
 	elements := strings.Split(apiKey, ":")
 	if len(elements) != 3 {
 		errString := "invalid API key %q; expected \"<consumer secret>:<token key>:<token secret>\""
