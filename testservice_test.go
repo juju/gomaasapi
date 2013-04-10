@@ -129,6 +129,7 @@ func (suite *TestServerSuite) TestAddNodeOperationPopulatesOperationRequestValue
 
 	values := suite.server.NodeOperationRequestValues()
 	value := values["mysystemid"]
+	c.Check(len(value), Equals, 1)
 	c.Check(value[0], DeepEquals, url.Values{"key": []string{"value"}})
 }
 
