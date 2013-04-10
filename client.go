@@ -14,10 +14,6 @@ import (
 	"strings"
 )
 
-const (
-    APIVERSION = "1.0"
-)
-
 // Client represents a way ot communicating with a MAAS API instance.
 // It is stateless, so it can have concurrent requests in progress.
 type Client struct {
@@ -196,9 +192,9 @@ func (signer anonSigner) OAuthSign(request *http.Request) error {
 // *anonSigner implements the OAuthSigner interface.
 var _ OAuthSigner = anonSigner{}
 
-func composeAPIURL(BaseURL string) (*url.URL, error) {
+func composeAPIURL(BaseURL string, apiVersion string) (*url.URL, error) {
     baseurl := EnsureTrailingSlash(BaseURL)
-    apiurl := fmt.Sprintf("%sapi/%s/", baseurl, APIVERSION)
+    apiurl := fmt.Sprintf("%sapi/%s/", baseurl, apiVersion)
     return url.Parse(apiurl)
 }
 
@@ -207,9 +203,7 @@ func composeAPIURL(BaseURL string) (*url.URL, error) {
 // http://my.maas.server.example.com/MAAS/
 // apiVersion should contain the version of the MAAS API that you want to use.
 func NewAnonymousClient(BaseURL string, apiVersion string) (*Client, error) {
-	BaseURL = EnsureTrailingSlash(BaseURL)
-	BaseURL += "api/" + apiVersion + "/"
-	parsedBaseURL, err := url.Parse(BaseURL)
+	parsedBaseURL, err := composeAPIURL(BaseURL, apiVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -223,8 +217,6 @@ func NewAnonymousClient(BaseURL string, apiVersion string) (*Client, error) {
 // http://my.maas.server.example.com/MAAS/
 // apiVersion should contain the version of the MAAS API that you want to use.
 func NewAuthenticatedClient(BaseURL string, apiKey string, apiVersion string) (*Client, error) {
-	BaseURL = EnsureTrailingSlash(BaseURL)
-	BaseURL += "api/" + apiVersion + "/"
 	elements := strings.Split(apiKey, ":")
 	if len(elements) != 3 {
 		errString := "invalid API key %q; expected \"<consumer secret>:<token key>:<token secret>\""
@@ -241,7 +233,7 @@ func NewAuthenticatedClient(BaseURL string, apiKey string, apiVersion string) (*
 	if err != nil {
 		return nil, err
 	}
-	parsedBaseURL, err := url.Parse(BaseURL)
+	parsedBaseURL, err := composeAPIURL(BaseURL, apiVersion)
 	if err != nil {
 		return nil, err
 	}

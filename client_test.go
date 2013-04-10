@@ -236,7 +236,7 @@ func (suite *ClientSuite) TestNewAuthenticatedClientFailsIfInvalidKey(c *C) {
 }
 
 func (suite *ClientSuite) TestcomposeAPIURLReturnsURL(c *C) {
-    apiurl, err := composeAPIURL("http://example.com/MAAS")
+    apiurl, err := composeAPIURL("http://example.com/MAAS", "1.0")
     c.Assert(err, IsNil)
     expectedURL, err := url.Parse("http://example.com/MAAS/api/1.0/")
     c.Check(expectedURL, DeepEquals, apiurl)
