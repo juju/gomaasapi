@@ -15,7 +15,7 @@ var _ = Suite(&MAASSuite{})
 func (suite *MAASSuite) TestNewMAASUsesBaseURLFromClient(c *C) {
 	baseURLString := "https://server.com:888/"
 	baseURL, _ := url.Parse(baseURLString)
-	client := Client{BaseURL: baseURL}
+	client := Client{APIURL: baseURL}
 	maas := NewMAAS(client)
 	URL := maas.URL()
 	c.Check(URL, DeepEquals, baseURL)

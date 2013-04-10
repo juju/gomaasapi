@@ -17,7 +17,7 @@ import (
 // Client represents a way ot communicating with a MAAS API instance.
 // It is stateless, so it can have concurrent requests in progress.
 type Client struct {
-	BaseURL *url.URL
+	APIURL *url.URL
 	Signer  OAuthSigner
 }
 
@@ -56,7 +56,7 @@ func (client Client) dispatchRequest(request *http.Request) ([]byte, error) {
 // The resource URI may be absolute or relative; either way the result is a
 // full absolute URL including the network part.
 func (client Client) GetURL(uri *url.URL) *url.URL {
-	return client.BaseURL.ResolveReference(uri)
+	return client.APIURL.ResolveReference(uri)
 }
 
 // Get performs an HTTP "GET" to the API.  This may be either an API method
@@ -203,7 +203,7 @@ func NewAnonymousClient(BaseURL string, apiVersion string) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Client{Signer: &anonSigner{}, BaseURL: parsedBaseURL}, nil
+	return &Client{Signer: &anonSigner{}, APIURL: parsedBaseURL}, nil
 }
 
 // NewAuthenticatedClient parses the given MAAS API key into the individual
@@ -235,5 +235,5 @@ func NewAuthenticatedClient(BaseURL string, apiKey string, apiVersion string) (*
 	if err != nil {
 		return nil, err
 	}
-	return &Client{Signer: signer, BaseURL: parsedBaseURL}, nil
+	return &Client{Signer: signer, APIURL: parsedBaseURL}, nil
 }

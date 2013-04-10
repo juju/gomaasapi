@@ -198,7 +198,7 @@ func (suite *ClientSuite) TestNewAnonymousClientEnsuresTrailingSlash(c *C) {
 	c.Check(err, IsNil)
 	expectedURL, err := url.Parse("http://example.com/api/1.0/")
 	c.Assert(err, IsNil)
-	c.Check(client.BaseURL, DeepEquals, expectedURL)
+	c.Check(client.APIURL, DeepEquals, expectedURL)
 }
 
 func (suite *ClientSuite) TestNewAuthenticatedClientEnsuresTrailingSlash(c *C) {
@@ -206,7 +206,7 @@ func (suite *ClientSuite) TestNewAuthenticatedClientEnsuresTrailingSlash(c *C) {
 	c.Check(err, IsNil)
 	expectedURL, err := url.Parse("http://example.com/api/1.0/")
 	c.Assert(err, IsNil)
-	c.Check(client.BaseURL, DeepEquals, expectedURL)
+	c.Check(client.APIURL, DeepEquals, expectedURL)
 }
 
 func (suite *ClientSuite) TestNewAuthenticatedClientParsesApiKey(c *C) {
