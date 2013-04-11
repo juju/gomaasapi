@@ -123,6 +123,7 @@ func (suite *TestServerSuite) TestAddNodeOperationPopulatesOperationRequestValue
 	suite.server.NewNode(input)
 	reader := strings.NewReader("key=value")
 	request, err := http.NewRequest("POST", "http://example.com/", reader)
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	c.Assert(err, IsNil)
 
 	suite.server.addNodeOperation("mysystemid", "start", request)

@@ -53,11 +53,14 @@ func (testMAASObject *TestMAASObject) Close() {
 // library.
 type TestServer struct {
 	*httptest.Server
-	serveMux                   *http.ServeMux
-	client                     Client
-	nodes                      map[string]MAASObject
-	ownedNodes                 map[string]bool
-	nodeOperations             map[string][]string
+	serveMux   *http.ServeMux
+	client     Client
+	nodes      map[string]MAASObject
+	ownedNodes map[string]bool
+	// mapping system_id -> list of operations performed.
+	nodeOperations map[string][]string
+	// mapping system_id -> list of Values passed when performing
+	// operations
 	nodeOperationRequestValues map[string][]url.Values
 	files                      map[string]MAASObject
 	version                    string
@@ -98,9 +101,12 @@ func (server *TestServer) NodeOperationRequestValues() map[string][]url.Values {
 
 func (server *TestServer) addNodeOperation(systemId, operation string, request *http.Request) {
 	operations, present := server.nodeOperations[systemId]
-	operationRequestValues, _ := server.nodeOperationRequestValues[systemId]
+	operationRequestValues, present2 := server.nodeOperationRequestValues[systemId]
+	if present != present2 {
+		panic("inconsistent state: nodeOperations and nodeOperationRequestValues don't have the same keys.")
+	}
 	requestValues := url.Values{}
-	if request.Body != nil {
+	if request.Body != nil && request.Header.Get("Content-Type") == "application/x-www-form-urlencoded" {
 		defer request.Body.Close()
 		body, err := ioutil.ReadAll(request.Body)
 		if err != nil {
