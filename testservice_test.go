@@ -97,24 +97,41 @@ func (suite *TestServerSuite) TestChangeNode(c *C) {
 func (suite *TestServerSuite) TestClearClearsData(c *C) {
 	input := `{"system_id": "mysystemid"}`
 	suite.server.NewNode(input)
-	suite.server.addNodeOperation("mysystemid", "start")
+	suite.server.addNodeOperation("mysystemid", "start", &http.Request{})
 
 	suite.server.Clear()
 
 	c.Check(len(suite.server.nodes), Equals, 0)
 	c.Check(len(suite.server.nodeOperations), Equals, 0)
+	c.Check(len(suite.server.nodeOperationRequestValues), Equals, 0)
 }
 
 func (suite *TestServerSuite) TestAddNodeOperationPopulatesOperations(c *C) {
 	input := `{"system_id": "mysystemid"}`
 	suite.server.NewNode(input)
 
-	suite.server.addNodeOperation("mysystemid", "start")
-	suite.server.addNodeOperation("mysystemid", "stop")
+	suite.server.addNodeOperation("mysystemid", "start", &http.Request{})
+	suite.server.addNodeOperation("mysystemid", "stop", &http.Request{})
 
 	nodeOperations := suite.server.NodeOperations()
 	operations := nodeOperations["mysystemid"]
 	c.Check(operations, DeepEquals, []string{"start", "stop"})
+}
+
+func (suite *TestServerSuite) TestAddNodeOperationPopulatesOperationRequestValues(c *C) {
+	input := `{"system_id": "mysystemid"}`
+	suite.server.NewNode(input)
+	reader := strings.NewReader("key=value")
+	request, err := http.NewRequest("POST", "http://example.com/", reader)
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	c.Assert(err, IsNil)
+
+	suite.server.addNodeOperation("mysystemid", "start", request)
+
+	values := suite.server.NodeOperationRequestValues()
+	value := values["mysystemid"]
+	c.Check(len(value), Equals, 1)
+	c.Check(value[0], DeepEquals, url.Values{"key": []string{"value"}})
 }
 
 func (suite *TestServerSuite) TestNewNodeRequiresJSONString(c *C) {
