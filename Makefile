@@ -23,4 +23,4 @@ examples: $(example_binaries)
 %: %.go
 	go build -o $@ $<
 
-.PHONY: check clean format examples
+.PHONY: check clean format examples simplify
