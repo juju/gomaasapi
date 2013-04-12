@@ -395,7 +395,7 @@ func filesHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
 // with the given prefix, sorted lexicographically.
 func listFilenames(server *TestServer, prefix string) []string {
 	var filenames = make([]string, 0)
-	for filename, _ := range server.files {
+	for filename := range server.files {
 		if strings.HasPrefix(filename, prefix) {
 			filenames = append(filenames, filename)
 		}

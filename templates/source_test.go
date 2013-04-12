@@ -7,7 +7,11 @@ import (
 	. "launchpad.net/gocheck"
 )
 
+type MyTestSuite struct{}
+
+var _ = Suite(&MyTestSuite{})
+
 // TODO: Replace with real test functions.  Give them real names.
-func (suite *GomaasapiTestSuite) TestXXX(c *C) {
+func (suite *MyTestSuite) TestXXX(c *C) {
 	c.Check(2+2, Equals, 4)
 }
