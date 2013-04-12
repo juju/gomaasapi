@@ -17,6 +17,7 @@ import (
 
 var apiKey string
 var apiURL string
+var apiVersion string
 
 func getParams() {
 	fmt.Println("Warning: this will create a node on the MAAS server; it should be deleted at the end of the run but if something goes wrong, that test node might be left over.  You've been warned.")
@@ -27,6 +28,12 @@ func getParams() {
 	}
 	fmt.Print("Enter API URL: ")
 	_, err = fmt.Scanf("%s", &apiURL)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Print("Enter API version: ")
+	_, err = fmt.Scanf("%s", &apiVersion)
 	if err != nil {
 		panic(err)
 	}
@@ -42,7 +49,7 @@ func main() {
 	getParams()
 
 	// Create API server endpoint.
-	authClient, err := gomaasapi.NewAuthenticatedClient(apiURL, apiKey)
+	authClient, err := gomaasapi.NewAuthenticatedClient(apiURL, apiKey, apiVersion)
 	checkError(err)
 	maas := gomaasapi.NewMAAS(*authClient)
 
