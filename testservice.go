@@ -341,11 +341,13 @@ func nodesAcquireHandler(server *TestServer, w http.ResponseWriter, r *http.Requ
 	if node == nil {
 		w.WriteHeader(http.StatusConflict)
 	} else {
-		systemID, err := node.GetField("system_id")
+		systemId, err := node.GetField("system_id")
 		checkError(err)
-		server.OwnedNodes()[systemID] = true
+		server.OwnedNodes()[systemId] = true
 		res, err := json.Marshal(node)
 		checkError(err)
+		// Record operation.
+		server.addNodeOperation(systemId, "acquire", r)
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprint(w, string(res))
 	}
