@@ -459,6 +459,24 @@ func (suite *TestMAASObjectSuite) TestOperationsOnNodeGetRecorded(c *C) {
 	c.Check(operations, DeepEquals, []string{"start"})
 }
 
+func (suite *TestMAASObjectSuite) TestAcquireOperationGetsRecorded(c *C) {
+	input := `{"system_id": "mysystemid"}`
+	suite.TestMAASObject.TestServer.NewNode(input)
+	nodesObj := suite.TestMAASObject.GetSubObject("nodes/")
+
+	jsonResponse, err := nodesObj.CallPost("acquire", nil)
+	c.Assert(err, IsNil)
+	acquiredNode, err := jsonResponse.GetMAASObject()
+	c.Assert(err, IsNil)
+	systemId, err := acquiredNode.GetField("system_id")
+	c.Assert(err, IsNil)
+
+	c.Check(err, IsNil)
+	nodeOperations := suite.TestMAASObject.TestServer.NodeOperations()
+	operations := nodeOperations[systemId]
+	c.Check(operations, DeepEquals, []string{"acquire"})
+}
+
 func (suite *TestMAASObjectSuite) TestUploadFile(c *C) {
 	const filename = "myfile.txt"
 	const fileContent = "uploaded contents"
