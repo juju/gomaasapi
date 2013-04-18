@@ -463,18 +463,25 @@ func (suite *TestMAASObjectSuite) TestAcquireOperationGetsRecorded(c *C) {
 	input := `{"system_id": "mysystemid"}`
 	suite.TestMAASObject.TestServer.NewNode(input)
 	nodesObj := suite.TestMAASObject.GetSubObject("nodes/")
+	params := url.Values{"key": []string{"value"}}
 
-	jsonResponse, err := nodesObj.CallPost("acquire", nil)
+	jsonResponse, err := nodesObj.CallPost("acquire", params)
 	c.Assert(err, IsNil)
 	acquiredNode, err := jsonResponse.GetMAASObject()
 	c.Assert(err, IsNil)
 	systemId, err := acquiredNode.GetField("system_id")
 	c.Assert(err, IsNil)
 
-	c.Check(err, IsNil)
+	// The 'acquire' operation has been recorded.
 	nodeOperations := suite.TestMAASObject.TestServer.NodeOperations()
 	operations := nodeOperations[systemId]
 	c.Check(operations, DeepEquals, []string{"acquire"})
+
+	// The parameters used to 'acquire' the node have been recorded as well.
+	values := suite.TestMAASObject.TestServer.NodeOperationRequestValues()
+	value := values[systemId]
+	c.Check(len(value), Equals, 1)
+	c.Check(value[0], DeepEquals, params)
 }
 
 func (suite *TestMAASObjectSuite) TestUploadFile(c *C) {
