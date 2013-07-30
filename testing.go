@@ -5,7 +5,6 @@ package gomaasapi
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 )
@@ -26,7 +25,7 @@ func newSingleServingServer(uri string, response string, code int) *singleServin
 		if requested {
 			http.Error(writer, "Already requested", http.StatusServiceUnavailable)
 		}
-		res, err := ioutil.ReadAll(request.Body)
+		res, err := readAndClose(request.Body)
 		if err != nil {
 			panic(err)
 		}

@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	. "launchpad.net/gocheck"
 	"mime/multipart"
 	"net/http"
@@ -242,7 +241,7 @@ func (suite *TestServerSuite) TestHandlesFile(c *C) {
 	c.Check(err, IsNil)
 	c.Check(resp.StatusCode, Equals, http.StatusOK)
 
-	content, err := ioutil.ReadAll(resp.Body)
+	content, err := readAndClose(resp.Body)
 	c.Assert(err, IsNil)
 	var obj map[string]interface{}
 	err = json.Unmarshal(content, &obj)
@@ -267,7 +266,7 @@ func (suite *TestServerSuite) TestHandlesGetFile(c *C) {
 
 	c.Check(err, IsNil)
 	c.Check(resp.StatusCode, Equals, http.StatusOK)
-	content, err := ioutil.ReadAll(resp.Body)
+	content, err := readAndClose(resp.Body)
 	c.Check(err, IsNil)
 	c.Check(string(content), Equals, string(fileContent))
 	c.Check(content, DeepEquals, fileContent)
@@ -283,7 +282,7 @@ func (suite *TestServerSuite) TestHandlesListReturnsSortedFilenames(c *C) {
 	resp, err := http.Get(suite.server.Server.URL + getURI)
 	c.Check(err, IsNil)
 	c.Check(resp.StatusCode, Equals, http.StatusOK)
-	content, err := ioutil.ReadAll(resp.Body)
+	content, err := readAndClose(resp.Body)
 	c.Assert(err, IsNil)
 	var files []map[string]string
 	err = json.Unmarshal(content, &files)
@@ -304,7 +303,7 @@ func (suite *TestServerSuite) TestHandlesListFiltersFiles(c *C) {
 
 	c.Check(err, IsNil)
 	c.Check(resp.StatusCode, Equals, http.StatusOK)
-	content, err := ioutil.ReadAll(resp.Body)
+	content, err := readAndClose(resp.Body)
 	c.Assert(err, IsNil)
 	var files []map[string]string
 	err = json.Unmarshal(content, &files)
@@ -322,7 +321,7 @@ func (suite *TestServerSuite) TestHandlesListOmitsContent(c *C) {
 	resp, err := http.Get(suite.server.Server.URL + getURI)
 	c.Assert(err, IsNil)
 
-	content, err := ioutil.ReadAll(resp.Body)
+	content, err := readAndClose(resp.Body)
 	c.Assert(err, IsNil)
 	var files []map[string]string
 	err = json.Unmarshal(content, &files)

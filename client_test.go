@@ -16,6 +16,22 @@ type ClientSuite struct{}
 
 var _ = Suite(&ClientSuite{})
 
+func (*ClientSuite) TestReadAndCloseReturnsEmptyStringForNil(c *C) {
+	data, err := readAndClose(nil)
+	c.Assert(err, IsNil)
+	c.Check(string(data), Equals, "")
+}
+
+func (*ClientSuite) TestReadAndCloseReturnsContents(c *C) {
+	content := "Stream contents."
+	stream := ioutil.NopCloser(strings.NewReader(content))
+
+	data, err := readAndClose(stream)
+	c.Assert(err, IsNil)
+
+	c.Check(string(data), Equals, content)
+}
+
 func (suite *ClientSuite) TestClientdispatchRequestReturnsServerError(c *C) {
 	URI := "/some/url/?param1=test"
 	expectedResult := "expected:result"
