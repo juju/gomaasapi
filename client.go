@@ -29,6 +29,17 @@ type ServerError struct {
 	StatusCode int
 }
 
+// readAndClose reads and closes the given ReadCloser.
+//
+// Trying to read from a nil simply returns nil, no error.
+func readAndClose(stream io.ReadCloser) ([]byte, error) {
+	if stream == nil {
+		return nil, nil
+	}
+	defer stream.Close()
+	return ioutil.ReadAll(stream)
+}
+
 // dispatchRequest sends a request to the server, and interprets the response.
 // Client-side errors will return an empty response and a non-nil error.  For
 // server-side errors however (i.e. responses with a non 2XX status code), the
@@ -41,7 +52,7 @@ func (client Client) dispatchRequest(request *http.Request) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	body, err := ioutil.ReadAll(response.Body)
+	body, err := readAndClose(response.Body)
 	if err != nil {
 		return nil, err
 	}

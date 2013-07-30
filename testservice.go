@@ -107,8 +107,7 @@ func (server *TestServer) addNodeOperation(systemId, operation string, request *
 	}
 	requestValues := url.Values{}
 	if request.Body != nil && request.Header.Get("Content-Type") == "application/x-www-form-urlencoded" {
-		defer request.Body.Close()
-		body, err := ioutil.ReadAll(request.Body)
+		body, err := readAndClose(request.Body)
 		if err != nil {
 			panic(err)
 		}
