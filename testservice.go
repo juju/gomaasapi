@@ -128,7 +128,7 @@ func (server *TestServer) addNodeOperation(systemId, operation string, request *
 }
 
 // NewNode creates a MAAS node.  The provided string should be a valid json
-// string representing a map and contain a string value for the key 
+// string representing a map and contain a string value for the key
 // 'system_id'.  e.g. `{"system_id": "mysystemid"}`.
 // If one of these conditions is not met, NewNode panics.
 func (server *TestServer) NewNode(jsonText string) MAASObject {
@@ -424,7 +424,7 @@ func fileListingHandler(server *TestServer, w http.ResponseWriter, r *http.Reque
 	prefix := values.Get("prefix")
 	filenames := listFilenames(server, prefix)
 
-	// Build a sorted list of the files as map[string]JSONObject objects. 
+	// Build a sorted list of the files as map[string]JSONObject objects.
 	convertedFiles := make([]map[string]JSONObject, 0)
 	for _, filename := range filenames {
 		// The "content" attribute is not in the listing.

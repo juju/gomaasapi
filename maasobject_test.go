@@ -77,7 +77,7 @@ func (suite *MAASObjectSuite) TestNewJSONMAASObjectPanicsIfResourceURINotURL(c *
 		c.Check(msg, Matches, ".*resource_uri.*valid URL.*")
 	}()
 
-	input := map[string]interface{}{resourceURI: ""}
+	input := map[string]interface{}{resourceURI: "%z"}
 	newJSONMAASObject(input, Client{})
 }
 
