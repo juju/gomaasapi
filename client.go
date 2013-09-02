@@ -57,7 +57,7 @@ func (client Client) dispatchRequest(request *http.Request) ([]byte, error) {
 		return nil, err
 	}
 	if response.StatusCode < 200 || response.StatusCode > 299 {
-		msg := fmt.Errorf("gomaasapi: got error back from server: %v", response.Status)
+		msg := fmt.Errorf("gomaasapi: got error back from server: %v (%v)", response.Status, string(body))
 		return body, ServerError{error: msg, StatusCode: response.StatusCode}
 	}
 	return body, nil

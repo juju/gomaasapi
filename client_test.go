@@ -5,10 +5,12 @@ package gomaasapi
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	. "launchpad.net/gocheck"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 )
 
@@ -43,7 +45,8 @@ func (suite *ClientSuite) TestClientdispatchRequestReturnsServerError(c *C) {
 
 	result, err := client.dispatchRequest(request)
 
-	c.Check(err, ErrorMatches, "gomaasapi: got error back from server: 400 Bad Request.*")
+	expectedErrorString := regexp.QuoteMeta(fmt.Sprintf("gomaasapi: got error back from server: 400 Bad Request (%v)", expectedResult))
+	c.Check(err, ErrorMatches, expectedErrorString)
 	c.Check(err.(ServerError).StatusCode, Equals, 400)
 	c.Check(string(result), Equals, expectedResult)
 }
