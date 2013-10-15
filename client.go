@@ -14,7 +14,7 @@ import (
 	"strings"
 )
 
-// Client represents a way ot communicating with a MAAS API instance.
+// Client represents a way to communicating with a MAAS API instance.
 // It is stateless, so it can have concurrent requests in progress.
 type Client struct {
 	APIURL *url.URL

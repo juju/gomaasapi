@@ -141,6 +141,9 @@ func (server *TestServer) NewNode(jsonText string) MAASObject {
 	}
 	systemId := systemIdEntry.(string)
 	attrs[resourceURI] = getNodeURI(server.version, systemId)
+	if _, hasStatus := attrs["status"]; !hasStatus {
+		attrs["status"] = NodeStatusAllocated
+	}
 	obj := newJSONMAASObject(attrs, server.client)
 	server.nodes[systemId] = obj
 	return obj
