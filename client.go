@@ -48,6 +48,10 @@ func readAndClose(stream io.ReadCloser) ([]byte, error) {
 func (client Client) dispatchRequest(request *http.Request) ([]byte, error) {
 	client.Signer.OAuthSign(request)
 	httpClient := http.Client{}
+	// See https://code.google.com/p/go/issues/detail?id=4677
+	// We need to force the connection to close each time so that we don't
+	// hit the above Go bug.
+	request.Close = true
 	response, err := httpClient.Do(request)
 	if err != nil {
 		return nil, err
