@@ -211,6 +211,10 @@ func getFileURLRE(version string) *regexp.Regexp {
 	return regexp.MustCompile(reString)
 }
 
+func getNetworksURL(version string) string {
+	return fmt.Sprintf("/api/%s/networks/", version)
+}
+
 // NewTestServer starts and returns a new MAAS test server. The caller should call Close when finished, to shut it down.
 func NewTestServer(version string) *TestServer {
 	server := &TestServer{version: version}
@@ -225,6 +229,11 @@ func NewTestServer(version string) *TestServer {
 	// Register handler for '/api/<version>/files/*'.
 	serveMux.HandleFunc(filesURL, func(w http.ResponseWriter, r *http.Request) {
 		filesHandler(server, w, r)
+	})
+	networksURL := getNetworksURL(server.version)
+	// Register handler for '/api/<version>/networks/'.
+	serveMux.HandleFunc(networksURL, func(w http.ResponseWriter, r *http.Request){
+		networksHandler(server, w, r)
 	})
 
 	newServer := httptest.NewServer(serveMux)
@@ -527,4 +536,21 @@ func addFileHandler(server *TestServer, w http.ResponseWriter, r *http.Request) 
 	checkError(err)
 	server.NewFile(filename, content)
 	w.WriteHeader(http.StatusOK)
+}
+
+// networksHandler handles requests for '/api/<version>/networks/?node=system_id'.
+func networksHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
+	node := findFreeNode(server)
+	if node == nil {
+		w.WriteHeader(http.StatusConflict)
+	} else {
+		//systemId, err := node.GetField("system_id")
+		res, err := json.Marshal(node)
+		checkError(err)
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprint(w, string(res))
+	}
+
+	w.WriteHeader(http.StatusOK)
+
 }
