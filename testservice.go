@@ -63,6 +63,8 @@ type TestServer struct {
 	// operations
 	nodeOperationRequestValues map[string][]url.Values
 	files                      map[string]MAASObject
+	networks                   map[string]MAASObject
+	networksPerNode            map[string][]string
 	version                    string
 }
 
@@ -76,6 +78,10 @@ func getFileURI(version, filename string) string {
 	return uri.String()
 }
 
+func getNetworksURI(version, name string) string {
+	return fmt.Sprintf("/api/%s/networks/%s/", version, name)
+}
+
 // Clear clears all the fake data stored and recorded by the test server
 // (nodes, recorded operations, etc.).
 func (server *TestServer) Clear() {
@@ -84,6 +90,8 @@ func (server *TestServer) Clear() {
 	server.nodeOperations = make(map[string][]string)
 	server.nodeOperationRequestValues = make(map[string][]url.Values)
 	server.files = make(map[string]MAASObject)
+	server.networks = make(map[string]MAASObject)
+	server.networksPerNode = make(map[string][]string)
 }
 
 // NodeOperations returns the map containing the list of the operations
@@ -193,6 +201,36 @@ func (server *TestServer) ChangeNode(systemId, key, value string) {
 	node.GetMap()[key] = maasify(server.client, value)
 }
 
+// NewNetwork creates a network in the test MAAS server
+func (server *TestServer) NewNetwork(jsonText string) MAASObject {
+	var attrs map[string]interface{}
+	err := json.Unmarshal([]byte(jsonText), &attrs)
+	checkError(err)
+	nameEntry, hasName := attrs["name"]
+	if !hasName {
+		panic("The given map json string does not contain a 'name' value.")
+	}
+	// TODO(gz): Sanity checking done on other fields
+	name := nameEntry.(string)
+	attrs[resourceURI] = getNetworksURI(server.version, name)
+	obj := newJSONMAASObject(attrs, server.client)
+	server.networks[name] = obj
+	return obj
+}
+
+func (server *TestServer) ConnectNodeToNetwork(systemId, name string) {
+	_, hasNode := server.nodes[systemId]
+	if !hasNode {
+		panic("no node with given system id")
+	}
+	_, hasNetwork := server.networks[name]
+	if !hasNetwork {
+		panic("no network with given name")
+	}
+	networkNames, _ := server.networksPerNode[systemId]
+	server.networksPerNode[systemId] = append(networkNames, name)
+}
+
 func getTopLevelNodesURL(version string) string {
 	return fmt.Sprintf("/api/%s/nodes/", version)
 }
@@ -232,7 +270,7 @@ func NewTestServer(version string) *TestServer {
 	})
 	networksURL := getNetworksURL(server.version)
 	// Register handler for '/api/<version>/networks/'.
-	serveMux.HandleFunc(networksURL, func(w http.ResponseWriter, r *http.Request){
+	serveMux.HandleFunc(networksURL, func(w http.ResponseWriter, r *http.Request) {
 		networksHandler(server, w, r)
 	})
 
@@ -540,17 +578,26 @@ func addFileHandler(server *TestServer, w http.ResponseWriter, r *http.Request) 
 
 // networksHandler handles requests for '/api/<version>/networks/?node=system_id'.
 func networksHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
-	node := findFreeNode(server)
-	if node == nil {
-		w.WriteHeader(http.StatusConflict)
-	} else {
-		//systemId, err := node.GetField("system_id")
-		res, err := json.Marshal(node)
-		checkError(err)
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprint(w, string(res))
+	if r.Method != "GET" {
+		panic("only networks GET operation implemented")
 	}
-
+	values, err := url.ParseQuery(r.URL.RawQuery)
+	checkError(err)
+	systemId := values.Get("node")
+	if systemId == "" {
+		panic("network missing associated node system id")
+	}
+	networkNames, hasNetworks := server.networksPerNode[systemId]
+	if !hasNetworks {
+		// TODO(gz): Should be an HTTP error not a panic
+		panic("no networks exists for the given node system id")
+	}
+	networks := make([]MAASObject, len(networkNames))
+	for i, networkName := range networkNames {
+		networks[i] = server.networks[networkName]
+	}
+	res, err := json.Marshal(networks)
+	checkError(err)
 	w.WriteHeader(http.StatusOK)
-
+	fmt.Fprint(w, string(res))
 }
