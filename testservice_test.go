@@ -43,11 +43,11 @@ func (suite *TestServerSuite) TestNewTestServerReturnsTestServer(c *C) {
 }
 
 func (suite *TestServerSuite) TestGetResourceURI(c *C) {
-	c.Check(getNodeURI("version", "test"), Equals, "/api/version/nodes/test/")
+	c.Check(getNodeURL("0.1", "test"), Equals, "/api/0.1/nodes/test/")
 }
 
 func (suite *TestServerSuite) TestInvalidOperationOnNodesIsBadRequest(c *C) {
-	badURL := getTopLevelNodesURL(suite.server.version) + "?op=procrastinate"
+	badURL := getNodesEndpoint(suite.server.version) + "?op=procrastinate"
 
 	response, err := http.Get(suite.server.Server.URL + badURL)
 	c.Assert(err, IsNil)
