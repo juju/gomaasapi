@@ -63,17 +63,46 @@ type TestServer struct {
 	// operations
 	nodeOperationRequestValues map[string][]url.Values
 	files                      map[string]MAASObject
+	networks                   map[string]MAASObject
+	networksPerNode            map[string][]string
 	version                    string
 }
 
-func getNodeURI(version, systemId string) string {
+func getNodesEndpoint(version string) string {
+	return fmt.Sprintf("/api/%s/nodes/", version)
+}
+
+func getNodeURL(version, systemId string) string {
 	return fmt.Sprintf("/api/%s/nodes/%s/", version, systemId)
 }
 
-func getFileURI(version, filename string) string {
-	uri := url.URL{}
-	uri.Path = fmt.Sprintf("/api/%s/files/%s/", version, filename)
-	return uri.String()
+func getNodeURLRE(version string) *regexp.Regexp {
+	reString := fmt.Sprintf("^/api/%s/nodes/([^/]*)/$", regexp.QuoteMeta(version))
+	return regexp.MustCompile(reString)
+}
+
+func getFilesEndpoint(version string) string {
+	return fmt.Sprintf("/api/%s/files/", version)
+}
+
+func getFileURL(version, filename string) string {
+	// Uses URL object so filename is correctly percent-escaped
+	url := url.URL{}
+	url.Path = fmt.Sprintf("/api/%s/files/%s/", version, filename)
+	return url.String()
+}
+
+func getFileURLRE(version string) *regexp.Regexp {
+	reString := fmt.Sprintf("^/api/%s/files/(.*)/$", regexp.QuoteMeta(version))
+	return regexp.MustCompile(reString)
+}
+
+func getNetworksEndpoint(version string) string {
+	return fmt.Sprintf("/api/%s/networks/", version)
+}
+
+func getNetworkURL(version, name string) string {
+	return fmt.Sprintf("/api/%s/networks/%s/", version, name)
 }
 
 // Clear clears all the fake data stored and recorded by the test server
@@ -84,6 +113,8 @@ func (server *TestServer) Clear() {
 	server.nodeOperations = make(map[string][]string)
 	server.nodeOperationRequestValues = make(map[string][]url.Values)
 	server.files = make(map[string]MAASObject)
+	server.networks = make(map[string]MAASObject)
+	server.networksPerNode = make(map[string][]string)
 }
 
 // NodeOperations returns the map containing the list of the operations
@@ -140,7 +171,7 @@ func (server *TestServer) NewNode(jsonText string) MAASObject {
 		panic("The given map json string does not contain a 'system_id' value.")
 	}
 	systemId := systemIdEntry.(string)
-	attrs[resourceURI] = getNodeURI(server.version, systemId)
+	attrs[resourceURI] = getNodeURL(server.version, systemId)
 	if _, hasStatus := attrs["status"]; !hasStatus {
 		attrs["status"] = NodeStatusAllocated
 	}
@@ -164,7 +195,7 @@ func (server *TestServer) OwnedNodes() map[string]bool {
 // NewFile creates a file in the test MAAS server.
 func (server *TestServer) NewFile(filename string, filecontent []byte) MAASObject {
 	attrs := make(map[string]interface{})
-	attrs[resourceURI] = getFileURI(server.version, filename)
+	attrs[resourceURI] = getFileURL(server.version, filename)
 	base64Content := base64.StdEncoding.EncodeToString(filecontent)
 	attrs["content"] = base64Content
 	attrs["filename"] = filename
@@ -193,22 +224,34 @@ func (server *TestServer) ChangeNode(systemId, key, value string) {
 	node.GetMap()[key] = maasify(server.client, value)
 }
 
-func getTopLevelNodesURL(version string) string {
-	return fmt.Sprintf("/api/%s/nodes/", version)
+// NewNetwork creates a network in the test MAAS server
+func (server *TestServer) NewNetwork(jsonText string) MAASObject {
+	var attrs map[string]interface{}
+	err := json.Unmarshal([]byte(jsonText), &attrs)
+	checkError(err)
+	nameEntry, hasName := attrs["name"]
+	if !hasName {
+		panic("The given map json string does not contain a 'name' value.")
+	}
+	// TODO(gz): Sanity checking done on other fields
+	name := nameEntry.(string)
+	attrs[resourceURI] = getNetworkURL(server.version, name)
+	obj := newJSONMAASObject(attrs, server.client)
+	server.networks[name] = obj
+	return obj
 }
 
-func getNodeURLRE(version string) *regexp.Regexp {
-	reString := fmt.Sprintf("^/api/%s/nodes/([^/]*)/$", regexp.QuoteMeta(version))
-	return regexp.MustCompile(reString)
-}
-
-func getFilesURL(version string) string {
-	return fmt.Sprintf("/api/%s/files/", version)
-}
-
-func getFileURLRE(version string) *regexp.Regexp {
-	reString := fmt.Sprintf("^/api/%s/files/(.*)/$", regexp.QuoteMeta(version))
-	return regexp.MustCompile(reString)
+func (server *TestServer) ConnectNodeToNetwork(systemId, name string) {
+	_, hasNode := server.nodes[systemId]
+	if !hasNode {
+		panic("no node with given system id")
+	}
+	_, hasNetwork := server.networks[name]
+	if !hasNetwork {
+		panic("no network with given name")
+	}
+	networkNames, _ := server.networksPerNode[systemId]
+	server.networksPerNode[systemId] = append(networkNames, name)
 }
 
 // NewTestServer starts and returns a new MAAS test server. The caller should call Close when finished, to shut it down.
@@ -216,15 +259,20 @@ func NewTestServer(version string) *TestServer {
 	server := &TestServer{version: version}
 
 	serveMux := http.NewServeMux()
-	nodesURL := getTopLevelNodesURL(server.version)
+	nodesURL := getNodesEndpoint(server.version)
 	// Register handler for '/api/<version>/nodes/*'.
 	serveMux.HandleFunc(nodesURL, func(w http.ResponseWriter, r *http.Request) {
 		nodesHandler(server, w, r)
 	})
-	filesURL := getFilesURL(server.version)
+	filesURL := getFilesEndpoint(server.version)
 	// Register handler for '/api/<version>/files/*'.
 	serveMux.HandleFunc(filesURL, func(w http.ResponseWriter, r *http.Request) {
 		filesHandler(server, w, r)
+	})
+	networksURL := getNetworksEndpoint(server.version)
+	// Register handler for '/api/<version>/networks/'.
+	serveMux.HandleFunc(networksURL, func(w http.ResponseWriter, r *http.Request) {
+		networksHandler(server, w, r)
 	})
 
 	newServer := httptest.NewServer(serveMux)
@@ -244,7 +292,7 @@ func nodesHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
 	op := values.Get("op")
 	nodeURLRE := getNodeURLRE(server.version)
 	nodeURLMatch := nodeURLRE.FindStringSubmatch(r.URL.Path)
-	nodesURL := getTopLevelNodesURL(server.version)
+	nodesURL := getNodesEndpoint(server.version)
 	switch {
 	case r.URL.Path == nodesURL:
 		nodesTopLevelHandler(server, w, r, op)
@@ -376,7 +424,7 @@ func filesHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
 	op := values.Get("op")
 	fileURLRE := getFileURLRE(server.version)
 	fileURLMatch := fileURLRE.FindStringSubmatch(r.URL.Path)
-	fileListingURL := getFilesURL(server.version)
+	fileListingURL := getFilesEndpoint(server.version)
 	switch {
 	case r.Method == "GET" && op == "list" && r.URL.Path == fileListingURL:
 		// File listing operation.
@@ -527,4 +575,30 @@ func addFileHandler(server *TestServer, w http.ResponseWriter, r *http.Request) 
 	checkError(err)
 	server.NewFile(filename, content)
 	w.WriteHeader(http.StatusOK)
+}
+
+// networksHandler handles requests for '/api/<version>/networks/?node=system_id'.
+func networksHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		panic("only networks GET operation implemented")
+	}
+	values, err := url.ParseQuery(r.URL.RawQuery)
+	checkError(err)
+	systemId := values.Get("node")
+	if systemId == "" {
+		panic("network missing associated node system id")
+	}
+	networkNames, hasNetworks := server.networksPerNode[systemId]
+	if !hasNetworks {
+		// TODO(gz): Should be an HTTP error not a panic
+		panic("no networks exists for the given node system id")
+	}
+	networks := make([]MAASObject, len(networkNames))
+	for i, networkName := range networkNames {
+		networks[i] = server.networks[networkName]
+	}
+	res, err := json.Marshal(networks)
+	checkError(err)
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprint(w, string(res))
 }
