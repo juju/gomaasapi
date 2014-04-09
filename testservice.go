@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"labix.org/v2/mgo/bson"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -66,6 +67,8 @@ type TestServer struct {
 	networks                   map[string]MAASObject
 	networksPerNode            map[string][]string
 	version                    string
+	macAddressesPerNetwork     map[string]map[string]JSONObject
+	nodeDetails                map[string]string
 }
 
 func getNodesEndpoint(version string) string {
@@ -105,6 +108,23 @@ func getNetworkURL(version, name string) string {
 	return fmt.Sprintf("/api/%s/networks/%s/", version, name)
 }
 
+func getNetworkURLRE(version string) *regexp.Regexp {
+	reString := fmt.Sprintf("^/api/%s/networks/(.*)/$", regexp.QuoteMeta(version))
+	return regexp.MustCompile(reString)
+}
+
+func getMACAddressURL(version, systemId, macAddress string) string {
+	return fmt.Sprintf("/api/%s/nodes/%s/macs/%s/", version, systemId, url.QueryEscape(macAddress))
+}
+
+func getVersionURL(version string) string {
+	return fmt.Sprintf("/api/%s/version/", version)
+}
+
+func getVersionJSON() string {
+	return `{"capabilities": ["networks-management"]}`
+}
+
 // Clear clears all the fake data stored and recorded by the test server
 // (nodes, recorded operations, etc.).
 func (server *TestServer) Clear() {
@@ -115,6 +135,8 @@ func (server *TestServer) Clear() {
 	server.files = make(map[string]MAASObject)
 	server.networks = make(map[string]MAASObject)
 	server.networksPerNode = make(map[string][]string)
+	server.macAddressesPerNetwork = make(map[string]map[string]JSONObject)
+	server.nodeDetails = make(map[string]string)
 }
 
 // NodeOperations returns the map containing the list of the operations
@@ -254,6 +276,38 @@ func (server *TestServer) ConnectNodeToNetwork(systemId, name string) {
 	server.networksPerNode[systemId] = append(networkNames, name)
 }
 
+func (server *TestServer) ConnectNodeToNetworkWithMACAddress(systemId, name, macAddress string) {
+	node, hasNode := server.nodes[systemId]
+	if !hasNode {
+		panic("no node with given system id")
+	}
+	_, hasNetwork := server.networks[name]
+	if !hasNetwork {
+		panic("no network with given name")
+	}
+	networkNames, _ := server.networksPerNode[systemId]
+	server.networksPerNode[systemId] = append(networkNames, name)
+	attrs := make(map[string]interface{})
+	attrs[resourceURI] = getMACAddressURL(server.version, systemId, macAddress)
+	attrs["mac_address"] = macAddress
+	var array []JSONObject
+	if set, ok := node.GetMap()["macaddress_set"]; ok {
+		var err error
+		array, err = set.GetArray()
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		array = make([]JSONObject, 0)
+	}
+	array = append(array, maasify(server.client, attrs))
+	node.GetMap()["macaddress_set"] = JSONObject{value: array, client: server.client}
+	if _, ok := server.macAddressesPerNetwork[name]; !ok {
+		server.macAddressesPerNetwork[name] = map[string]JSONObject{}
+	}
+	server.macAddressesPerNetwork[name][systemId] = maasify(server.client, attrs)
+}
+
 // NewTestServer starts and returns a new MAAS test server. The caller should call Close when finished, to shut it down.
 func NewTestServer(version string) *TestServer {
 	server := &TestServer{version: version}
@@ -273,6 +327,11 @@ func NewTestServer(version string) *TestServer {
 	// Register handler for '/api/<version>/networks/'.
 	serveMux.HandleFunc(networksURL, func(w http.ResponseWriter, r *http.Request) {
 		networksHandler(server, w, r)
+	})
+	versionURL := getVersionURL(server.version)
+	// Register handler for '/api/version/'.
+	serveMux.HandleFunc(versionURL, func(w http.ResponseWriter, r *http.Request) {
+		versionHandler(server, w, r)
 	})
 
 	newServer := httptest.NewServer(serveMux)
@@ -316,6 +375,9 @@ func nodeHandler(server *TestServer, w http.ResponseWriter, r *http.Request, sys
 		if operation == "" {
 			w.WriteHeader(http.StatusOK)
 			fmt.Fprint(w, marshalNode(node))
+			return
+		} else if operation == "details" {
+			nodeDetailsHandler(server, w, r, systemId)
 			return
 		} else {
 			w.WriteHeader(http.StatusBadRequest)
@@ -415,6 +477,28 @@ func nodesTopLevelHandler(server *TestServer, w http.ResponseWriter, r *http.Req
 	default:
 		w.WriteHeader(http.StatusBadRequest)
 	}
+}
+
+// AddNodeDetails srores node details, expected in XML format.
+func (server *TestServer) AddNodeDetails(systemId, xmlText string) {
+	_, hasNode := server.nodes[systemId]
+	if !hasNode {
+		panic("no node with given system id")
+	}
+	server.nodeDetails[systemId] = xmlText
+}
+
+// nodeDetailesHandler handles requests for '/api/<version>/nodes/<system_id>/?op=details'.
+func nodeDetailsHandler(server *TestServer, w http.ResponseWriter, r *http.Request, systemId string) {
+	attrs := make(map[string]interface{})
+	attrs["lldp"] = []byte("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<lldp label=\"LLDP neighbors\"/>")
+	xmlText, _ := server.nodeDetails[systemId]
+	attrs["lshw"] = []byte(xmlText)
+	res, err := bson.Marshal(attrs)
+	checkError(err)
+	w.Header().Set("Content-Type", "application/bson")
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprint(w, string(res))
 }
 
 // filesHandler handles requests for '/api/<version>/files/*'.
@@ -577,6 +661,29 @@ func addFileHandler(server *TestServer, w http.ResponseWriter, r *http.Request) 
 	w.WriteHeader(http.StatusOK)
 }
 
+// networkListingConnectedMACSHandler handles requests for '/api/<version>/networks/<network>/?op=list_connected_macs'
+func networkListingConnectedMACSHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
+	networkURLRE := getNetworkURLRE(server.version)
+	networkURLREMatch := networkURLRE.FindStringSubmatch(r.URL.Path)
+	if networkURLREMatch == nil {
+		http.NotFoundHandler().ServeHTTP(w, r)
+		return
+	}
+	networkName := networkURLREMatch[1]
+	var convertedMacAddresses = []map[string]JSONObject{}
+	if macAddresses, ok := server.macAddressesPerNetwork[networkName]; ok {
+		for _, macAddress := range macAddresses {
+			m, err := macAddress.GetMap()
+			checkError(err)
+			convertedMacAddresses = append(convertedMacAddresses, m)
+		}
+	}
+	res, err := json.Marshal(convertedMacAddresses)
+	checkError(err)
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprint(w, string(res))
+}
+
 // networksHandler handles requests for '/api/<version>/networks/?node=system_id'.
 func networksHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
@@ -584,21 +691,41 @@ func networksHandler(server *TestServer, w http.ResponseWriter, r *http.Request)
 	}
 	values, err := url.ParseQuery(r.URL.RawQuery)
 	checkError(err)
+	op := values.Get("op")
 	systemId := values.Get("node")
+	if op == "list_connected_macs" {
+		networkListingConnectedMACSHandler(server, w, r)
+		return
+	}
+	if op != "" {
+		panic("only list_connected_macs operation implemented")
+	}
 	if systemId == "" {
 		panic("network missing associated node system id")
 	}
 	networkNames, hasNetworks := server.networksPerNode[systemId]
+	var networks []MAASObject
 	if !hasNetworks {
-		// TODO(gz): Should be an HTTP error not a panic
-		panic("no networks exists for the given node system id")
-	}
-	networks := make([]MAASObject, len(networkNames))
-	for i, networkName := range networkNames {
-		networks[i] = server.networks[networkName]
+		networks = make([]MAASObject, 0)
+	} else {
+		networks = make([]MAASObject, len(networkNames))
+		for i, networkName := range networkNames {
+			networks[i] = server.networks[networkName]
+		}
 	}
 	res, err := json.Marshal(networks)
 	checkError(err)
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, string(res))
+}
+
+// versionHandler handles requests for '/api/version/'.
+func versionHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		panic("only version GET operation implemented")
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprint(w, getVersionJSON())
 }
