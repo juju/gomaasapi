@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"labix.org/v2/mgo/bson"
 	. "launchpad.net/gocheck"
 	"mime/multipart"
 	"net/http"
@@ -594,4 +595,156 @@ func (suite *TestMAASObjectSuite) TestGetNetworks(c *C) {
 	networkName, err := listNetworks.GetField("name")
 	c.Assert(err, IsNil)
 	c.Check(networkName, Equals, "mynetworkname")
+}
+
+func (suite *TestMAASObjectSuite) TestGetNetworksNone(c *C) {
+	nodeJSON := `{"system_id": "mysystemid"}`
+	suite.TestMAASObject.TestServer.NewNode(nodeJSON)
+
+	networkMethod := suite.TestMAASObject.GetSubObject("networks")
+	params := url.Values{"node": []string{"mysystemid"}}
+	listNetworkObjects, err := networkMethod.CallGet("", params)
+	c.Assert(err, IsNil)
+
+	networkJSONArray, err := listNetworkObjects.GetArray()
+	c.Assert(err, IsNil)
+	c.Check(networkJSONArray, HasLen, 0)
+}
+
+func (suite *TestMAASObjectSuite) TestListNodesWithNetworks(c *C) {
+	nodeJSON := `{"system_id": "mysystemid"}`
+	suite.TestMAASObject.TestServer.NewNode(nodeJSON)
+	networkJSON := `{"name": "mynetworkname"}`
+	suite.TestMAASObject.TestServer.NewNetwork(networkJSON)
+	suite.TestMAASObject.TestServer.ConnectNodeToNetworkWithMACAddress("mysystemid", "mynetworkname", "aa:bb:cc:dd:ee:ff")
+
+	nodeListing := suite.TestMAASObject.GetSubObject("nodes")
+	listNodeObjects, err := nodeListing.CallGet("list", url.Values{})
+	c.Assert(err, IsNil)
+
+	listNodes, err := listNodeObjects.GetArray()
+	c.Assert(err, IsNil)
+	c.Check(listNodes, HasLen, 1)
+
+	node, err := listNodes[0].GetMAASObject()
+	c.Assert(err, IsNil)
+	systemId, err := node.GetField("system_id")
+	c.Assert(err, IsNil)
+	c.Check(systemId, Equals, "mysystemid")
+
+	gotResourceURI, err := node.GetField(resourceURI)
+	c.Assert(err, IsNil)
+	apiVersion := suite.TestMAASObject.TestServer.version
+	expectedResourceURI := fmt.Sprintf("/api/%s/nodes/mysystemid/", apiVersion)
+	c.Check(gotResourceURI, Equals, expectedResourceURI)
+
+	macAddressSet, err := node.GetMap()["macaddress_set"].GetArray()
+	c.Assert(err, IsNil)
+	c.Check(macAddressSet, HasLen, 1)
+
+	macAddress, err := macAddressSet[0].GetMap()
+	c.Assert(err, IsNil)
+	macAddressString, err := macAddress["mac_address"].GetString()
+	c.Check(macAddressString, Equals, "aa:bb:cc:dd:ee:ff")
+
+	gotResourceURI, err = macAddress[resourceURI].GetString()
+	c.Assert(err, IsNil)
+	expectedResourceURI = fmt.Sprintf("/api/%s/nodes/mysystemid/macs/%s/", apiVersion, url.QueryEscape("aa:bb:cc:dd:ee:ff"))
+	c.Check(gotResourceURI, Equals, expectedResourceURI)
+}
+
+func (suite *TestMAASObjectSuite) TestListNetworkConnectedMACAddresses(c *C) {
+	suite.TestMAASObject.TestServer.NewNode(`{"system_id": "node_1"}`)
+	suite.TestMAASObject.TestServer.NewNode(`{"system_id": "node_2"}`)
+	suite.TestMAASObject.TestServer.NewNetwork(`{"name": "net_1"}`)
+	suite.TestMAASObject.TestServer.NewNetwork(`{"name": "net_2"}`)
+	suite.TestMAASObject.TestServer.ConnectNodeToNetworkWithMACAddress("node_2", "net_2", "aa:bb:cc:dd:ee:22")
+	suite.TestMAASObject.TestServer.ConnectNodeToNetworkWithMACAddress("node_1", "net_1", "aa:bb:cc:dd:ee:11")
+	suite.TestMAASObject.TestServer.ConnectNodeToNetworkWithMACAddress("node_2", "net_1", "aa:bb:cc:dd:ee:21")
+	suite.TestMAASObject.TestServer.ConnectNodeToNetworkWithMACAddress("node_1", "net_2", "aa:bb:cc:dd:ee:12")
+
+	nodeListing := suite.TestMAASObject.GetSubObject("networks").GetSubObject("net_1")
+	listNodeObjects, err := nodeListing.CallGet("list_connected_macs", url.Values{})
+	c.Assert(err, IsNil)
+
+	listNodes, err := listNodeObjects.GetArray()
+	c.Assert(err, IsNil)
+	c.Check(listNodes, HasLen, 2)
+
+	node, err := listNodes[0].GetMAASObject()
+	c.Assert(err, IsNil)
+	macAddress, err := node.GetField("mac_address")
+	c.Assert(err, IsNil)
+	c.Check(macAddress == "aa:bb:cc:dd:ee:11" || macAddress == "aa:bb:cc:dd:ee:21", Equals, true)
+	node1_idx := 0
+	if macAddress == "aa:bb:cc:dd:ee:21" {
+		node1_idx = 1
+	}
+
+	node, err = listNodes[node1_idx].GetMAASObject()
+	c.Assert(err, IsNil)
+	macAddress, err = node.GetField("mac_address")
+	c.Assert(err, IsNil)
+	c.Check(macAddress, Equals, "aa:bb:cc:dd:ee:11")
+	nodeResourceURI, err := node.GetField(resourceURI)
+	c.Assert(err, IsNil)
+	apiVersion := suite.TestMAASObject.TestServer.version
+	expectedResourceURI := fmt.Sprintf("/api/%s/nodes/node_1/macs/%s/", apiVersion, url.QueryEscape("aa:bb:cc:dd:ee:11"))
+	c.Check(nodeResourceURI, Equals, expectedResourceURI)
+
+	node, err = listNodes[1-node1_idx].GetMAASObject()
+	c.Assert(err, IsNil)
+	macAddress, err = node.GetField("mac_address")
+	c.Assert(err, IsNil)
+	c.Check(macAddress, Equals, "aa:bb:cc:dd:ee:21")
+	nodeResourceURI, err = node.GetField(resourceURI)
+	c.Assert(err, IsNil)
+	expectedResourceURI = fmt.Sprintf("/api/%s/nodes/node_2/macs/%s/", apiVersion, url.QueryEscape("aa:bb:cc:dd:ee:21"))
+	c.Check(nodeResourceURI, Equals, expectedResourceURI)
+}
+
+func (suite *TestMAASObjectSuite) TestGetVersion(c *C) {
+	networkMethod := suite.TestMAASObject.GetSubObject("version")
+	params := url.Values{"node": []string{"mysystemid"}}
+	versionObject, err := networkMethod.CallGet("", params)
+	c.Assert(err, IsNil)
+
+	versionMap, err := versionObject.GetMap()
+	c.Assert(err, IsNil)
+	jsonArray, ok := versionMap["capabilities"]
+	c.Check(ok, Equals, true)
+	capArray, err := jsonArray.GetArray()
+	for _, capJSONName := range capArray {
+		capName, err := capJSONName.GetString()
+		c.Assert(err, IsNil)
+		c.Check(capName, Equals, "networks-management")
+	}
+}
+
+const nodeDetailsXML = `<?xml version="1.0" standalone="yes" ?>
+<list>
+<node id="node2" claimed="true" class="system" handle="DMI:0001">
+ <description>Computer</description>
+</node>
+</list>`
+
+func (suite *TestMAASObjectSuite) TestNodeDetails(c *C) {
+	nodeJSON := `{"system_id": "mysystemid"}`
+	suite.TestMAASObject.TestServer.NewNode(nodeJSON)
+	suite.TestMAASObject.TestServer.AddNodeDetails("mysystemid", nodeDetailsXML)
+
+	obj := suite.TestMAASObject.GetSubObject("nodes").GetSubObject("mysystemid")
+	uri := obj.URI()
+	result, err := obj.client.Get(uri, "details", nil)
+	c.Assert(err, IsNil)
+
+	bsonObj := map[string]interface{}{}
+	err = bson.Unmarshal(result, &bsonObj)
+	c.Assert(err, IsNil)
+
+	_, ok := bsonObj["lldp"]
+	c.Check(ok, Equals, true)
+	gotXMLText, ok := bsonObj["lshw"]
+	c.Check(ok, Equals, true)
+	c.Check(string(gotXMLText.([]byte)), Equals, string(nodeDetailsXML))
 }
