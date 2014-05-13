@@ -462,6 +462,28 @@ func nodesAcquireHandler(server *TestServer, w http.ResponseWriter, r *http.Requ
 	}
 }
 
+// nodesReleaseHandler simulates acquiring a node.
+func nodesReleaseHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	checkError(err)
+	r.Body = nil // stop addNodeOperation below from consuming Body
+	systemIds := r.PostForm["nodes"]
+	var releasedNodes = []map[string]JSONObject{}
+	for _, systemId := range systemIds {
+		if _, ok := server.OwnedNodes()[systemId]; !ok {
+			continue
+		}
+		delete(server.OwnedNodes(), systemId)
+		node := server.Nodes()[systemId]
+		releasedNodes = append(releasedNodes, node.GetMap())
+		server.addNodeOperation(systemId, "release", r)
+	}
+	res, err := json.Marshal(releasedNodes)
+	checkError(err)
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprint(w, string(res))
+}
+
 // nodesTopLevelHandler handles a request for /api/<version>/nodes/
 // (with no node id following as part of the path).
 func nodesTopLevelHandler(server *TestServer, w http.ResponseWriter, r *http.Request, op string) {
@@ -471,6 +493,8 @@ func nodesTopLevelHandler(server *TestServer, w http.ResponseWriter, r *http.Req
 		nodeListingHandler(server, w, r)
 	case r.Method == "POST" && op == "acquire":
 		nodesAcquireHandler(server, w, r)
+	case r.Method == "POST" && op == "release":
+		nodesReleaseHandler(server, w, r)
 	default:
 		w.WriteHeader(http.StatusBadRequest)
 	}

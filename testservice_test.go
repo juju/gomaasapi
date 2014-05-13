@@ -484,6 +484,31 @@ func (suite *TestMAASObjectSuite) TestAcquireOperationGetsRecorded(c *C) {
 	c.Check(value[0], DeepEquals, params)
 }
 
+func (suite *TestMAASObjectSuite) TestNodesRelease(c *C) {
+	suite.TestMAASObject.TestServer.NewNode(`{"system_id": "mysystemid1"}`)
+	suite.TestMAASObject.TestServer.NewNode(`{"system_id": "mysystemid2"}`)
+	suite.TestMAASObject.TestServer.OwnedNodes()["mysystemid2"] = true
+	nodesObj := suite.TestMAASObject.GetSubObject("nodes/")
+	params := url.Values{"nodes": []string{"mysystemid1", "what", "mysystemid2"}}
+
+	jsonResponse, err := nodesObj.CallPost("release", params)
+	c.Assert(err, IsNil)
+	releasedNodes, err := jsonResponse.GetArray()
+	c.Assert(err, IsNil)
+	c.Assert(releasedNodes, HasLen, 1)
+	releasedNode, err := releasedNodes[0].GetMAASObject()
+	c.Assert(err, IsNil)
+	systemId, err := releasedNode.GetField("system_id")
+	c.Assert(err, IsNil)
+	c.Assert(systemId, Equals, "mysystemid2")
+
+	// The 'release' operation has been recorded.
+	nodeOperations := suite.TestMAASObject.TestServer.NodeOperations()
+	c.Check(nodeOperations, DeepEquals, map[string][]string{
+		"mysystemid2": []string{"release"},
+	})
+}
+
 func (suite *TestMAASObjectSuite) TestUploadFile(c *C) {
 	const filename = "myfile.txt"
 	const fileContent = "uploaded contents"
