@@ -60,15 +60,20 @@ type TestServer struct {
 	ownedNodes map[string]bool
 	// mapping system_id -> list of operations performed.
 	nodeOperations map[string][]string
+	// list of operations performed at the /nodes/ level.
+	nodesOperations []string
 	// mapping system_id -> list of Values passed when performing
 	// operations
 	nodeOperationRequestValues map[string][]url.Values
-	files                      map[string]MAASObject
-	networks                   map[string]MAASObject
-	networksPerNode            map[string][]string
-	version                    string
-	macAddressesPerNetwork     map[string]map[string]JSONObject
-	nodeDetails                map[string]string
+	// list of Values passed when performing operations at the
+	// /nodes/ level.
+	nodesOperationRequestValues []url.Values
+	files                       map[string]MAASObject
+	networks                    map[string]MAASObject
+	networksPerNode             map[string][]string
+	version                     string
+	macAddressesPerNetwork      map[string]map[string]JSONObject
+	nodeDetails                 map[string]string
 }
 
 func getNodesEndpoint(version string) string {
@@ -130,7 +135,9 @@ func getVersionJSON() string {
 func (server *TestServer) Clear() {
 	server.nodes = make(map[string]MAASObject)
 	server.ownedNodes = make(map[string]bool)
+	server.nodesOperations = make([]string, 0)
 	server.nodeOperations = make(map[string][]string)
+	server.nodesOperationRequestValues = make([]url.Values, 0)
 	server.nodeOperationRequestValues = make(map[string][]url.Values)
 	server.files = make(map[string]MAASObject)
 	server.networks = make(map[string]MAASObject)
@@ -139,10 +146,22 @@ func (server *TestServer) Clear() {
 	server.nodeDetails = make(map[string]string)
 }
 
+// NodesOperations returns the list of operations performed at the /nodes/
+// level.
+func (server *TestServer) NodesOperations() []string {
+	return server.nodesOperations
+}
+
 // NodeOperations returns the map containing the list of the operations
 // performed for each node.
 func (server *TestServer) NodeOperations() map[string][]string {
 	return server.nodeOperations
+}
+
+// NodesOperationRequestValues returns the list of url.Values extracted
+// from the request used when performing operations at the /nodes/ level.
+func (server *TestServer) NodesOperationRequestValues() []url.Values {
+	return server.nodesOperationRequestValues
 }
 
 // NodeOperationRequestValues returns the map containing the list of the
@@ -152,13 +171,8 @@ func (server *TestServer) NodeOperationRequestValues() map[string][]url.Values {
 	return server.nodeOperationRequestValues
 }
 
-func (server *TestServer) addNodeOperation(systemId, operation string, request *http.Request) {
-	operations, present := server.nodeOperations[systemId]
-	operationRequestValues, present2 := server.nodeOperationRequestValues[systemId]
-	if present != present2 {
-		panic("inconsistent state: nodeOperations and nodeOperationRequestValues don't have the same keys.")
-	}
-	requestValues := url.Values{}
+func parseRequestValues(request *http.Request) url.Values {
+	var requestValues url.Values
 	if request.Body != nil && request.Header.Get("Content-Type") == "application/x-www-form-urlencoded" {
 		body, err := readAndClose(request.Body)
 		if err != nil {
@@ -169,6 +183,22 @@ func (server *TestServer) addNodeOperation(systemId, operation string, request *
 			panic(err)
 		}
 	}
+	return requestValues
+}
+
+func (server *TestServer) addNodesOperation(operation string, request *http.Request) {
+	requestValues := parseRequestValues(request)
+	server.nodesOperations = append(server.nodesOperations, operation)
+	server.nodesOperationRequestValues = append(server.nodesOperationRequestValues, requestValues)
+}
+
+func (server *TestServer) addNodeOperation(systemId, operation string, request *http.Request) {
+	operations, present := server.nodeOperations[systemId]
+	operationRequestValues, present2 := server.nodeOperationRequestValues[systemId]
+	if present != present2 {
+		panic("inconsistent state: nodeOperations and nodeOperationRequestValues don't have the same keys.")
+	}
+	requestValues := parseRequestValues(request)
 	if !present {
 		operations = []string{operation}
 		operationRequestValues = []url.Values{requestValues}
@@ -462,12 +492,22 @@ func nodesAcquireHandler(server *TestServer, w http.ResponseWriter, r *http.Requ
 	}
 }
 
-// nodesReleaseHandler simulates acquiring a node.
+// nodesReleaseHandler simulates releasing multiple nodes.
 func nodesReleaseHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
-	err := r.ParseForm()
-	checkError(err)
-	r.Body = nil // stop addNodeOperation below from consuming Body
-	systemIds := r.PostForm["nodes"]
+	server.addNodesOperation("release", r)
+	values := server.NodesOperationRequestValues()
+	systemIds := values[len(values)-1]["nodes"]
+	var unknown []string
+	for _, systemId := range systemIds {
+		if _, ok := server.Nodes()[systemId]; !ok {
+			unknown = append(unknown, systemId)
+		}
+	}
+	if len(unknown) > 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "Unknown node(s): %s.", strings.Join(unknown, ", "))
+		return
+	}
 	var releasedNodes = []map[string]JSONObject{}
 	for _, systemId := range systemIds {
 		if _, ok := server.OwnedNodes()[systemId]; !ok {
@@ -476,7 +516,6 @@ func nodesReleaseHandler(server *TestServer, w http.ResponseWriter, r *http.Requ
 		delete(server.OwnedNodes(), systemId)
 		node := server.Nodes()[systemId]
 		releasedNodes = append(releasedNodes, node.GetMap())
-		server.addNodeOperation(systemId, "release", r)
 	}
 	res, err := json.Marshal(releasedNodes)
 	checkError(err)

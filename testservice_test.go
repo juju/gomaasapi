@@ -489,8 +489,9 @@ func (suite *TestMAASObjectSuite) TestNodesRelease(c *C) {
 	suite.TestMAASObject.TestServer.NewNode(`{"system_id": "mysystemid2"}`)
 	suite.TestMAASObject.TestServer.OwnedNodes()["mysystemid2"] = true
 	nodesObj := suite.TestMAASObject.GetSubObject("nodes/")
-	params := url.Values{"nodes": []string{"mysystemid1", "what", "mysystemid2"}}
+	params := url.Values{"nodes": []string{"mysystemid1", "mysystemid2"}}
 
+	// release should only release mysystemid2, as it is the only one allocated.
 	jsonResponse, err := nodesObj.CallPost("release", params)
 	c.Assert(err, IsNil)
 	releasedNodes, err := jsonResponse.GetArray()
@@ -503,10 +504,25 @@ func (suite *TestMAASObjectSuite) TestNodesRelease(c *C) {
 	c.Assert(systemId, Equals, "mysystemid2")
 
 	// The 'release' operation has been recorded.
-	nodeOperations := suite.TestMAASObject.TestServer.NodeOperations()
-	c.Check(nodeOperations, DeepEquals, map[string][]string{
-		"mysystemid2": []string{"release"},
-	})
+	nodesOperations := suite.TestMAASObject.TestServer.NodesOperations()
+	c.Check(nodesOperations, DeepEquals, []string{"release"})
+	nodesOperationRequestValues := suite.TestMAASObject.TestServer.NodesOperationRequestValues()
+	expectedValues := make(url.Values)
+	expectedValues.Add("nodes", "mysystemid1")
+	expectedValues.Add("nodes", "mysystemid2")
+	c.Check(nodesOperationRequestValues, DeepEquals, []url.Values{expectedValues})
+}
+
+func (suite *TestMAASObjectSuite) TestNodesReleaseUnknown(c *C) {
+	suite.TestMAASObject.TestServer.NewNode(`{"system_id": "mysystemid"}`)
+	suite.TestMAASObject.TestServer.OwnedNodes()["mysystemid"] = true
+	nodesObj := suite.TestMAASObject.GetSubObject("nodes/")
+	params := url.Values{"nodes": []string{"mysystemid", "what"}}
+
+	// if there are any unknown nodes, none are released.
+	_, err := nodesObj.CallPost("release", params)
+	c.Assert(err, ErrorMatches, `gomaasapi: got error back from server: 400 Bad Request \(Unknown node\(s\): what.\)`)
+	c.Assert(suite.TestMAASObject.TestServer.OwnedNodes()["mysystemid"], Equals, true)
 }
 
 func (suite *TestMAASObjectSuite) TestUploadFile(c *C) {
