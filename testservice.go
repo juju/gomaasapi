@@ -9,7 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"labix.org/v2/mgo/bson"
+	"gopkg.in/mgo.v2/bson"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
