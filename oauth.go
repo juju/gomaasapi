@@ -6,7 +6,6 @@ package gomaasapi
 import (
 	"crypto/rand"
 	"fmt"
-	"math/big"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -14,14 +13,14 @@ import (
 	"time"
 )
 
-var nonceMax = big.NewInt(100000000)
-
+// Not a true uuidgen, but at least creates same length random
 func generateNonce() (string, error) {
-	randInt, err := rand.Int(rand.Reader, nonceMax)
+	randBytes := make([]byte, 16)
+	_, err := rand.Read(randBytes)
 	if err != nil {
 		return "", err
 	}
-	return strconv.Itoa(int(randInt.Int64())), nil
+	return fmt.Sprintf("%16x", randBytes), nil
 }
 
 func generateTimestamp() string {
