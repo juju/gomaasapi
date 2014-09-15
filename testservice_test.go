@@ -9,12 +9,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"gopkg.in/mgo.v2/bson"
-	. "launchpad.net/gocheck"
 	"mime/multipart"
 	"net/http"
 	"net/url"
 	"strings"
+
+	"gopkg.in/mgo.v2/bson"
+	. "launchpad.net/gocheck"
 )
 
 type TestServerSuite struct {
