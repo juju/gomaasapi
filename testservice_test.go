@@ -9,12 +9,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"gopkg.in/mgo.v2/bson"
-	. "launchpad.net/gocheck"
 	"mime/multipart"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
+
+	"gopkg.in/mgo.v2/bson"
+	. "launchpad.net/gocheck"
 )
 
 type TestServerSuite struct {
@@ -788,4 +790,58 @@ func (suite *TestMAASObjectSuite) TestNodeDetails(c *C) {
 	gotXMLText, ok := bsonObj["lshw"]
 	c.Check(ok, Equals, true)
 	c.Check(string(gotXMLText.([]byte)), Equals, string(nodeDetailsXML))
+}
+
+func (suite *TestMAASObjectSuite) TestListNodegroups(c *C) {
+	suite.TestMAASObject.TestServer.AddBootImage("uuid-0", `{"architecture": "arm64", "release": "trusty"}`)
+	suite.TestMAASObject.TestServer.AddBootImage("uuid-1", `{"architecture": "amd64", "release": "precise"}`)
+
+	nodegroupListing := suite.TestMAASObject.GetSubObject("nodegroups")
+	result, err := nodegroupListing.CallGet("list", nil)
+	c.Assert(err, IsNil)
+
+	nodegroups, err := result.GetArray()
+	c.Assert(err, IsNil)
+	c.Check(nodegroups, HasLen, 2)
+
+	for _, obj := range nodegroups {
+		nodegroup, err := obj.GetMAASObject()
+		c.Assert(err, IsNil)
+		uuid, err := nodegroup.GetField("uuid")
+		c.Assert(err, IsNil)
+
+		nodegroupResourceURI, err := nodegroup.GetField(resourceURI)
+		c.Assert(err, IsNil)
+		apiVersion := suite.TestMAASObject.TestServer.version
+		expectedResourceURI := fmt.Sprintf("/api/%s/nodegroups/%s/", apiVersion, uuid)
+		c.Check(nodegroupResourceURI, Equals, expectedResourceURI)
+	}
+}
+
+func (suite *TestMAASObjectSuite) TestListBootImages(c *C) {
+	suite.TestMAASObject.TestServer.AddBootImage("uuid-0", `{"architecture": "arm64", "release": "trusty"}`)
+	suite.TestMAASObject.TestServer.AddBootImage("uuid-1", `{"architecture": "amd64", "release": "precise"}`)
+	suite.TestMAASObject.TestServer.AddBootImage("uuid-1", `{"architecture": "ppc64el", "release": "precise"}`)
+
+	bootImageListing := suite.TestMAASObject.GetSubObject("nodegroups").GetSubObject("uuid-1").GetSubObject("boot-images")
+	result, err := bootImageListing.CallGet("", nil)
+	c.Assert(err, IsNil)
+
+	bootImageObjects, err := result.GetArray()
+	c.Assert(err, IsNil)
+	c.Check(bootImageObjects, HasLen, 2)
+
+	expectedBootImages := []string{"amd64.precise", "ppc64el.precise"}
+	bootImages := make([]string, len(bootImageObjects))
+	for i, obj := range bootImageObjects {
+		bootimage, err := obj.GetMap()
+		c.Assert(err, IsNil)
+		architecture, err := bootimage["architecture"].GetString()
+		c.Assert(err, IsNil)
+		release, err := bootimage["release"].GetString()
+		c.Assert(err, IsNil)
+		bootImages[i] = fmt.Sprintf("%s.%s", architecture, release)
+	}
+	sort.Strings(bootImages)
+	c.Assert(bootImages, DeepEquals, expectedBootImages)
 }

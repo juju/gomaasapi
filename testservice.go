@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"gopkg.in/mgo.v2/bson"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -17,6 +16,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"gopkg.in/mgo.v2/bson"
 )
 
 // TestMAASObject is a fake MAAS server MAASObject.
@@ -74,6 +75,8 @@ type TestServer struct {
 	version                     string
 	macAddressesPerNetwork      map[string]map[string]JSONObject
 	nodeDetails                 map[string]string
+	// bootImages is a map of nodegroup UUIDs to boot-image objects.
+	bootImages map[string][]JSONObject
 }
 
 func getNodesEndpoint(version string) string {
@@ -130,6 +133,19 @@ func getVersionJSON() string {
 	return `{"capabilities": ["networks-management"]}`
 }
 
+func getNodegroupsEndpoint(version string) string {
+	return fmt.Sprintf("/api/%s/nodegroups/", version)
+}
+
+func getNodegroupURL(version, uuid string) string {
+	return fmt.Sprintf("/api/%s/nodegroups/%s/", version, uuid)
+}
+
+func getBootimagesURLRE(version string) *regexp.Regexp {
+	reString := fmt.Sprintf("^/api/%s/nodegroups/([^/]*)/boot-images/$", regexp.QuoteMeta(version))
+	return regexp.MustCompile(reString)
+}
+
 // Clear clears all the fake data stored and recorded by the test server
 // (nodes, recorded operations, etc.).
 func (server *TestServer) Clear() {
@@ -144,6 +160,7 @@ func (server *TestServer) Clear() {
 	server.networksPerNode = make(map[string][]string)
 	server.macAddressesPerNetwork = make(map[string]map[string]JSONObject)
 	server.nodeDetails = make(map[string]string)
+	server.bootImages = make(map[string][]JSONObject)
 }
 
 // NodesOperations returns the list of operations performed at the /nodes/
@@ -335,6 +352,21 @@ func (server *TestServer) ConnectNodeToNetworkWithMACAddress(systemId, networkNa
 	server.macAddressesPerNetwork[networkName][systemId] = maasify(server.client, attrs)
 }
 
+// AddBootImage adds a boot-image object to the specified nodegroup.
+func (server *TestServer) AddBootImage(nodegroupUUID string, jsonText string) {
+	var attrs map[string]interface{}
+	err := json.Unmarshal([]byte(jsonText), &attrs)
+	checkError(err)
+	if _, ok := attrs["architecture"]; !ok {
+		panic("The boot-image json string does not contain an 'architecture' value.")
+	}
+	if _, ok := attrs["release"]; !ok {
+		panic("The boot-image json string does not contain a 'release' value.")
+	}
+	obj := maasify(server.client, attrs)
+	server.bootImages[nodegroupUUID] = append(server.bootImages[nodegroupUUID], obj)
+}
+
 // NewTestServer starts and returns a new MAAS test server. The caller should call Close when finished, to shut it down.
 func NewTestServer(version string) *TestServer {
 	server := &TestServer{version: version}
@@ -359,6 +391,11 @@ func NewTestServer(version string) *TestServer {
 	// Register handler for '/api/<version>/version/'.
 	serveMux.HandleFunc(versionURL, func(w http.ResponseWriter, r *http.Request) {
 		versionHandler(server, w, r)
+	})
+	// Register handler for '/api/<version>/nodegroups/*'.
+	nodegroupsURL := getNodegroupsEndpoint(server.version)
+	serveMux.HandleFunc(nodegroupsURL, func(w http.ResponseWriter, r *http.Request) {
+		nodegroupsHandler(server, w, r)
 	})
 
 	newServer := httptest.NewServer(serveMux)
@@ -789,4 +826,65 @@ func versionHandler(server *TestServer, w http.ResponseWriter, r *http.Request) 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, getVersionJSON())
+}
+
+// nodegroupsHandler handles requests for '/api/<version>/nodegroups/*'.
+func nodegroupsHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
+	values, err := url.ParseQuery(r.URL.RawQuery)
+	checkError(err)
+	op := values.Get("op")
+	bootimagesURLRE := getBootimagesURLRE(server.version)
+	bootimagesURLMatch := bootimagesURLRE.FindStringSubmatch(r.URL.Path)
+	nodegroupsURL := getNodegroupsEndpoint(server.version)
+	switch {
+	case r.URL.Path == nodegroupsURL:
+		nodegroupsTopLevelHandler(server, w, r, op)
+	case bootimagesURLMatch != nil:
+		bootimagesHandler(server, w, r, bootimagesURLMatch[1], op)
+	default:
+		// Default handler: not found.
+		http.NotFoundHandler().ServeHTTP(w, r)
+	}
+}
+
+// nodegroupsTopLevelHandler handles requests for '/api/<version>/nodegroups/'.
+func nodegroupsTopLevelHandler(server *TestServer, w http.ResponseWriter, r *http.Request, op string) {
+	if r.Method != "GET" || op != "list" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	var nodegroups []JSONObject
+	for uuid := range server.bootImages {
+		attrs := map[string]interface{}{
+			"uuid":      uuid,
+			resourceURI: getNodegroupURL(server.version, uuid),
+		}
+		obj := maasify(server.client, attrs)
+		nodegroups = append(nodegroups, obj)
+	}
+
+	res, err := json.Marshal(nodegroups)
+	checkError(err)
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprint(w, string(res))
+}
+
+// bootimagesHandler handles requests for '/api/<version>/nodegroups/<uuid>/boot-images/'.
+func bootimagesHandler(server *TestServer, w http.ResponseWriter, r *http.Request, nodegroupUUID, op string) {
+	if r.Method != "GET" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	bootImages, ok := server.bootImages[nodegroupUUID]
+	if !ok {
+		http.NotFoundHandler().ServeHTTP(w, r)
+		return
+	}
+
+	res, err := json.Marshal(bootImages)
+	checkError(err)
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprint(w, string(res))
 }
