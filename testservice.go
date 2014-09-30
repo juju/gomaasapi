@@ -75,6 +75,7 @@ type TestServer struct {
 	version                     string
 	macAddressesPerNetwork      map[string]map[string]JSONObject
 	nodeDetails                 map[string]string
+	zones                       map[string]JSONObject
 	// bootImages is a map of nodegroup UUIDs to boot-image objects.
 	bootImages map[string][]JSONObject
 }
@@ -146,6 +147,10 @@ func getBootimagesURLRE(version string) *regexp.Regexp {
 	return regexp.MustCompile(reString)
 }
 
+func getZonesEndpoint(version string) string {
+	return fmt.Sprintf("/api/%s/zones/", version)
+}
+
 // Clear clears all the fake data stored and recorded by the test server
 // (nodes, recorded operations, etc.).
 func (server *TestServer) Clear() {
@@ -161,6 +166,7 @@ func (server *TestServer) Clear() {
 	server.macAddressesPerNetwork = make(map[string]map[string]JSONObject)
 	server.nodeDetails = make(map[string]string)
 	server.bootImages = make(map[string][]JSONObject)
+	server.zones = make(map[string]JSONObject)
 }
 
 // NodesOperations returns the list of operations performed at the /nodes/
@@ -190,26 +196,26 @@ func (server *TestServer) NodeOperationRequestValues() map[string][]url.Values {
 
 func parseRequestValues(request *http.Request) url.Values {
 	var requestValues url.Values
-	if request.Body != nil && request.Header.Get("Content-Type") == "application/x-www-form-urlencoded" {
-		body, err := readAndClose(request.Body)
-		if err != nil {
-			panic(err)
+	if request.Header.Get("Content-Type") == "application/x-www-form-urlencoded" {
+		if request.PostForm == nil {
+			err := request.ParseForm()
+			if err != nil {
+				panic(err)
+			}
 		}
-		requestValues, err = url.ParseQuery(string(body))
-		if err != nil {
-			panic(err)
-		}
+		requestValues = request.PostForm
 	}
 	return requestValues
 }
 
-func (server *TestServer) addNodesOperation(operation string, request *http.Request) {
+func (server *TestServer) addNodesOperation(operation string, request *http.Request) url.Values {
 	requestValues := parseRequestValues(request)
 	server.nodesOperations = append(server.nodesOperations, operation)
 	server.nodesOperationRequestValues = append(server.nodesOperationRequestValues, requestValues)
+	return requestValues
 }
 
-func (server *TestServer) addNodeOperation(systemId, operation string, request *http.Request) {
+func (server *TestServer) addNodeOperation(systemId, operation string, request *http.Request) url.Values {
 	operations, present := server.nodeOperations[systemId]
 	operationRequestValues, present2 := server.nodeOperationRequestValues[systemId]
 	if present != present2 {
@@ -225,6 +231,7 @@ func (server *TestServer) addNodeOperation(systemId, operation string, request *
 	}
 	server.nodeOperations[systemId] = operations
 	server.nodeOperationRequestValues[systemId] = operationRequestValues
+	return requestValues
 }
 
 // NewNode creates a MAAS node.  The provided string should be a valid json
@@ -367,6 +374,16 @@ func (server *TestServer) AddBootImage(nodegroupUUID string, jsonText string) {
 	server.bootImages[nodegroupUUID] = append(server.bootImages[nodegroupUUID], obj)
 }
 
+// AddZone adds a physical zone to the server.
+func (server *TestServer) AddZone(name, description string) {
+	attrs := map[string]interface{}{
+		"name":        name,
+		"description": description,
+	}
+	obj := maasify(server.client, attrs)
+	server.zones[name] = obj
+}
+
 // NewTestServer starts and returns a new MAAS test server. The caller should call Close when finished, to shut it down.
 func NewTestServer(version string) *TestServer {
 	server := &TestServer{version: version}
@@ -396,6 +413,11 @@ func NewTestServer(version string) *TestServer {
 	nodegroupsURL := getNodegroupsEndpoint(server.version)
 	serveMux.HandleFunc(nodegroupsURL, func(w http.ResponseWriter, r *http.Request) {
 		nodegroupsHandler(server, w, r)
+	})
+	// Register handler for '/api/<version>/zones/*'.
+	zonesURL := getZonesEndpoint(server.version)
+	serveMux.HandleFunc(zonesURL, func(w http.ResponseWriter, r *http.Request) {
+		zonesHandler(server, w, r)
 	})
 
 	newServer := httptest.NewServer(serveMux)
@@ -500,20 +522,53 @@ func nodeListingHandler(server *TestServer, w http.ResponseWriter, r *http.Reque
 	fmt.Fprint(w, string(res))
 }
 
-// findFreeNode looks for a node that is currently available.
-func findFreeNode(server *TestServer) *MAASObject {
+// findFreeNode looks for a node that is currently available, and
+// matches the specified filter.
+func findFreeNode(server *TestServer, filter url.Values) *MAASObject {
 	for systemID, node := range server.Nodes() {
 		_, present := server.OwnedNodes()[systemID]
 		if !present {
+			var agentName, nodeName, zoneName string
+			for k := range filter {
+				switch k {
+				case "agent_name":
+					agentName = filter.Get(k)
+				case "name":
+					nodeName = filter.Get(k)
+				case "zone":
+					zoneName = filter.Get(k)
+				}
+			}
+			if nodeName != "" && !matchField(node, "hostname", nodeName) {
+				continue
+			}
+			if zoneName != "" && !matchField(node, "zone", zoneName) {
+				continue
+			}
+			if agentName != "" {
+				agentNameObj := maasify(server.client, agentName)
+				node.GetMap()["agent_name"] = agentNameObj
+			} else {
+				delete(node.GetMap(), "agent_name")
+			}
 			return &node
 		}
 	}
 	return nil
 }
 
+func matchField(node MAASObject, k, v string) bool {
+	field, err := node.GetField(k)
+	if err != nil {
+		return false
+	}
+	return field == v
+}
+
 // nodesAcquireHandler simulates acquiring a node.
 func nodesAcquireHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
-	node := findFreeNode(server)
+	requestValues := server.addNodesOperation("acquire", r)
+	node := findFreeNode(server, requestValues)
 	if node == nil {
 		w.WriteHeader(http.StatusConflict)
 	} else {
@@ -884,6 +939,31 @@ func bootimagesHandler(server *TestServer, w http.ResponseWriter, r *http.Reques
 	}
 
 	res, err := json.Marshal(bootImages)
+	checkError(err)
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprint(w, string(res))
+}
+
+// zonesHandler handles requests for '/api/<version>/zones/'.
+func zonesHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if len(server.zones) == 0 {
+		// Until a zone is registered, behave as if the endpoint
+		// does not exist. This way we can simulate older MAAS
+		// servers that do not support zones.
+		http.NotFoundHandler().ServeHTTP(w, r)
+		return
+	}
+
+	zones := make([]JSONObject, 0, len(server.zones))
+	for _, zone := range server.zones {
+		zones = append(zones, zone)
+	}
+	res, err := json.Marshal(zones)
 	checkError(err)
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, string(res))
