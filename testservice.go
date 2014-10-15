@@ -198,8 +198,7 @@ func parseRequestValues(request *http.Request) url.Values {
 	var requestValues url.Values
 	if request.Header.Get("Content-Type") == "application/x-www-form-urlencoded" {
 		if request.PostForm == nil {
-			err := request.ParseForm()
-			if err != nil {
+			if err := request.ParseForm(); err != nil {
 				panic(err)
 			}
 		}

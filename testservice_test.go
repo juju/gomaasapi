@@ -357,6 +357,16 @@ func (suite *TestServerSuite) TestDeleteFile(c *C) {
 	c.Check(suite.server.Files(), DeepEquals, map[string]MAASObject{})
 }
 
+func (suite *TestServerSuite) TestListZonesNotSupported(c *C) {
+	// Older versions of MAAS do not support zones. We simulate
+	// this behaviour by returning 404 if no zones are defined.
+	zonesURL := getZonesEndpoint(suite.server.version)
+	resp, err := http.Get(suite.server.Server.URL + zonesURL)
+
+	c.Check(err, IsNil)
+	c.Check(resp.StatusCode, Equals, http.StatusNotFound)
+}
+
 // TestMAASObjectSuite validates that the object created by
 // NewTestMAAS can be used by the gomaasapi library as if it were a real
 // MAAS server.
@@ -844,4 +854,75 @@ func (suite *TestMAASObjectSuite) TestListBootImages(c *C) {
 	}
 	sort.Strings(bootImages)
 	c.Assert(bootImages, DeepEquals, expectedBootImages)
+}
+
+func (suite *TestMAASObjectSuite) TestListZones(c *C) {
+	expected := map[string]string{
+		"zone0": "zone0 is very nice",
+		"zone1": "zone1 is much nicer than zone0",
+	}
+	for name, desc := range expected {
+		suite.TestMAASObject.TestServer.AddZone(name, desc)
+	}
+
+	result, err := suite.TestMAASObject.GetSubObject("zones").CallGet("", nil)
+	c.Assert(err, IsNil)
+	c.Assert(result, NotNil)
+
+	list, err := result.GetArray()
+	c.Assert(err, IsNil)
+	c.Assert(list, HasLen, len(expected))
+
+	m := make(map[string]string)
+	for _, item := range list {
+		itemMap, err := item.GetMap()
+		c.Assert(err, IsNil)
+		name, err := itemMap["name"].GetString()
+		c.Assert(err, IsNil)
+		desc, err := itemMap["description"].GetString()
+		c.Assert(err, IsNil)
+		m[name] = desc
+	}
+	c.Assert(m, DeepEquals, expected)
+}
+
+func (suite *TestMAASObjectSuite) TestAcquireNodeZone(c *C) {
+	suite.TestMAASObject.TestServer.AddZone("z0", "rox")
+	suite.TestMAASObject.TestServer.AddZone("z1", "sux")
+	suite.TestMAASObject.TestServer.NewNode(`{"system_id": "n0", "zone": "z0"}`)
+	suite.TestMAASObject.TestServer.NewNode(`{"system_id": "n1", "zone": "z1"}`)
+	suite.TestMAASObject.TestServer.NewNode(`{"system_id": "n2", "zone": "z1"}`)
+	nodesObj := suite.TestMAASObject.GetSubObject("nodes")
+
+	acquire := func(zone string) (string, string, error) {
+		var params url.Values
+		if zone != "" {
+			params = url.Values{"zone": []string{zone}}
+		}
+		jsonResponse, err := nodesObj.CallPost("acquire", params)
+		if err != nil {
+			return "", "", err
+		}
+		acquiredNode, err := jsonResponse.GetMAASObject()
+		c.Assert(err, IsNil)
+		systemId, err := acquiredNode.GetField("system_id")
+		c.Assert(err, IsNil)
+		assignedZone, err := acquiredNode.GetField("zone")
+		c.Assert(err, IsNil)
+		if zone != "" {
+			c.Assert(assignedZone, Equals, zone)
+		}
+		return systemId, assignedZone, nil
+	}
+
+	id, _, err := acquire("z0")
+	c.Assert(err, IsNil)
+	c.Assert(id, Equals, "n0")
+	id, _, err = acquire("z0")
+	c.Assert(err.(ServerError).StatusCode, Equals, http.StatusConflict)
+
+	id, zone, err := acquire("")
+	c.Assert(err, IsNil)
+	c.Assert(id, Not(Equals), "n0")
+	c.Assert(zone, Equals, "z1")
 }
