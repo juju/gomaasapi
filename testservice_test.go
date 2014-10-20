@@ -629,7 +629,7 @@ func (suite *TestMAASObjectSuite) TestReleaseNodeReleasesAcquiredNode(c *C) {
 func (suite *TestMAASObjectSuite) TestGetNetworks(c *C) {
 	nodeJSON := `{"system_id": "mysystemid"}`
 	suite.TestMAASObject.TestServer.NewNode(nodeJSON)
-	networkJSON := `{"name": "mynetworkname"}`
+	networkJSON := `{"name": "mynetworkname", "ip": "0.1.2.0", "netmask": "255.255.255.0"}`
 	suite.TestMAASObject.TestServer.NewNetwork(networkJSON)
 	suite.TestMAASObject.TestServer.ConnectNodeToNetwork("mysystemid", "mynetworkname")
 
@@ -647,7 +647,13 @@ func (suite *TestMAASObjectSuite) TestGetNetworks(c *C) {
 
 	networkName, err := listNetworks.GetField("name")
 	c.Assert(err, IsNil)
+	ip, err := listNetworks.GetField("ip")
+	c.Assert(err, IsNil)
+	netmask, err := listNetworks.GetField("netmask")
+	c.Assert(err, IsNil)
 	c.Check(networkName, Equals, "mynetworkname")
+	c.Check(ip, Equals, "0.1.2.0")
+	c.Check(netmask, Equals, "255.255.255.0")
 }
 
 func (suite *TestMAASObjectSuite) TestGetNetworksNone(c *C) {
@@ -667,7 +673,7 @@ func (suite *TestMAASObjectSuite) TestGetNetworksNone(c *C) {
 func (suite *TestMAASObjectSuite) TestListNodesWithNetworks(c *C) {
 	nodeJSON := `{"system_id": "mysystemid"}`
 	suite.TestMAASObject.TestServer.NewNode(nodeJSON)
-	networkJSON := `{"name": "mynetworkname"}`
+	networkJSON := `{"name": "mynetworkname", "ip": "0.1.2.0", "netmask": "255.255.255.0"}`
 	suite.TestMAASObject.TestServer.NewNetwork(networkJSON)
 	suite.TestMAASObject.TestServer.ConnectNodeToNetworkWithMACAddress("mysystemid", "mynetworkname", "aa:bb:cc:dd:ee:ff")
 
@@ -709,8 +715,12 @@ func (suite *TestMAASObjectSuite) TestListNodesWithNetworks(c *C) {
 func (suite *TestMAASObjectSuite) TestListNetworkConnectedMACAddresses(c *C) {
 	suite.TestMAASObject.TestServer.NewNode(`{"system_id": "node_1"}`)
 	suite.TestMAASObject.TestServer.NewNode(`{"system_id": "node_2"}`)
-	suite.TestMAASObject.TestServer.NewNetwork(`{"name": "net_1"}`)
-	suite.TestMAASObject.TestServer.NewNetwork(`{"name": "net_2"}`)
+	suite.TestMAASObject.TestServer.NewNetwork(
+		`{"name": "net_1", "ip": "0.1.2.0", "netmask": "255.255.255.0"}`,
+	)
+	suite.TestMAASObject.TestServer.NewNetwork(
+		`{"name": "net_2", "ip": "0.2.2.0", "netmask": "255.255.255.0"}`,
+	)
 	suite.TestMAASObject.TestServer.ConnectNodeToNetworkWithMACAddress("node_2", "net_2", "aa:bb:cc:dd:ee:22")
 	suite.TestMAASObject.TestServer.ConnectNodeToNetworkWithMACAddress("node_1", "net_1", "aa:bb:cc:dd:ee:11")
 	suite.TestMAASObject.TestServer.ConnectNodeToNetworkWithMACAddress("node_2", "net_1", "aa:bb:cc:dd:ee:21")
@@ -770,8 +780,141 @@ func (suite *TestMAASObjectSuite) TestGetVersion(c *C) {
 	for _, capJSONName := range capArray {
 		capName, err := capJSONName.GetString()
 		c.Assert(err, IsNil)
-		c.Check(capName, Equals, "networks-management")
+		switch capName {
+		case "networks-management":
+		case "static-ipaddresses":
+		default:
+			c.Fatalf("unknown capability %q", capName)
+		}
 	}
+}
+
+func (suite *TestMAASObjectSuite) assertIPAmong(c *C, jsonObjIP JSONObject, expectIPs ...string) {
+	apiVersion := suite.TestMAASObject.TestServer.version
+	expectedURI := getIPAddressesEndpoint(apiVersion)
+
+	maasObj, err := jsonObjIP.GetMAASObject()
+	c.Assert(err, IsNil)
+	attrs := maasObj.GetMap()
+	uri, err := attrs["resource_uri"].GetString()
+	c.Assert(err, IsNil)
+	c.Assert(uri, Equals, expectedURI)
+	allocType, err := attrs["alloc_type"].GetFloat64()
+	c.Assert(err, IsNil)
+	c.Assert(allocType, Equals, 4.0)
+	created, err := attrs["created"].GetString()
+	c.Assert(err, IsNil)
+	c.Assert(created, Not(Equals), "")
+	ip, err := attrs["ip"].GetString()
+	c.Assert(err, IsNil)
+	if !contains(expectIPs, ip) {
+		c.Fatalf("expected IP in %v, got %q", expectIPs, ip)
+	}
+}
+
+func (suite *TestMAASObjectSuite) TestListIPAddresses(c *C) {
+	ipAddresses := suite.TestMAASObject.GetSubObject("ipaddresses")
+
+	// First try without any networks and IPs.
+	listIPObjects, err := ipAddresses.CallGet("", url.Values{})
+	c.Assert(err, IsNil)
+	items, err := listIPObjects.GetArray()
+	c.Assert(err, IsNil)
+	c.Assert(items, HasLen, 0)
+
+	// Add two networks and some addresses to each one.
+	suite.TestMAASObject.TestServer.NewNetwork(
+		`{"name": "net_1", "ip": "0.1.2.0", "netmask": "255.255.255.0"}`,
+	)
+	suite.TestMAASObject.TestServer.NewNetwork(
+		`{"name": "net_2", "ip": "0.2.2.0", "netmask": "255.255.255.0"}`,
+	)
+	suite.TestMAASObject.TestServer.NewIPAddress("0.1.2.3", "net_1")
+	suite.TestMAASObject.TestServer.NewIPAddress("0.1.2.4", "net_1")
+	suite.TestMAASObject.TestServer.NewIPAddress("0.1.2.5", "net_1")
+	suite.TestMAASObject.TestServer.NewIPAddress("0.2.2.3", "net_2")
+	suite.TestMAASObject.TestServer.NewIPAddress("0.2.2.4", "net_2")
+
+	// List all addresses and verify the needed response fields are set.
+	listIPObjects, err = ipAddresses.CallGet("", url.Values{})
+	c.Assert(err, IsNil)
+	items, err = listIPObjects.GetArray()
+	c.Assert(err, IsNil)
+	c.Assert(items, HasLen, 5)
+
+	for _, ipObj := range items {
+		suite.assertIPAmong(
+			c, ipObj,
+			"0.1.2.3", "0.1.2.4", "0.1.2.5", "0.2.2.3", "0.2.2.4",
+		)
+	}
+
+	// Remove all net_1 IPs.
+	removed := suite.TestMAASObject.TestServer.RemoveIPAddress("0.1.2.3")
+	c.Assert(removed, Equals, true)
+	removed = suite.TestMAASObject.TestServer.RemoveIPAddress("0.1.2.4")
+	c.Assert(removed, Equals, true)
+	removed = suite.TestMAASObject.TestServer.RemoveIPAddress("0.1.2.5")
+	c.Assert(removed, Equals, true)
+	// Remove the last IP twice, should be OK and return false.
+	removed = suite.TestMAASObject.TestServer.RemoveIPAddress("0.1.2.5")
+	c.Assert(removed, Equals, false)
+
+	// List again.
+	listIPObjects, err = ipAddresses.CallGet("", url.Values{})
+	c.Assert(err, IsNil)
+	items, err = listIPObjects.GetArray()
+	c.Assert(err, IsNil)
+	c.Assert(items, HasLen, 2)
+	for _, ipObj := range items {
+		suite.assertIPAmong(
+			c, ipObj,
+			"0.2.2.3", "0.2.2.4",
+		)
+	}
+}
+
+func (suite *TestMAASObjectSuite) TestReserveIPAddress(c *C) {
+	suite.TestMAASObject.TestServer.NewNetwork(
+		`{"name": "net_1", "ip": "0.1.2.0", "netmask": "255.255.255.0"}`,
+	)
+	ipAddresses := suite.TestMAASObject.GetSubObject("ipaddresses")
+	// First try "reserve" with requested_address set.
+	params := url.Values{"network": []string{"0.1.2.0/24"}, "requested_address": []string{"0.1.2.42"}}
+	res, err := ipAddresses.CallPost("reserve", params)
+	c.Assert(err, IsNil)
+	suite.assertIPAmong(c, res, "0.1.2.42")
+
+	// Now try "reserve" without requested_address.
+	delete(params, "requested_address")
+	res, err = ipAddresses.CallPost("reserve", params)
+	c.Assert(err, IsNil)
+	suite.assertIPAmong(c, res, "0.1.2.2")
+}
+
+func (suite *TestMAASObjectSuite) TestReleaseIPAddress(c *C) {
+	suite.TestMAASObject.TestServer.NewNetwork(
+		`{"name": "net_1", "ip": "0.1.2.0", "netmask": "255.255.255.0"}`,
+	)
+	suite.TestMAASObject.TestServer.NewIPAddress("0.1.2.3", "net_1")
+	ipAddresses := suite.TestMAASObject.GetSubObject("ipaddresses")
+
+	// Try with non-existing address - should return 404.
+	params := url.Values{"ip": []string{"0.2.2.1"}}
+	_, err := ipAddresses.CallPost("release", params)
+	c.Assert(err, ErrorMatches, `(\n|.)*404 Not Found(\n|.)*`)
+
+	// Now with existing one - all OK.
+	params = url.Values{"ip": []string{"0.1.2.3"}}
+	_, err = ipAddresses.CallPost("release", params)
+	c.Assert(err, IsNil)
+
+	// Ensure it got removed.
+	c.Assert(suite.TestMAASObject.TestServer.ipAddressesPerNetwork["net_1"], HasLen, 0)
+
+	// Try again, should return 404.
+	_, err = ipAddresses.CallPost("release", params)
+	c.Assert(err, ErrorMatches, `(\n|.)*404 Not Found(\n|.)*`)
 }
 
 const nodeDetailsXML = `<?xml version="1.0" standalone="yes" ?>
