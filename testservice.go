@@ -10,12 +10,15 @@ import (
 	"fmt"
 	"io/ioutil"
 	"mime/multipart"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
+	"time"
 
 	"gopkg.in/mgo.v2/bson"
 )
@@ -72,6 +75,7 @@ type TestServer struct {
 	files                       map[string]MAASObject
 	networks                    map[string]MAASObject
 	networksPerNode             map[string][]string
+	ipAddressesPerNetwork       map[string][]string
 	version                     string
 	macAddressesPerNetwork      map[string]map[string]JSONObject
 	nodeDetails                 map[string]string
@@ -122,6 +126,10 @@ func getNetworkURLRE(version string) *regexp.Regexp {
 	return regexp.MustCompile(reString)
 }
 
+func getIPAddressesEndpoint(version string) string {
+	return fmt.Sprintf("/api/%s/ipaddresses/", version)
+}
+
 func getMACAddressURL(version, systemId, macAddress string) string {
 	return fmt.Sprintf("/api/%s/nodes/%s/macs/%s/", version, systemId, url.QueryEscape(macAddress))
 }
@@ -131,7 +139,7 @@ func getVersionURL(version string) string {
 }
 
 func getVersionJSON() string {
-	return `{"capabilities": ["networks-management"]}`
+	return `{"capabilities": ["networks-management","static-ipaddresses"]}`
 }
 
 func getNodegroupsEndpoint(version string) string {
@@ -163,6 +171,7 @@ func (server *TestServer) Clear() {
 	server.files = make(map[string]MAASObject)
 	server.networks = make(map[string]MAASObject)
 	server.networksPerNode = make(map[string][]string)
+	server.ipAddressesPerNetwork = make(map[string][]string)
 	server.macAddressesPerNetwork = make(map[string]map[string]JSONObject)
 	server.nodeDetails = make(map[string]string)
 	server.bootImages = make(map[string][]JSONObject)
@@ -299,14 +308,52 @@ func (server *TestServer) ChangeNode(systemId, key, value string) {
 	node.GetMap()[key] = maasify(server.client, value)
 }
 
+// NewIPAddress creates a new static IP address reservation for the
+// given network and ipAddress.
+func (server *TestServer) NewIPAddress(ipAddress, network string) {
+	if _, found := server.networks[network]; !found {
+		panic("No such network: " + network)
+	}
+	ips, found := server.ipAddressesPerNetwork[network]
+	if found {
+		ips = append(ips, ipAddress)
+	} else {
+		ips = []string{ipAddress}
+	}
+	server.ipAddressesPerNetwork[network] = ips
+}
+
+// RemoveIPAddress removes the given existing ipAddress and returns
+// whether it was actually removed.
+func (server *TestServer) RemoveIPAddress(ipAddress string) bool {
+	for network, ips := range server.ipAddressesPerNetwork {
+		for i, ip := range ips {
+			if ip == ipAddress {
+				ips = append(ips[:i], ips[i+1:]...)
+				server.ipAddressesPerNetwork[network] = ips
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// IPAddresses returns the map with network names as keys and slices
+// of IP addresses belonging to each network as values.
+func (server *TestServer) IPAddresses() map[string][]string {
+	return server.ipAddressesPerNetwork
+}
+
 // NewNetwork creates a network in the test MAAS server
 func (server *TestServer) NewNetwork(jsonText string) MAASObject {
 	var attrs map[string]interface{}
 	err := json.Unmarshal([]byte(jsonText), &attrs)
 	checkError(err)
 	nameEntry, hasName := attrs["name"]
-	if !hasName {
-		panic("The given map json string does not contain a 'name' value.")
+	_, hasIP := attrs["ip"]
+	_, hasNetmask := attrs["netmask"]
+	if !hasName || !hasIP || !hasNetmask {
+		panic("The given map json string does not contain a 'name', 'ip', or 'netmask' value.")
 	}
 	// TODO(gz): Sanity checking done on other fields
 	name := nameEntry.(string)
@@ -402,6 +449,11 @@ func NewTestServer(version string) *TestServer {
 	// Register handler for '/api/<version>/networks/'.
 	serveMux.HandleFunc(networksURL, func(w http.ResponseWriter, r *http.Request) {
 		networksHandler(server, w, r)
+	})
+	ipAddressesURL := getIPAddressesEndpoint(server.version)
+	// Register handler for '/api/<version>/ipaddresses/'.
+	serveMux.HandleFunc(ipAddressesURL, func(w http.ResponseWriter, r *http.Request) {
+		ipAddressesHandler(server, w, r)
 	})
 	versionURL := getVersionURL(server.version)
 	// Register handler for '/api/<version>/version/'.
@@ -870,6 +922,160 @@ func networksHandler(server *TestServer, w http.ResponseWriter, r *http.Request)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, string(res))
+}
+
+// ipAddressesHandler handles requests for '/api/<version>/ipaddresses/'.
+func ipAddressesHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	checkError(err)
+	values := r.Form
+	op := values.Get("op")
+
+	switch r.Method {
+	case "GET":
+		if op != "" {
+			panic("expected empty op for GET, got " + op)
+		}
+		listIPAddressesHandler(server, w, r)
+		return
+	case "POST":
+		switch op {
+		case "reserve":
+			reserveIPAddressHandler(server, w, r, values.Get("network"), values.Get("requested_address"))
+			return
+		case "release":
+			releaseIPAddressHandler(server, w, r, values.Get("ip"))
+			return
+		default:
+			panic("expected op=release|reserve for POST, got " + op)
+		}
+	}
+	http.NotFoundHandler().ServeHTTP(w, r)
+}
+
+func marshalIPAddress(server *TestServer, ipAddress string) (JSONObject, error) {
+	jsonTemplate := `{"alloc_type": 4, "ip": %q, "resource_uri": %q, "created": %q}`
+	uri := getIPAddressesEndpoint(server.version)
+	now := time.Now().UTC().Format(time.RFC3339)
+	bytes := []byte(fmt.Sprintf(jsonTemplate, ipAddress, uri, now))
+	return Parse(server.client, bytes)
+}
+
+func badRequestError(w http.ResponseWriter, err error) {
+	w.WriteHeader(http.StatusBadRequest)
+	fmt.Fprint(w, err.Error())
+}
+
+func listIPAddressesHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
+	results := []MAASObject{}
+	for _, ips := range server.IPAddresses() {
+		for _, ip := range ips {
+			jsonObj, err := marshalIPAddress(server, ip)
+			if err != nil {
+				badRequestError(w, err)
+				return
+			}
+			maasObj, err := jsonObj.GetMAASObject()
+			if err != nil {
+				badRequestError(w, err)
+				return
+			}
+			results = append(results, maasObj)
+		}
+	}
+	res, err := json.Marshal(results)
+	checkError(err)
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprint(w, string(res))
+}
+
+func reserveIPAddressHandler(server *TestServer, w http.ResponseWriter, r *http.Request, network, reqAddress string) {
+	_, ipNet, err := net.ParseCIDR(network)
+	if err != nil {
+		badRequestError(w, fmt.Errorf("Invalid network parameter %s", network))
+		return
+	}
+	if reqAddress != "" {
+		// Validate "requested_address" parameter.
+		reqIP := net.ParseIP(reqAddress)
+		if reqIP == nil {
+			badRequestError(w, fmt.Errorf("failed to detect a valid IP address from u'%s'", reqAddress))
+			return
+		}
+		if !ipNet.Contains(reqIP) {
+			badRequestError(w, fmt.Errorf("%s is not inside the range %s", reqAddress, ipNet.String()))
+			return
+		}
+	}
+	// Find the network name matching the parsed CIDR.
+	foundNetworkName := ""
+	for netName, netObj := range server.networks {
+		// Get the "ip" and "netmask" attributes of the network.
+		netIP, err := netObj.GetField("ip")
+		checkError(err)
+		netMask, err := netObj.GetField("netmask")
+		checkError(err)
+
+		// Convert the netmask string to net.IPMask.
+		parts := strings.Split(netMask, ".")
+		ipMask := make(net.IPMask, len(parts))
+		for i, part := range parts {
+			intPart, err := strconv.Atoi(part)
+			checkError(err)
+			ipMask[i] = byte(intPart)
+		}
+		netNet := &net.IPNet{IP: net.ParseIP(netIP), Mask: ipMask}
+		if netNet.String() == network {
+			// Exact match found.
+			foundNetworkName = netName
+			break
+		}
+	}
+	if foundNetworkName == "" {
+		badRequestError(w, fmt.Errorf("No network found matching %s", network))
+		return
+	}
+	ips, found := server.ipAddressesPerNetwork[foundNetworkName]
+	if !found {
+		// This will be the first address.
+		ips = []string{}
+	}
+	reservedIP := ""
+	if reqAddress != "" {
+		// Use what the user provided. NOTE: Because this is testing
+		// code, no duplicates check is done.
+		reservedIP = reqAddress
+	} else {
+		// Generate an IP in the network range by incrementing the
+		// last byte of the network's IP.
+		firstIP := ipNet.IP
+		firstIP[len(firstIP)-1] += byte(len(ips) + 1)
+		reservedIP = firstIP.String()
+	}
+	ips = append(ips, reservedIP)
+	server.ipAddressesPerNetwork[foundNetworkName] = ips
+	jsonObj, err := marshalIPAddress(server, reservedIP)
+	checkError(err)
+	maasObj, err := jsonObj.GetMAASObject()
+	checkError(err)
+	res, err := json.Marshal(maasObj)
+	checkError(err)
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprint(w, string(res))
+}
+
+func releaseIPAddressHandler(server *TestServer, w http.ResponseWriter, r *http.Request, ip string) {
+	if netIP := net.ParseIP(ip); netIP == nil {
+		http.NotFoundHandler().ServeHTTP(w, r)
+		return
+	}
+	if server.RemoveIPAddress(ip) {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	http.NotFoundHandler().ServeHTTP(w, r)
 }
 
 // versionHandler handles requests for '/api/<version>/version/'.
