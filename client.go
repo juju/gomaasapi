@@ -11,7 +11,18 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
+	"time"
+)
+
+const (
+	// Number of retries when the server returns a 503 response
+	// with a 'Retry-after' header.  A request will be tried
+	// at most NumberOfRetries + 1 times.
+	NumberOfRetries = 2
+
+	RetryAfterHeaderName = "Retry-After"
 )
 
 // Client represents a way to communicating with a MAAS API instance.
@@ -23,10 +34,11 @@ type Client struct {
 
 // ServerError is an http error (or at least, a non-2xx result) received from
 // the server.  It contains the numerical HTTP status code as well as an error
-// string.
+// string and the response's headers.
 type ServerError struct {
 	error
 	StatusCode int
+	Header     http.Header
 }
 
 // readAndClose reads and closes the given ReadCloser.
@@ -44,8 +56,35 @@ func readAndClose(stream io.ReadCloser) ([]byte, error) {
 // Client-side errors will return an empty response and a non-nil error.  For
 // server-side errors however (i.e. responses with a non 2XX status code), the
 // returned error will be ServerError and the returned body will reflect the
-// server's response.
+// server's response.  If the server returns a 503 response with a 'Retry-after'
+// header, the request will be transparenty retried.
 func (client Client) dispatchRequest(request *http.Request) ([]byte, error) {
+	for retry := 0; retry < NumberOfRetries; retry++ {
+		body, err := client._dispatchRequest(request)
+		// If this is a 503 response with a non-void "Retry-After" header: wait
+		// as instructed and retry the request.
+		if err != nil {
+			serverError, ok := err.(ServerError)
+			if ok && serverError.StatusCode == http.StatusServiceUnavailable {
+				retry_time := serverError.Header.Get(RetryAfterHeaderName)
+				if retry_time != "" {
+					retry_time_int, errConv := strconv.Atoi(retry_time)
+
+					if errConv == nil {
+						select {
+						case <-time.After(time.Duration(retry_time_int) * time.Second):
+						}
+						continue
+					}
+				}
+			}
+		}
+		return body, err
+	}
+	return client._dispatchRequest(request)
+}
+
+func (client Client) _dispatchRequest(request *http.Request) ([]byte, error) {
 	client.Signer.OAuthSign(request)
 	httpClient := http.Client{}
 	// See https://code.google.com/p/go/issues/detail?id=4677
@@ -62,7 +101,7 @@ func (client Client) dispatchRequest(request *http.Request) ([]byte, error) {
 	}
 	if response.StatusCode < 200 || response.StatusCode > 299 {
 		msg := fmt.Errorf("gomaasapi: got error back from server: %v (%v)", response.Status, string(body))
-		return body, ServerError{error: msg, StatusCode: response.StatusCode}
+		return body, ServerError{error: msg, StatusCode: response.StatusCode, Header: response.Header}
 	}
 	return body, nil
 }

@@ -35,6 +35,7 @@ func newSingleServingServer(uri string, response string, code int) *singleServin
 			errorMsg := fmt.Sprintf("Error 404: page not found (expected '%v', got '%v').", uri, request.URL.String())
 			http.Error(writer, errorMsg, http.StatusNotFound)
 		} else {
+			writer.Header().Set("Retry-After", "2")
 			writer.WriteHeader(code)
 			fmt.Fprint(writer, response)
 		}
@@ -42,4 +43,38 @@ func newSingleServingServer(uri string, response string, code int) *singleServin
 	}
 	server := httptest.NewServer(http.HandlerFunc(handler))
 	return &singleServingServer{server, &requestContent, &requestHeader}
+}
+
+type flakyServer struct {
+	*httptest.Server
+	nbRequests *int
+}
+
+// newFlakyServer creates a "flaky" test http server which will
+// return `nbFlakyResponses` responses with the given code and then a 200 response.
+func newFlakyServer(uri string, code int, nbFlakyResponses int) *flakyServer {
+	nbRequests := 0
+	handler := func(writer http.ResponseWriter, request *http.Request) {
+		nbRequests += 1
+		_, err := readAndClose(request.Body)
+		if err != nil {
+			panic(err)
+		}
+		if request.URL.String() != uri {
+			errorMsg := fmt.Sprintf("Error 404: page not found (expected '%v', got '%v').", uri, request.URL.String())
+			http.Error(writer, errorMsg, http.StatusNotFound)
+		} else if nbRequests <= nbFlakyResponses {
+			if code == http.StatusServiceUnavailable {
+				writer.Header().Set("Retry-After", "0")
+			}
+			writer.WriteHeader(code)
+			fmt.Fprint(writer, "flaky")
+		} else {
+			writer.WriteHeader(http.StatusOK)
+			fmt.Fprint(writer, "ok")
+		}
+
+	}
+	server := httptest.NewServer(http.HandlerFunc(handler))
+	return &flakyServer{server, &nbRequests}
 }
