@@ -69,7 +69,6 @@ func (client Client) dispatchRequest(request *http.Request) ([]byte, error) {
 				retry_time := serverError.Header.Get(RetryAfterHeaderName)
 				if retry_time != "" {
 					retry_time_int, errConv := strconv.Atoi(retry_time)
-
 					if errConv == nil {
 						select {
 						case <-time.After(time.Duration(retry_time_int) * time.Second):
