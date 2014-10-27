@@ -66,15 +66,12 @@ func (client Client) dispatchRequest(request *http.Request) ([]byte, error) {
 		if err != nil {
 			serverError, ok := err.(ServerError)
 			if ok && serverError.StatusCode == http.StatusServiceUnavailable {
-				retry_time := serverError.Header.Get(RetryAfterHeaderName)
-				if retry_time != "" {
-					retry_time_int, errConv := strconv.Atoi(retry_time)
-					if errConv == nil {
-						select {
-						case <-time.After(time.Duration(retry_time_int) * time.Second):
-						}
-						continue
+				retry_time_int, errConv := strconv.Atoi(serverError.Header.Get(RetryAfterHeaderName))
+				if errConv == nil {
+					select {
+					case <-time.After(time.Duration(retry_time_int) * time.Second):
 					}
+					continue
 				}
 			}
 		}

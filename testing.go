@@ -35,7 +35,6 @@ func newSingleServingServer(uri string, response string, code int) *singleServin
 			errorMsg := fmt.Sprintf("Error 404: page not found (expected '%v', got '%v').", uri, request.URL.String())
 			http.Error(writer, errorMsg, http.StatusNotFound)
 		} else {
-			writer.Header().Set("Retry-After", "2")
 			writer.WriteHeader(code)
 			fmt.Fprint(writer, response)
 		}
