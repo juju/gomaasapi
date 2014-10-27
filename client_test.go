@@ -80,7 +80,7 @@ func (suite *ClientSuite) TestClientdispatchRequestDoesntRetry200(c *C) {
 
 func (suite *ClientSuite) TestClientdispatchRequestRetriesIsLimited(c *C) {
 	URI := "/some/url/?param1=test"
-	// Make the server returns 503 responses NumberOfRetries + 1 times.
+	// Make the server return 503 responses NumberOfRetries + 1 times.
 	server := newFlakyServer(URI, 503, NumberOfRetries+1)
 	defer server.Close()
 	client, err := NewAnonymousClient(server.URL, "1.0")

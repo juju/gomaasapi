@@ -60,7 +60,7 @@ func readAndClose(stream io.ReadCloser) ([]byte, error) {
 // header, the request will be transparenty retried.
 func (client Client) dispatchRequest(request *http.Request) ([]byte, error) {
 	for retry := 0; retry < NumberOfRetries; retry++ {
-		body, err := client._dispatchRequest(request)
+		body, err := client.dispatchSingleRequest(request)
 		// If this is a 503 response with a non-void "Retry-After" header: wait
 		// as instructed and retry the request.
 		if err != nil {
@@ -77,10 +77,10 @@ func (client Client) dispatchRequest(request *http.Request) ([]byte, error) {
 		}
 		return body, err
 	}
-	return client._dispatchRequest(request)
+	return client.dispatchSingleRequest(request)
 }
 
-func (client Client) _dispatchRequest(request *http.Request) ([]byte, error) {
+func (client Client) dispatchSingleRequest(request *http.Request) ([]byte, error) {
 	client.Signer.OAuthSign(request)
 	httpClient := http.Client{}
 	// See https://code.google.com/p/go/issues/detail?id=4677
