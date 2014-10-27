@@ -20,7 +20,7 @@ const (
 	// Number of retries performed when the server returns a 503
 	// response with a 'Retry-after' header.  A request will be issued
 	// at most NumberOfRetries + 1 times.
-	NumberOfRetries = 2
+	NumberOfRetries = 4
 
 	RetryAfterHeaderName = "Retry-After"
 )
