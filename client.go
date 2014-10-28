@@ -59,7 +59,16 @@ func readAndClose(stream io.ReadCloser) ([]byte, error) {
 // server's response.  If the server returns a 503 response with a 'Retry-after'
 // header, the request will be transparenty retried.
 func (client Client) dispatchRequest(request *http.Request) ([]byte, error) {
+	// First, store the request's body into a byte[] to be able to restore it
+	// after each request.
+	bodyContent, err := readAndClose(request.Body)
+	if err != nil {
+		return nil, err
+	}
 	for retry := 0; retry < NumberOfRetries; retry++ {
+		// Restore body before issuing request.
+		newBody := ioutil.NopCloser(bytes.NewReader(bodyContent))
+		request.Body = newBody
 		body, err := client.dispatchSingleRequest(request)
 		// If this is a 503 response with a non-void "Retry-After" header: wait
 		// as instructed and retry the request.
@@ -77,6 +86,9 @@ func (client Client) dispatchRequest(request *http.Request) ([]byte, error) {
 		}
 		return body, err
 	}
+	// Restore body before issuing request.
+	newBody := ioutil.NopCloser(bytes.NewReader(bodyContent))
+	request.Body = newBody
 	return client.dispatchSingleRequest(request)
 }
 

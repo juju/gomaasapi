@@ -56,12 +56,18 @@ func (suite *ClientSuite) TestClientdispatchRequestRetries503(c *C) {
 	defer server.Close()
 	client, err := NewAnonymousClient(server.URL, "1.0")
 	c.Assert(err, IsNil)
-	request, err := http.NewRequest("GET", server.URL+URI, nil)
+	content := "content"
+	request, err := http.NewRequest("GET", server.URL+URI, ioutil.NopCloser(strings.NewReader(content)))
 
 	_, err = client.dispatchRequest(request)
 
 	c.Check(err, IsNil)
 	c.Check(*server.nbRequests, Equals, NumberOfRetries+1)
+	expectedRequestsContent := make([][]byte, NumberOfRetries+1)
+	for i := 0; i < NumberOfRetries+1; i++ {
+		expectedRequestsContent[i] = []byte(content)
+	}
+	c.Check(*server.requests, DeepEquals, expectedRequestsContent)
 }
 
 func (suite *ClientSuite) TestClientdispatchRequestDoesntRetry200(c *C) {
@@ -70,6 +76,7 @@ func (suite *ClientSuite) TestClientdispatchRequestDoesntRetry200(c *C) {
 	defer server.Close()
 	client, err := NewAnonymousClient(server.URL, "1.0")
 	c.Assert(err, IsNil)
+
 	request, err := http.NewRequest("GET", server.URL+URI, nil)
 
 	_, err = client.dispatchRequest(request)
