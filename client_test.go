@@ -50,6 +50,56 @@ func (suite *ClientSuite) TestClientdispatchRequestReturnsServerError(c *C) {
 	c.Check(string(result), Equals, expectedResult)
 }
 
+func (suite *ClientSuite) TestClientdispatchRequestRetries503(c *C) {
+	URI := "/some/url/?param1=test"
+	server := newFlakyServer(URI, 503, NumberOfRetries)
+	defer server.Close()
+	client, err := NewAnonymousClient(server.URL, "1.0")
+	c.Assert(err, IsNil)
+	content := "content"
+	request, err := http.NewRequest("GET", server.URL+URI, ioutil.NopCloser(strings.NewReader(content)))
+
+	_, err = client.dispatchRequest(request)
+
+	c.Check(err, IsNil)
+	c.Check(*server.nbRequests, Equals, NumberOfRetries+1)
+	expectedRequestsContent := make([][]byte, NumberOfRetries+1)
+	for i := 0; i < NumberOfRetries+1; i++ {
+		expectedRequestsContent[i] = []byte(content)
+	}
+	c.Check(*server.requests, DeepEquals, expectedRequestsContent)
+}
+
+func (suite *ClientSuite) TestClientdispatchRequestDoesntRetry200(c *C) {
+	URI := "/some/url/?param1=test"
+	server := newFlakyServer(URI, 200, 10)
+	defer server.Close()
+	client, err := NewAnonymousClient(server.URL, "1.0")
+	c.Assert(err, IsNil)
+
+	request, err := http.NewRequest("GET", server.URL+URI, nil)
+
+	_, err = client.dispatchRequest(request)
+
+	c.Check(err, IsNil)
+	c.Check(*server.nbRequests, Equals, 1)
+}
+
+func (suite *ClientSuite) TestClientdispatchRequestRetriesIsLimited(c *C) {
+	URI := "/some/url/?param1=test"
+	// Make the server return 503 responses NumberOfRetries + 1 times.
+	server := newFlakyServer(URI, 503, NumberOfRetries+1)
+	defer server.Close()
+	client, err := NewAnonymousClient(server.URL, "1.0")
+	c.Assert(err, IsNil)
+	request, err := http.NewRequest("GET", server.URL+URI, nil)
+
+	_, err = client.dispatchRequest(request)
+
+	c.Check(*server.nbRequests, Equals, NumberOfRetries+1)
+	c.Check(err.(ServerError).StatusCode, Equals, 503)
+}
+
 func (suite *ClientSuite) TestClientDispatchRequestReturnsNonServerError(c *C) {
 	client, err := NewAnonymousClient("/foo", "1.0")
 	c.Assert(err, IsNil)
