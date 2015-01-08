@@ -983,6 +983,49 @@ func (suite *TestMAASObjectSuite) TestListNodegroupsEmptyList(c *C) {
 
 func (suite *TestMAASObjectSuite) TestListNodegroupsInterfaces(c *C) {
 	suite.TestMAASObject.TestServer.AddBootImage("uuid-0", `{"architecture": "arm64", "release": "trusty"}`)
+	jsonText := `{
+            "ip_range_high": "172.16.0.128",
+            "ip_range_low": "172.16.0.2",
+            "broadcast_ip": "172.16.0.255",
+            "static_ip_range_low": "172.16.0.129",
+            "name": "eth0",
+            "ip": "172.16.0.2",
+            "subnet_mask": "255.255.255.0",
+            "management": 2,
+            "static_ip_range_high": "172.16.0.255",
+            "interface": "eth0"
+        }`
+
+	suite.TestMAASObject.TestServer.NewNodegroupsInterface("uuid-0", jsonText)
+	nodegroupsInterfacesListing := suite.TestMAASObject.GetSubObject("nodegroups").GetSubObject("uuid-0").GetSubObject("interfaces")
+	result, err := nodegroupsInterfacesListing.CallGet("list", nil)
+	c.Assert(err, IsNil)
+
+	nodegroupsInterfaces, err := result.GetArray()
+	c.Assert(err, IsNil)
+	c.Check(nodegroupsInterfaces, HasLen, 1)
+
+	nodegroupsInterface, err := nodegroupsInterfaces[0].GetMap()
+	c.Assert(err, IsNil)
+
+	checkMember := func(member, expectedValue string) {
+		value, err := nodegroupsInterface[member].GetString()
+		c.Assert(err, IsNil)
+		c.Assert(value, Equals, expectedValue)
+	}
+	checkMember("ip_range_high", "172.16.0.128")
+	checkMember("ip_range_low", "172.16.0.2")
+	checkMember("broadcast_ip", "172.16.0.255")
+	checkMember("static_ip_range_low", "172.16.0.129")
+	checkMember("static_ip_range_high", "172.16.0.255")
+	checkMember("name", "eth0")
+	checkMember("ip", "172.16.0.2")
+	checkMember("subnet_mask", "255.255.255.0")
+	checkMember("interface", "eth0")
+
+	value, err := nodegroupsInterface["management"].GetFloat64()
+	c.Assert(err, IsNil)
+	c.Assert(value, Equals, 2.0)
 }
 
 func (suite *TestMAASObjectSuite) TestListBootImages(c *C) {
