@@ -1028,6 +1028,17 @@ func (suite *TestMAASObjectSuite) TestListNodegroupsInterfaces(c *C) {
 	c.Assert(value, Equals, 2.0)
 }
 
+func (suite *TestMAASObjectSuite) TestNodegroupsInterfacesEmptyList(c *C) {
+	suite.TestMAASObject.TestServer.AddBootImage("uuid-0", `{"architecture": "arm64", "release": "trusty"}`)
+	nodegroupsInterfacesListing := suite.TestMAASObject.GetSubObject("nodegroups").GetSubObject("uuid-0").GetSubObject("interfaces")
+	result, err := nodegroupsInterfacesListing.CallGet("list", nil)
+	c.Assert(err, IsNil)
+
+	interfaces, err := result.GetArray()
+	c.Assert(err, IsNil)
+	c.Check(interfaces, HasLen, 0)
+}
+
 func (suite *TestMAASObjectSuite) TestListBootImages(c *C) {
 	suite.TestMAASObject.TestServer.AddBootImage("uuid-0", `{"architecture": "arm64", "release": "trusty"}`)
 	suite.TestMAASObject.TestServer.AddBootImage("uuid-1", `{"architecture": "amd64", "release": "precise"}`)

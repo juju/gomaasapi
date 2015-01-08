@@ -1191,13 +1191,17 @@ func nodegroupsInterfacesHandler(server *TestServer, w http.ResponseWriter, r *h
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-
-	interfaces, ok := server.nodegroupsInterfaces[nodegroupUUID]
+	_, ok := server.bootImages[nodegroupUUID]
 	if !ok {
 		http.NotFoundHandler().ServeHTTP(w, r)
 		return
 	}
 
+	interfaces, ok := server.nodegroupsInterfaces[nodegroupUUID]
+	if !ok {
+		// we already checked the nodegroup exists, so return an empty list
+		interfaces = []JSONObject{}
+	}
 	res, err := json.Marshal(interfaces)
 	checkError(err)
 	w.WriteHeader(http.StatusOK)
