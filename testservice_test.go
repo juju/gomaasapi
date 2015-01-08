@@ -66,6 +66,14 @@ func (suite *TestServerSuite) TestHandlesNodeListingUnknownPath(c *C) {
 	c.Check(resp.StatusCode, Equals, http.StatusNotFound)
 }
 
+func (suite *TestServerSuite) TestHandlesNodegroupsInterfacesListingUnknownNodegroup(c *C) {
+	invalidPath := fmt.Sprintf("/api/%s/nodegroups/unknown/interfaces/", suite.server.version)
+	resp, err := http.Get(suite.server.Server.URL + invalidPath)
+
+	c.Check(err, IsNil)
+	c.Check(resp.StatusCode, Equals, http.StatusNotFound)
+}
+
 func (suite *TestServerSuite) TestNewNode(c *C) {
 	input := `{"system_id": "mysystemid"}`
 
@@ -1028,7 +1036,7 @@ func (suite *TestMAASObjectSuite) TestListNodegroupsInterfaces(c *C) {
 	c.Assert(value, Equals, 2.0)
 }
 
-func (suite *TestMAASObjectSuite) TestNodegroupsInterfacesEmptyList(c *C) {
+func (suite *TestMAASObjectSuite) TestListNodegroupsInterfacesEmptyList(c *C) {
 	suite.TestMAASObject.TestServer.AddBootImage("uuid-0", `{"architecture": "arm64", "release": "trusty"}`)
 	nodegroupsInterfacesListing := suite.TestMAASObject.GetSubObject("nodegroups").GetSubObject("uuid-0").GetSubObject("interfaces")
 	result, err := nodegroupsInterfacesListing.CallGet("list", nil)
