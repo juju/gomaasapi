@@ -82,6 +82,9 @@ type TestServer struct {
 	zones                       map[string]JSONObject
 	// bootImages is a map of nodegroup UUIDs to boot-image objects.
 	bootImages map[string][]JSONObject
+	// nodegroupInterfaces is a map of nodegroup UUIIDs to interface
+	// objects.
+	nodegroupInterfaces map[string][]JSONObject
 }
 
 func getNodesEndpoint(version string) string {
@@ -150,6 +153,11 @@ func getNodegroupURL(version, uuid string) string {
 	return fmt.Sprintf("/api/%s/nodegroups/%s/", version, uuid)
 }
 
+func getNodegroupsInterfacesURLRE(version string) *regexp.Regexp {
+	reString := fmt.Sprintf("^/api/%s/nodegroups/([^/]*)/interfaces/$", regexp.QuoteMeta(version))
+	return regexp.MustCompile(reString)
+}
+
 func getBootimagesURLRE(version string) *regexp.Regexp {
 	reString := fmt.Sprintf("^/api/%s/nodegroups/([^/]*)/boot-images/$", regexp.QuoteMeta(version))
 	return regexp.MustCompile(reString)
@@ -175,6 +183,7 @@ func (server *TestServer) Clear() {
 	server.macAddressesPerNetwork = make(map[string]map[string]JSONObject)
 	server.nodeDetails = make(map[string]string)
 	server.bootImages = make(map[string][]JSONObject)
+	server.nodegroupInterfaces = make(map[string][]JSONObject)
 	server.zones = make(map[string]JSONObject)
 }
 
@@ -363,6 +372,22 @@ func (server *TestServer) NewNetwork(jsonText string) MAASObject {
 	return obj
 }
 
+// NewNodegroupsInterface adds a nodegroup-interface, for the specified
+// nodegroup,  in the test MAAS server
+func (server *TestServer) NewNodegroupsInterface(uuid, jsonText string) JSONObject {
+	_, ok := server.bootImages[uuid]
+	if !ok {
+		panic("no nodegroup with the given UUID")
+	}
+	var attrs map[string]interface{}
+	err := json.Unmarshal([]byte(jsonText), &attrs)
+	checkError(err)
+	//XXX sanity check attributes
+	obj := maasify(server.client, attrs)
+	server.nodegroupInterfaces[uuid] = append(server.nodegroupInterfaces[uuid], obj)
+	return obj
+}
+
 func (server *TestServer) ConnectNodeToNetwork(systemId, name string) {
 	_, hasNode := server.nodes[systemId]
 	if !hasNode {
@@ -465,6 +490,7 @@ func NewTestServer(version string) *TestServer {
 	serveMux.HandleFunc(nodegroupsURL, func(w http.ResponseWriter, r *http.Request) {
 		nodegroupsHandler(server, w, r)
 	})
+
 	// Register handler for '/api/<version>/zones/*'.
 	zonesURL := getZonesEndpoint(server.version)
 	serveMux.HandleFunc(zonesURL, func(w http.ResponseWriter, r *http.Request) {
@@ -1095,12 +1121,16 @@ func nodegroupsHandler(server *TestServer, w http.ResponseWriter, r *http.Reques
 	op := values.Get("op")
 	bootimagesURLRE := getBootimagesURLRE(server.version)
 	bootimagesURLMatch := bootimagesURLRE.FindStringSubmatch(r.URL.Path)
+	nodegroupsInterfacesURLRE := getNodegroupsInterfacesURLRE(server.version)
+	nodegroupsInterfacesURLMatch := nodegroupsInterfacesURLRE.FindStringSubmatch(r.URL.Path)
 	nodegroupsURL := getNodegroupsEndpoint(server.version)
 	switch {
 	case r.URL.Path == nodegroupsURL:
 		nodegroupsTopLevelHandler(server, w, r, op)
 	case bootimagesURLMatch != nil:
 		bootimagesHandler(server, w, r, bootimagesURLMatch[1], op)
+	case nodegroupsInterfacesURLMatch != nil:
+		nodegroupsInterfacesHandler(server, w, r, nodegroupsInterfacesURLMatch[1], op)
 	default:
 		// Default handler: not found.
 		http.NotFoundHandler().ServeHTTP(w, r)
@@ -1144,6 +1174,25 @@ func bootimagesHandler(server *TestServer, w http.ResponseWriter, r *http.Reques
 	}
 
 	res, err := json.Marshal(bootImages)
+	checkError(err)
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprint(w, string(res))
+}
+
+// nodegroupsInterfacesHandler handles requests for '/api/<version>/nodegroups/<uuid>/interfaces/'
+func nodegroupsInterfacesHandler(server *TestServer, w http.ResponseWriter, r *http.Request, nodegroupUUID, op string) {
+	if r.Method != "GET" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	interfaces, ok := server.nodegroupInterfaces[nodegroupUUID]
+	if !ok {
+		http.NotFoundHandler().ServeHTTP(w, r)
+		return
+	}
+
+	res, err := json.Marshal(interfaces)
 	checkError(err)
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, string(res))
