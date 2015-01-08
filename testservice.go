@@ -82,9 +82,9 @@ type TestServer struct {
 	zones                       map[string]JSONObject
 	// bootImages is a map of nodegroup UUIDs to boot-image objects.
 	bootImages map[string][]JSONObject
-	// nodegroupInterfaces is a map of nodegroup UUIIDs to interface
+	// nodegroupsInterfaces is a map of nodegroup UUIIDs to interface
 	// objects.
-	nodegroupInterfaces map[string][]JSONObject
+	nodegroupsInterfaces map[string][]JSONObject
 }
 
 func getNodesEndpoint(version string) string {
@@ -183,7 +183,7 @@ func (server *TestServer) Clear() {
 	server.macAddressesPerNetwork = make(map[string]map[string]JSONObject)
 	server.nodeDetails = make(map[string]string)
 	server.bootImages = make(map[string][]JSONObject)
-	server.nodegroupInterfaces = make(map[string][]JSONObject)
+	server.nodegroupsInterfaces = make(map[string][]JSONObject)
 	server.zones = make(map[string]JSONObject)
 }
 
@@ -382,9 +382,15 @@ func (server *TestServer) NewNodegroupsInterface(uuid, jsonText string) JSONObje
 	var attrs map[string]interface{}
 	err := json.Unmarshal([]byte(jsonText), &attrs)
 	checkError(err)
-	//XXX sanity check attributes
+	requiredMembers := []string{"ip_range_high", "ip_range_low", "broadcast_ip", "static_ip_range_low", "static_ip_range_high", "name", "ip", "subnet_mask", "management", "interface"}
+	for _, member := range requiredMembers {
+		_, hasMember := attrs[member]
+		if !hasMember {
+			panic(fmt.Sprintf("The given map json string does not contain a %v", member))
+		}
+	}
 	obj := maasify(server.client, attrs)
-	server.nodegroupInterfaces[uuid] = append(server.nodegroupInterfaces[uuid], obj)
+	server.nodegroupsInterfaces[uuid] = append(server.nodegroupsInterfaces[uuid], obj)
 	return obj
 }
 
@@ -1186,7 +1192,7 @@ func nodegroupsInterfacesHandler(server *TestServer, w http.ResponseWriter, r *h
 		return
 	}
 
-	interfaces, ok := server.nodegroupInterfaces[nodegroupUUID]
+	interfaces, ok := server.nodegroupsInterfaces[nodegroupUUID]
 	if !ok {
 		http.NotFoundHandler().ServeHTTP(w, r)
 		return
