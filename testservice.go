@@ -1150,7 +1150,7 @@ func nodegroupsTopLevelHandler(server *TestServer, w http.ResponseWriter, r *htt
 		return
 	}
 
-	var nodegroups []JSONObject
+	nodegroups := []JSONObject{}
 	for uuid := range server.bootImages {
 		attrs := map[string]interface{}{
 			"uuid":      uuid,
