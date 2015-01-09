@@ -82,7 +82,7 @@ type TestServer struct {
 	zones                       map[string]JSONObject
 	// bootImages is a map of nodegroup UUIDs to boot-image objects.
 	bootImages map[string][]JSONObject
-	// nodegroupsInterfaces is a map of nodegroup UUIIDs to interface
+	// nodegroupsInterfaces is a map of nodegroup UUIDs to interface
 	// objects.
 	nodegroupsInterfaces map[string][]JSONObject
 }
@@ -372,9 +372,9 @@ func (server *TestServer) NewNetwork(jsonText string) MAASObject {
 	return obj
 }
 
-// NewNodegroupsInterface adds a nodegroup-interface, for the specified
-// nodegroup,  in the test MAAS server
-func (server *TestServer) NewNodegroupsInterface(uuid, jsonText string) JSONObject {
+// NewNodegroupInterface adds a nodegroup-interface, for the specified
+// nodegroup,  in the test MAAS server.
+func (server *TestServer) NewNodegroupInterface(uuid, jsonText string) JSONObject {
 	_, ok := server.bootImages[uuid]
 	if !ok {
 		panic("no nodegroup with the given UUID")
@@ -386,7 +386,7 @@ func (server *TestServer) NewNodegroupsInterface(uuid, jsonText string) JSONObje
 	for _, member := range requiredMembers {
 		_, hasMember := attrs[member]
 		if !hasMember {
-			panic(fmt.Sprintf("The given map json string does not contain a %v", member))
+			panic(fmt.Sprintf("The given map json string does not contain a required %q", member))
 		}
 	}
 	obj := maasify(server.client, attrs)

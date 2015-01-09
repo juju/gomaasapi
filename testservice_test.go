@@ -989,7 +989,7 @@ func (suite *TestMAASObjectSuite) TestListNodegroupsEmptyList(c *C) {
 	c.Check(nodegroups, HasLen, 0)
 }
 
-func (suite *TestMAASObjectSuite) TestListNodegroupsInterfaces(c *C) {
+func (suite *TestMAASObjectSuite) TestListNodegroupInterfaces(c *C) {
 	suite.TestMAASObject.TestServer.AddBootImage("uuid-0", `{"architecture": "arm64", "release": "trusty"}`)
 	jsonText := `{
             "ip_range_high": "172.16.0.128",
@@ -1004,7 +1004,7 @@ func (suite *TestMAASObjectSuite) TestListNodegroupsInterfaces(c *C) {
             "interface": "eth0"
         }`
 
-	suite.TestMAASObject.TestServer.NewNodegroupsInterface("uuid-0", jsonText)
+	suite.TestMAASObject.TestServer.NewNodegroupInterface("uuid-0", jsonText)
 	nodegroupsInterfacesListing := suite.TestMAASObject.GetSubObject("nodegroups").GetSubObject("uuid-0").GetSubObject("interfaces")
 	result, err := nodegroupsInterfacesListing.CallGet("list", nil)
 	c.Assert(err, IsNil)
