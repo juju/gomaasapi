@@ -605,13 +605,41 @@ func nodeListingHandler(server *TestServer, w http.ResponseWriter, r *http.Reque
 	fmt.Fprint(w, string(res))
 }
 
+// nodeDeploymentStatusHandler handles requests for '/nodes/?op=deployment_status'.
+func nodeDeploymentStatusHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
+	values, err := url.ParseQuery(r.URL.RawQuery)
+	checkError(err)
+	nodes, _ := values["nodes"]
+	var nodeStatus = make(map[string]interface{})
+	for _, systemId := range nodes {
+		node := server.nodes[systemId]
+		field, err := node.GetField("status")
+		if err != nil {
+			continue
+		}
+		// The MAAS node model has changed somewhat since this test server was written.
+		// For now, assume allocated = deployed, which is fine for testing with.
+		switch field {
+		case NodeStatusAllocated:
+			nodeStatus[systemId] = "Deployed"
+		default:
+			nodeStatus[systemId] = "Not in Deployment"
+		}
+	}
+	obj := maasify(server.client, nodeStatus)
+	res, err := json.Marshal(obj)
+	checkError(err)
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprint(w, string(res))
+}
+
 // findFreeNode looks for a node that is currently available, and
 // matches the specified filter.
 func findFreeNode(server *TestServer, filter url.Values) *MAASObject {
 	for systemID, node := range server.Nodes() {
 		_, present := server.OwnedNodes()[systemID]
 		if !present {
-			var agentName, nodeName, zoneName string
+			var agentName, nodeName, zoneName, mem, cpuCores, arch string
 			for k := range filter {
 				switch k {
 				case "agent_name":
@@ -620,12 +648,27 @@ func findFreeNode(server *TestServer, filter url.Values) *MAASObject {
 					nodeName = filter.Get(k)
 				case "zone":
 					zoneName = filter.Get(k)
+				case "mem":
+					mem = filter.Get(k)
+				case "arch":
+					arch = filter.Get(k)
+				case "cpu-cores":
+					cpuCores = filter.Get(k)
 				}
 			}
 			if nodeName != "" && !matchField(node, "hostname", nodeName) {
 				continue
 			}
 			if zoneName != "" && !matchField(node, "zone", zoneName) {
+				continue
+			}
+			if mem != "" && !matchNumericField(node, "memory", mem) {
+				continue
+			}
+			if arch != "" && !matchArchitecture(node, "architecture", arch) {
+				continue
+			}
+			if cpuCores != "" && !matchNumericField(node, "cpu_count", cpuCores) {
 				continue
 			}
 			if agentName != "" {
@@ -638,6 +681,31 @@ func findFreeNode(server *TestServer, filter url.Values) *MAASObject {
 		}
 	}
 	return nil
+}
+
+func matchArchitecture(node MAASObject, k, v string) bool {
+	field, err := node.GetField(k)
+	if err != nil {
+		return false
+	}
+	baseArch := strings.Split(field, "/")
+	return v == baseArch[0]
+}
+
+func matchNumericField(node MAASObject, k, v string) bool {
+	field, err := node.GetField(k)
+	if err != nil {
+		return false
+	}
+	nodeVal, err := strconv.ParseInt(field, 10, 64)
+	if err != nil {
+		return false
+	}
+	constraintVal, err := strconv.ParseInt(v, 10, 64)
+	if err != nil {
+		return false
+	}
+	return constraintVal <= nodeVal
 }
 
 func matchField(node MAASObject, k, v string) bool {
@@ -705,6 +773,9 @@ func nodesTopLevelHandler(server *TestServer, w http.ResponseWriter, r *http.Req
 	case r.Method == "GET" && op == "list":
 		// Node listing operation.
 		nodeListingHandler(server, w, r)
+	case r.Method == "GET" && op == "deployment_status":
+		// Node deployment_status operation.
+		nodeDeploymentStatusHandler(server, w, r)
 	case r.Method == "POST" && op == "acquire":
 		nodesAcquireHandler(server, w, r)
 	case r.Method == "POST" && op == "release":
