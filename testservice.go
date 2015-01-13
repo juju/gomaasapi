@@ -693,15 +693,15 @@ func matchArchitecture(node MAASObject, k, v string) bool {
 }
 
 func matchNumericField(node MAASObject, k, v string) bool {
-	field, err := node.GetField(k)
+	field, ok := node.GetMap()[k]
+	if !ok {
+		return false
+	}
+	nodeVal, err := field.GetFloat64()
 	if err != nil {
 		return false
 	}
-	nodeVal, err := strconv.ParseInt(field, 10, 64)
-	if err != nil {
-		return false
-	}
-	constraintVal, err := strconv.ParseInt(v, 10, 64)
+	constraintVal, err := strconv.ParseFloat(v, 64)
 	if err != nil {
 		return false
 	}

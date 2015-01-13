@@ -1147,27 +1147,29 @@ func (suite *TestMAASObjectSuite) TestAcquireNodeZone(c *C) {
 }
 
 func (suite *TestMAASObjectSuite) TestAcquireFilterMemory(c *C) {
-	suite.TestMAASObject.TestServer.NewNode(`{"system_id": "n0", "memory": "1024"}`)
-	suite.TestMAASObject.TestServer.NewNode(`{"system_id": "n1", "memory": "2048"}`)
+	suite.TestMAASObject.TestServer.NewNode(`{"system_id": "n0", "memory": 1024}`)
+	suite.TestMAASObject.TestServer.NewNode(`{"system_id": "n1", "memory": 2048}`)
 	nodeListing := suite.TestMAASObject.GetSubObject("nodes")
 	jsonResponse, err := nodeListing.CallPost("acquire", url.Values{"mem": []string{"2048"}})
 	c.Assert(err, IsNil)
 	acquiredNode, err := jsonResponse.GetMAASObject()
 	c.Assert(err, IsNil)
-	mem, _ := acquiredNode.GetField("memory")
-	c.Assert(mem, Equals, "2048")
+	mem, err := acquiredNode.GetMap()["memory"].GetFloat64()
+	c.Assert(err, IsNil)
+	c.Assert(mem, Equals, float64(2048))
 }
 
 func (suite *TestMAASObjectSuite) TestAcquireFilterCpuCores(c *C) {
-	suite.TestMAASObject.TestServer.NewNode(`{"system_id": "n0", "cpu_count": "1"}`)
-	suite.TestMAASObject.TestServer.NewNode(`{"system_id": "n1", "cpu_count": "2"}`)
+	suite.TestMAASObject.TestServer.NewNode(`{"system_id": "n0", "cpu_count": 1}`)
+	suite.TestMAASObject.TestServer.NewNode(`{"system_id": "n1", "cpu_count": 2}`)
 	nodeListing := suite.TestMAASObject.GetSubObject("nodes")
 	jsonResponse, err := nodeListing.CallPost("acquire", url.Values{"cpu-cores": []string{"2"}})
 	c.Assert(err, IsNil)
 	acquiredNode, err := jsonResponse.GetMAASObject()
 	c.Assert(err, IsNil)
-	cores, _ := acquiredNode.GetField("cpu_count")
-	c.Assert(cores, Equals, "2")
+	cpucount, err := acquiredNode.GetMap()["cpu_count"].GetFloat64()
+	c.Assert(err, IsNil)
+	c.Assert(cpucount, Equals, float64(2))
 }
 
 func (suite *TestMAASObjectSuite) TestAcquireFilterArch(c *C) {
