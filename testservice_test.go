@@ -1145,3 +1145,58 @@ func (suite *TestMAASObjectSuite) TestAcquireNodeZone(c *C) {
 	c.Assert(id, Not(Equals), "n0")
 	c.Assert(zone, Equals, "z1")
 }
+
+func (suite *TestMAASObjectSuite) TestAcquireFilterMemory(c *C) {
+	suite.TestMAASObject.TestServer.NewNode(`{"system_id": "n0", "memory": "1024"}`)
+	suite.TestMAASObject.TestServer.NewNode(`{"system_id": "n1", "memory": "2048"}`)
+	nodeListing := suite.TestMAASObject.GetSubObject("nodes")
+	jsonResponse, err := nodeListing.CallPost("acquire", url.Values{"mem": []string{"2048"}})
+	c.Assert(err, IsNil)
+	acquiredNode, err := jsonResponse.GetMAASObject()
+	c.Assert(err, IsNil)
+	mem, _ := acquiredNode.GetField("memory")
+	c.Assert(mem, Equals, "2048")
+}
+
+func (suite *TestMAASObjectSuite) TestAcquireFilterCpuCores(c *C) {
+	suite.TestMAASObject.TestServer.NewNode(`{"system_id": "n0", "cpu_count": "1"}`)
+	suite.TestMAASObject.TestServer.NewNode(`{"system_id": "n1", "cpu_count": "2"}`)
+	nodeListing := suite.TestMAASObject.GetSubObject("nodes")
+	jsonResponse, err := nodeListing.CallPost("acquire", url.Values{"cpu-cores": []string{"2"}})
+	c.Assert(err, IsNil)
+	acquiredNode, err := jsonResponse.GetMAASObject()
+	c.Assert(err, IsNil)
+	cores, _ := acquiredNode.GetField("cpu_count")
+	c.Assert(cores, Equals, "2")
+}
+
+func (suite *TestMAASObjectSuite) TestAcquireFilterArch(c *C) {
+	suite.TestMAASObject.TestServer.NewNode(`{"system_id": "n0", "architecture": "amd64"}`)
+	suite.TestMAASObject.TestServer.NewNode(`{"system_id": "n1", "architecture": "arm/generic"}`)
+	nodeListing := suite.TestMAASObject.GetSubObject("nodes")
+	jsonResponse, err := nodeListing.CallPost("acquire", url.Values{"arch": []string{"arm"}})
+	c.Assert(err, IsNil)
+	acquiredNode, err := jsonResponse.GetMAASObject()
+	c.Assert(err, IsNil)
+	arch, _ := acquiredNode.GetField("architecture")
+	c.Assert(arch, Equals, "arm/generic")
+}
+
+func (suite *TestMAASObjectSuite) TestDeploymentStatus(c *C) {
+	suite.TestMAASObject.TestServer.NewNode(`{"system_id": "n0", "status": "6"}`)
+	suite.TestMAASObject.TestServer.NewNode(`{"system_id": "n1", "status": "1"}`)
+	nodes := suite.TestMAASObject.GetSubObject("nodes")
+	jsonResponse, err := nodes.CallGet("deployment_status", url.Values{"nodes": []string{"n0", "n1"}})
+	c.Assert(err, IsNil)
+	deploymentStatus, err := jsonResponse.GetMap()
+	c.Assert(err, IsNil)
+	c.Assert(deploymentStatus, HasLen, 2)
+	expectedStatus := map[string]string{
+		"n0": "Deployed", "n1": "Not in Deployment",
+	}
+	for systemId, status := range expectedStatus {
+		nodeStatus, err := deploymentStatus[systemId].GetString()
+		c.Assert(err, IsNil)
+		c.Assert(nodeStatus, Equals, status)
+	}
+}
