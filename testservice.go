@@ -266,7 +266,7 @@ func (server *TestServer) NewNode(jsonText string) MAASObject {
 	systemId := systemIdEntry.(string)
 	attrs[resourceURI] = getNodeURL(server.version, systemId)
 	if _, hasStatus := attrs["status"]; !hasStatus {
-		attrs["status"] = NodeStatusAllocated
+		attrs["status"] = NodeStatusDeployed
 	}
 	obj := newJSONMAASObject(attrs, server.client)
 	server.nodes[systemId] = obj
@@ -617,11 +617,11 @@ func nodeDeploymentStatusHandler(server *TestServer, w http.ResponseWriter, r *h
 		if err != nil {
 			continue
 		}
-		// The MAAS node model has changed somewhat since this test server was written.
-		// For now, assume allocated = deployed, which is fine for testing with.
 		switch field {
-		case NodeStatusAllocated:
+		case NodeStatusDeployed:
 			nodeStatus[systemId] = "Deployed"
+		case NodeStatusFailedDeployment:
+			nodeStatus[systemId] = "Failed deployment"
 		default:
 			nodeStatus[systemId] = "Not in Deployment"
 		}
