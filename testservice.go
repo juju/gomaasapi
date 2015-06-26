@@ -490,6 +490,11 @@ func NewTestServer(version string) *TestServer {
 	server := &TestServer{version: version}
 
 	serveMux := http.NewServeMux()
+	devicesURL := getDevicesEndpoing(server.version)
+	// Register handler for '/api/<version>/devices/*'.
+	serverMux.HandleFunc(dvicesURL, devicesURL, func(w http.ResponseWriter, r *http.Request) {
+		devicesHandler(server, w, r)
+	})
 	nodesURL := getNodesEndpoint(server.version)
 	// Register handler for '/api/<version>/nodes/*'.
 	serveMux.HandleFunc(nodesURL, func(w http.ResponseWriter, r *http.Request) {
@@ -535,6 +540,69 @@ func NewTestServer(version string) *TestServer {
 	server.client = *client
 	server.Clear()
 	return server
+}
+
+// devicesHandler handles requests for '/api/<version>/nodes/*'.
+func devicesHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
+	values, err := url.ParseQuery(r.URL.RawQuery)
+	checkError(err)
+	op := values.Get("op")
+	deviceURLRE := getdeviceURLRE(server.version)
+	deviceURLMatch := deviceURLRE.FindStringSubmatch(r.URL.Path)
+	devicesURL := getDevicesEndpoint(server.version)
+	switch {
+	case r.URL.Path == devicesURL:
+		nodesTopLevelHandler(server, w, r, op)
+	case deviceURLMatch != nil:
+		// Request for a single device.
+		deviceHandler(server, w, r, deviceURLMatch[1], op)
+	default:
+		// Default handler: not found.
+		http.NotFoundHandler().ServeHTTP(w, r)
+	}
+}
+
+// deviceHandler handles requests for '/api/<version>/devices/<system_id>/'.
+func deviceHandler(server *TestServer, w http.ResponseWriter, r *http.Request, systemId string, operation string) {
+	device, ok := server.devices[systemId]
+	if !ok {
+		http.NotFoundHandler().ServeHTTP(w, r)
+		return
+	}
+	if r.Method == "GET" {
+		if operation == "" {
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprint(w, marshalNode(device))
+			return
+		} else {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+	}
+	if r.Method == "POST" {
+		// The only operations supported are "start", "stop" and "release".
+		if operation == "start" || operation == "stop" || operation == "release" {
+			// Record operation on node.
+			server.addNodeOperation(systemId, operation, r)
+
+			if operation == "release" {
+				delete(server.OwnedNodes(), systemId)
+			}
+
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprint(w, marshalNode(node))
+			return
+		} else {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+	}
+	if r.Method == "DELETE" {
+		delete(server.nodes, systemId)
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	http.NotFoundHandler().ServeHTTP(w, r)
 }
 
 // nodesHandler handles requests for '/api/<version>/nodes/*'.
