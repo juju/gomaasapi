@@ -85,6 +85,13 @@ type TestServer struct {
 	// nodegroupsInterfaces is a map of nodegroup UUIDs to interface
 	// objects.
 	nodegroupsInterfaces map[string][]JSONObject
+
+	// versionJSON is the response to the /version/ endpoint listing the
+	// capabilities of the MAAS server.
+	versionJSON string
+
+	// devices is a map of device UUIDs to device objects.
+	devices map[string]JSONObject
 }
 
 func getNodesEndpoint(version string) string {
@@ -97,6 +104,19 @@ func getNodeURL(version, systemId string) string {
 
 func getNodeURLRE(version string) *regexp.Regexp {
 	reString := fmt.Sprintf("^/api/%s/nodes/([^/]*)/$", regexp.QuoteMeta(version))
+	return regexp.MustCompile(reString)
+}
+
+func getDevicesEndpoint(version string) string {
+	return fmt.Sprintf("/api/%s/devices/", version)
+}
+
+func getDeviceURL(version, systemId string) string {
+	return fmt.Sprintf("/api/%s/devices/%s/", version, systemId)
+}
+
+func getDeviceURLRE(version string) *regexp.Regexp {
+	reString := fmt.Sprintf("^/api/%s/devices/([^/]*)/$", regexp.QuoteMeta(version))
 	return regexp.MustCompile(reString)
 }
 
@@ -141,10 +161,6 @@ func getVersionURL(version string) string {
 	return fmt.Sprintf("/api/%s/version/", version)
 }
 
-func getVersionJSON() string {
-	return `{"capabilities": ["networks-management","static-ipaddresses"]}`
-}
-
 func getNodegroupsEndpoint(version string) string {
 	return fmt.Sprintf("/api/%s/nodegroups/", version)
 }
@@ -185,6 +201,14 @@ func (server *TestServer) Clear() {
 	server.bootImages = make(map[string][]JSONObject)
 	server.nodegroupsInterfaces = make(map[string][]JSONObject)
 	server.zones = make(map[string]JSONObject)
+	server.versionJSON = `{"capabilities": ["networks-management","static-ipaddresses"]}`
+	server.devices = make(map[string]JSONObject)
+}
+
+// SetVersionJSON sets the JSON response (capabilities) returned from the
+// /version/ endpoint.
+func (server *TestServer) SetVersionJSON(json string) {
+	server.versionJSON = json
 }
 
 // NodesOperations returns the list of operations performed at the /nodes/
@@ -1188,7 +1212,7 @@ func versionHandler(server *TestServer, w http.ResponseWriter, r *http.Request) 
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprint(w, getVersionJSON())
+	fmt.Fprint(w, server.versionJSON)
 }
 
 // nodegroupsHandler handles requests for '/api/<version>/nodegroups/*'.
