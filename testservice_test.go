@@ -49,6 +49,19 @@ func (suite *TestServerSuite) TestGetResourceURI(c *C) {
 	c.Check(getNodeURL("0.1", "test"), Equals, "/api/0.1/nodes/test/")
 }
 
+func (suite *TestServerSuite) TestSetVersionJSON(c *C) {
+	capabilities := `{"capabilities": ["networks-management","static-ipaddresses", "devices-management"]}`
+	suite.server.SetVersionJSON(capabilities)
+
+	url := fmt.Sprintf("/api/%s/version/", suite.server.version)
+	resp, err := http.Get(suite.server.Server.URL + url)
+	c.Assert(err, IsNil)
+	c.Check(resp.StatusCode, Equals, http.StatusOK)
+	content, err := readAndClose(resp.Body)
+	c.Assert(err, IsNil)
+	c.Assert(string(content), Equals, capabilities)
+}
+
 func (suite *TestServerSuite) TestInvalidOperationOnNodesIsBadRequest(c *C) {
 	badURL := getNodesEndpoint(suite.server.version) + "?op=procrastinate"
 
