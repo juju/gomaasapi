@@ -62,6 +62,18 @@ func (suite *TestServerSuite) TestSetVersionJSON(c *C) {
 	c.Assert(string(content), Equals, capabilities)
 }
 
+func (suite *TestServerSuite) TestNewDevice(c *C) {
+	devicesURL := fmt.Sprintf("/api/%s/devices/", suite.server.version) + "?op=new"
+
+	resp, err := http.Post(suite.server.Server.URL+devicesURL, "", nil)
+	c.Assert(err, IsNil)
+	c.Check(resp.StatusCode, Equals, http.StatusOK)
+	content, err := readAndClose(resp.Body)
+	c.Assert(err, IsNil)
+	_, err = Parse(Client{}, content)
+	c.Assert(err, IsNil)
+}
+
 func (suite *TestServerSuite) TestInvalidOperationOnNodesIsBadRequest(c *C) {
 	badURL := getNodesEndpoint(suite.server.version) + "?op=procrastinate"
 
