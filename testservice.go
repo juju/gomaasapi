@@ -490,9 +490,9 @@ func NewTestServer(version string) *TestServer {
 	server := &TestServer{version: version}
 
 	serveMux := http.NewServeMux()
-	devicesURL := getDevicesEndpoing(server.version)
+	devicesURL := getDevicesEndpoint(server.version)
 	// Register handler for '/api/<version>/devices/*'.
-	serverMux.HandleFunc(dvicesURL, devicesURL, func(w http.ResponseWriter, r *http.Request) {
+	serveMux.HandleFunc(devicesURL, func(w http.ResponseWriter, r *http.Request) {
 		devicesHandler(server, w, r)
 	})
 	nodesURL := getNodesEndpoint(server.version)
@@ -547,7 +547,7 @@ func devicesHandler(server *TestServer, w http.ResponseWriter, r *http.Request) 
 	values, err := url.ParseQuery(r.URL.RawQuery)
 	checkError(err)
 	op := values.Get("op")
-	deviceURLRE := getdeviceURLRE(server.version)
+	deviceURLRE := getDeviceURLRE(server.version)
 	deviceURLMatch := deviceURLRE.FindStringSubmatch(r.URL.Path)
 	devicesURL := getDevicesEndpoint(server.version)
 	switch {
@@ -590,7 +590,7 @@ func deviceHandler(server *TestServer, w http.ResponseWriter, r *http.Request, s
 			}
 
 			w.WriteHeader(http.StatusOK)
-			fmt.Fprint(w, marshalNode(node))
+			fmt.Fprint(w, marshalNode(device))
 			return
 		} else {
 			w.WriteHeader(http.StatusBadRequest)
