@@ -576,18 +576,41 @@ func devicesTopLevelHandler(server *TestServer, w http.ResponseWriter, r *http.R
 	}
 }
 
+func idMatches(systemId string, ids []string, hasId bool) bool {
+	if !hasId {
+		return true
+	}
+	return contains(ids, systemId)
+}
+
+func macMatches(device JSONObject, macs []string, hasMac bool) bool {
+	if !hasMac {
+		return true
+	}
+	return false
+}
+
+func hostnameMatches(device JSONObject, hostnames []string, hasHostname bool) bool {
+	if !hasHostname {
+		return true
+	}
+	return false
+}
+
 // deviceListingHandler handles requests for '/devices/'.
-func nodeListingHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
+func deviceListingHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
 	values, err := url.ParseQuery(r.URL.RawQuery)
 	checkError(err)
+	macs, hasMac := values["mac_address"]
+	hostnames, hasHostname := values["hostname"]
 	ids, hasId := values["id"]
-	var convertedNodes = []map[string]JSONObject{}
-	for systemId, node := range server.nodes {
-		if !hasId || contains(ids, systemId) {
-			convertedNodes = append(convertedNodes, node.GetMap())
+	var matchedDevices = []JSONObject{}
+	for systemId, device := range server.devices {
+		if idMatches(systemId, ids, hasId) && macMatches(device, macs, hasMac) && hostnameMatches(device, hostnames, hasHostname) {
+			matchedDevices = append(matchedDevices, device)
 		}
 	}
-	res, err := json.Marshal(convertedNodes)
+	res, err := json.Marshal(matchedDevices)
 	checkError(err)
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, string(res))
