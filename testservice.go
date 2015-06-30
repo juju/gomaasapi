@@ -542,7 +542,7 @@ func NewTestServer(version string) *TestServer {
 	return server
 }
 
-// devicesHandler handles requests for '/api/<version>/nodes/*'.
+// devicesHandler handles requests for '/api/<version>/devices/*'.
 func devicesHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
 	values, err := url.ParseQuery(r.URL.RawQuery)
 	checkError(err)
@@ -552,7 +552,7 @@ func devicesHandler(server *TestServer, w http.ResponseWriter, r *http.Request) 
 	devicesURL := getDevicesEndpoint(server.version)
 	switch {
 	case r.URL.Path == devicesURL:
-		nodesTopLevelHandler(server, w, r, op)
+		devicesTopLevelHandler(server, w, r, op)
 	case deviceURLMatch != nil:
 		// Request for a single device.
 		deviceHandler(server, w, r, deviceURLMatch[1], op)
@@ -560,6 +560,37 @@ func devicesHandler(server *TestServer, w http.ResponseWriter, r *http.Request) 
 		// Default handler: not found.
 		http.NotFoundHandler().ServeHTTP(w, r)
 	}
+}
+
+// devicesTopLevelHandler handles a request for /api/<version>/devices/
+// (with no device id following as part of the path).
+func devicesTopLevelHandler(server *TestServer, w http.ResponseWriter, r *http.Request, op string) {
+	switch {
+	case r.Method == "GET" && op == "list":
+		// Device listing operation.
+		deviceListingHandler(server, w, r)
+	case r.Method == "POST" && op == "new":
+		nodesAcquireHandler(server, w, r)
+	default:
+		w.WriteHeader(http.StatusBadRequest)
+	}
+}
+
+// deviceListingHandler handles requests for '/devices/'.
+func nodeListingHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
+	values, err := url.ParseQuery(r.URL.RawQuery)
+	checkError(err)
+	ids, hasId := values["id"]
+	var convertedNodes = []map[string]JSONObject{}
+	for systemId, node := range server.nodes {
+		if !hasId || contains(ids, systemId) {
+			convertedNodes = append(convertedNodes, node.GetMap())
+		}
+	}
+	res, err := json.Marshal(convertedNodes)
+	checkError(err)
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprint(w, string(res))
 }
 
 // deviceHandler handles requests for '/api/<version>/devices/<system_id>/'.
