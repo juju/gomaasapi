@@ -570,9 +570,10 @@ func deviceHandler(server *TestServer, w http.ResponseWriter, r *http.Request, s
 		return
 	}
 	if r.Method == "GET" {
-		if operation == "" {
+		deviceJSON, err := json.Marshal(device)
+		if operation == "" && err == nil {
 			w.WriteHeader(http.StatusOK)
-			fmt.Fprint(w, marshalNode(device))
+			fmt.Fprint(w, deviceJSON)
 			return
 		} else {
 			w.WriteHeader(http.StatusBadRequest)
@@ -589,8 +590,9 @@ func deviceHandler(server *TestServer, w http.ResponseWriter, r *http.Request, s
 				delete(server.OwnedNodes(), systemId)
 			}
 
+			deviceJSON, _ := json.Marshal(device)
 			w.WriteHeader(http.StatusOK)
-			fmt.Fprint(w, marshalNode(device))
+			fmt.Fprint(w, deviceJSON)
 			return
 		} else {
 			w.WriteHeader(http.StatusBadRequest)
