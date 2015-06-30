@@ -582,7 +582,7 @@ func deviceHandler(server *TestServer, w http.ResponseWriter, r *http.Request, s
 	}
 	if r.Method == "POST" {
 		// The only operations supported are "start", "stop" and "release".
-		if operation == "start" || operation == "stop" || operation == "release" {
+		if operation == "claim_sticky_ip_address" {
 			// Record operation on node.
 			server.addNodeOperation(systemId, operation, r)
 
@@ -600,7 +600,11 @@ func deviceHandler(server *TestServer, w http.ResponseWriter, r *http.Request, s
 		}
 	}
 	if r.Method == "DELETE" {
-		delete(server.nodes, systemId)
+		delete(server.devices, systemId)
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method == "PUT" {
 		w.WriteHeader(http.StatusOK)
 		return
 	}
