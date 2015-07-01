@@ -124,19 +124,22 @@ func (suite *TestServerSuite) TestNewDevice(c *C) {
 	c.Assert(suite.server.devices[systemId], DeepEquals, result)
 }
 
-func (suite *TestServerSuite) TestGetDevice(c *C) {
-	// create device
+func (suite *TestServerSuite) createDevice(c *C, mac, hostname, parent string) string {
 	devicesURL := fmt.Sprintf("/api/%s/devices/", suite.server.version) + "?op=new"
 	values := url.Values{}
-	values.Add("mac_addresses", "foo")
-	values.Add("hostname", "bar")
-	values.Add("parent", "baz")
+	values.Add("mac_addresses", mac)
+	values.Add("hostname", hostname)
+	values.Add("parent", parent)
 	result := suite.post(c, devicesURL, values)
 	resultMap, err := result.GetMap()
 	c.Assert(err, IsNil)
 	systemId, err := resultMap["system_id"].GetString()
 	c.Assert(err, IsNil)
+	return systemId
+}
 
+func (suite *TestServerSuite) TestGetDevice(c *C) {
+	systemId := suite.createDevice(c, "foo", "bar", "baz")
 	deviceURL := fmt.Sprintf("/api/%s/devices/%s/", suite.server.version, systemId)
 	resp, err := http.Get(suite.server.Server.URL + deviceURL)
 	c.Assert(err, IsNil)
