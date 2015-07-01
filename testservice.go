@@ -672,7 +672,8 @@ func newDeviceHandler(server *TestServer, w http.ResponseWriter, r *http.Request
 	}
 
 	deviceJSON := fmt.Sprintf(deviceTemplate, mac, server.version, parent, hostname, systemId, server.version, systemId)
-	json, _ := Parse(server.client, []byte(deviceJSON))
+	json, err := Parse(server.client, []byte(deviceJSON))
+	checkError(err)
 	server.devices[systemId] = json
 
 	w.WriteHeader(http.StatusOK)
@@ -688,7 +689,7 @@ func deviceHandler(server *TestServer, w http.ResponseWriter, r *http.Request, s
 		return
 	}
 	if r.Method == "GET" {
-		deviceJSON, err := json.Marshal(device)
+		deviceJSON, err := device.MarshalJSON()
 		if operation == "" && err == nil {
 			w.WriteHeader(http.StatusOK)
 			fmt.Fprint(w, deviceJSON)
