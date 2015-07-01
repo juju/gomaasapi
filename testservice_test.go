@@ -147,6 +147,7 @@ func (suite *TestServerSuite) TestGetDevice(c *C) {
 
 	content, err := readAndClose(resp.Body)
 	c.Assert(err, IsNil)
+
 	result, err := Parse(suite.server.client, content)
 	c.Assert(err, IsNil)
 

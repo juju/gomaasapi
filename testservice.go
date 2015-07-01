@@ -622,7 +622,7 @@ const (
 	deviceTemplate = `{
 	"macaddress_set": [
 	    {
-		"mac_address": "%v"
+		"mac_address": %q
 	    }
 	],
 	"zone": {
@@ -635,7 +635,7 @@ const (
 	"hostname": %q,
 	"tag_names": [],
 	"owner": "maas-admin",
-	"system_id": "%v",
+	"system_id": %q,
 	"resource_uri": "/MAAS/api/%v/devices/%v/"
 }`
 )
@@ -692,7 +692,7 @@ func deviceHandler(server *TestServer, w http.ResponseWriter, r *http.Request, s
 		deviceJSON, err := device.MarshalJSON()
 		if operation == "" && err == nil {
 			w.WriteHeader(http.StatusOK)
-			fmt.Fprint(w, deviceJSON)
+			fmt.Fprint(w, string(deviceJSON))
 			return
 		} else {
 			w.WriteHeader(http.StatusBadRequest)
