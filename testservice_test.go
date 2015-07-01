@@ -99,26 +99,20 @@ func (suite *TestServerSuite) TestNewDevice(c *C) {
 	macMap, err := macArray[0].GetMap()
 	c.Assert(err, IsNil)
 
-	mac, err := macMap["mac_address"].GetString()
-	c.Assert(err, IsNil)
+	mac := getString(c, macMap, "mac_address")
 	c.Assert(mac, Equals, "foo")
 
-	parent, err := resultMap["parent"].GetString()
-	c.Assert(err, IsNil)
+	parent := getString(c, resultMap, "parent")
 	c.Assert(parent, Equals, "baz")
-	hostname, err := resultMap["hostname"].GetString()
-	c.Assert(err, IsNil)
+	hostname := getString(c, resultMap, "hostname")
 	c.Assert(hostname, Equals, "bar")
 
 	addresses, err := resultMap["ip_addresses"].GetArray()
 	c.Assert(err, IsNil)
 	c.Assert(addresses, HasLen, 0)
 
-	systemId, err := resultMap["system_id"].GetString()
-	c.Assert(err, IsNil)
-
-	resourceURI, err := resultMap["resource_uri"].GetString()
-	c.Assert(err, IsNil)
+	systemId := getString(c, resultMap, "system_id")
+	resourceURI := getString(c, resultMap, "resource_uri")
 	c.Assert(resourceURI, Equals, fmt.Sprintf("/MAAS/api/%v/devices/%v/", suite.server.version, systemId))
 
 	c.Assert(suite.server.devices[systemId], DeepEquals, result)
@@ -138,12 +132,19 @@ func (suite *TestServerSuite) createDevice(c *C, mac, hostname, parent string) s
 	return systemId
 }
 
+func getString(c *C, object map[string]JSONObject, key string) string {
+	value, err := object[key].GetString()
+	c.Assert(err, IsNil)
+	return value
+}
+
 func (suite *TestServerSuite) TestGetDevice(c *C) {
 	systemId := suite.createDevice(c, "foo", "bar", "baz")
 	deviceURL := fmt.Sprintf("/api/%s/devices/%s/", suite.server.version, systemId)
 	resp, err := http.Get(suite.server.Server.URL + deviceURL)
 	c.Assert(err, IsNil)
 	c.Assert(resp.StatusCode, Equals, http.StatusOK)
+
 }
 
 func (suite *TestServerSuite) post(c *C, url string, values url.Values) JSONObject {
