@@ -65,13 +65,23 @@ func (suite *TestServerSuite) TestSetVersionJSON(c *C) {
 func (suite *TestServerSuite) TestNewDevice(c *C) {
 	devicesURL := fmt.Sprintf("/api/%s/devices/", suite.server.version) + "?op=new"
 
-	resp, err := http.Post(suite.server.Server.URL+devicesURL, "", nil)
+	values := url.Values{}
+	values.Add("mac_addresses", "foo")
+	values.Add("hostname", "bar")
+	values.Add("parent", "bam")
+	result := suite.post(c, devicesURL, values)
+	c.Assert(result, Equals, nil)
+}
+
+func (suite *TestServerSuite) post(c *C, url string, values url.Values) JSONObject {
+	resp, err := http.Post(suite.server.Server.URL+url, "application/x-www-form-urlencoded", strings.NewReader(values.Encode()))
 	c.Assert(err, IsNil)
 	c.Check(resp.StatusCode, Equals, http.StatusOK)
 	content, err := readAndClose(resp.Body)
 	c.Assert(err, IsNil)
-	_, err = Parse(Client{}, content)
+	result, err := Parse(Client{}, content)
 	c.Assert(err, IsNil)
+	return result
 }
 
 func (suite *TestServerSuite) TestInvalidOperationOnNodesIsBadRequest(c *C) {
