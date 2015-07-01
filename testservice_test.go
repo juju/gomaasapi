@@ -68,9 +68,16 @@ func (suite *TestServerSuite) TestNewDevice(c *C) {
 	values := url.Values{}
 	values.Add("mac_addresses", "foo")
 	values.Add("hostname", "bar")
-	values.Add("parent", "bam")
+	values.Add("parent", "baz")
 	result := suite.post(c, devicesURL, values)
-	c.Assert(result, Equals, nil)
+
+	resultMap, err := result.GetMap()
+	c.Assert(err, IsNil)
+
+	macMap, err := resultMap["macaddress_set"].GetMap()
+	c.Assert(err, IsNil)
+
+	c.Assert(macMap["mac_address"], Equals, "foo")
 }
 
 func (suite *TestServerSuite) post(c *C, url string, values url.Values) JSONObject {
@@ -79,7 +86,7 @@ func (suite *TestServerSuite) post(c *C, url string, values url.Values) JSONObje
 	c.Check(resp.StatusCode, Equals, http.StatusOK)
 	content, err := readAndClose(resp.Body)
 	c.Assert(err, IsNil)
-	result, err := Parse(Client{}, content)
+	result, err := Parse(suite.server.client, content)
 	c.Assert(err, IsNil)
 	return result
 }

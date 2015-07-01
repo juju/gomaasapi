@@ -570,7 +570,7 @@ func devicesTopLevelHandler(server *TestServer, w http.ResponseWriter, r *http.R
 		// Device listing operation.
 		deviceListingHandler(server, w, r)
 	case r.Method == "POST" && op == "new":
-		nodesAcquireHandler(server, w, r)
+		newDeviceHandler(server, w, r)
 	default:
 		w.WriteHeader(http.StatusBadRequest)
 	}
@@ -614,6 +614,66 @@ func deviceListingHandler(server *TestServer, w http.ResponseWriter, r *http.Req
 	checkError(err)
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, string(res))
+}
+
+const (
+	// The json template for generating new devices.
+	// TODO(mfoord): set resource_uri in MAC addresses
+	deviceTemplate = `{
+	"macaddress_set": [
+	    {
+		"mac_address": "%v"
+	    }
+	],
+	"zone": {
+	    "resource_uri": "/MAAS/api/%v/zones/default/",
+	    "name": "default",
+	    "description": ""
+	},
+	"parent": %q,
+	"ip_addresses": [],
+	"hostname": %q,
+	"tag_names": [],
+	"owner": "maas-admin",
+	"system_id": "%v",
+	"resource_uri": "/MAAS/api/%v/devices/%v/"
+}`
+)
+
+func getValue(values url.Values, value string) (string, bool) {
+	result, hasResult := values[value]
+	if !hasResult || len(result) != 1 || result[0] == "" {
+		return "", false
+	}
+	return result[0], true
+}
+
+// newDeviceHandler creates, stores and returns new devices.
+func newDeviceHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
+	values, err := url.ParseQuery(r.URL.RawQuery)
+	checkError(err)
+
+	systemId := "baz"
+	// At least one MAC address must be specified, we only support one in
+	// the test server.
+	mac, hasMac := getValue(values, "mac_addresses")
+
+	// hostname and parent are optional, we require both to be set in the
+	// test server.
+	hostname, hasHostname := getValue(values, "hostname")
+	parent, hasParent := getValue(values, "parent")
+	if !hasHostname || !hasMac || !hasParent {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	deviceJSON := fmt.Sprintf(deviceTemplate, mac, server.version, parent, hostname, systemId, server.version, systemId)
+	json, _ := Parse(server.client, []byte(deviceJSON))
+	server.devices[systemId] = json
+
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprint(w, deviceJSON)
+	return
 }
 
 // deviceHandler handles requests for '/api/<version>/devices/<system_id>/'.
