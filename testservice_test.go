@@ -124,6 +124,25 @@ func (suite *TestServerSuite) TestNewDevice(c *C) {
 	c.Assert(suite.server.devices[systemId], DeepEquals, result)
 }
 
+func (suite *TestServerSuite) TestGetDevice(c *C) {
+	// create device
+	devicesURL := fmt.Sprintf("/api/%s/devices/", suite.server.version) + "?op=new"
+	values := url.Values{}
+	values.Add("mac_addresses", "foo")
+	values.Add("hostname", "bar")
+	values.Add("parent", "baz")
+	result := suite.post(c, devicesURL, values)
+	resultMap, err := result.GetMap()
+	c.Assert(err, IsNil)
+	systemId, err := resultMap["system_id"].GetString()
+	c.Assert(err, IsNil)
+
+	deviceURL := fmt.Sprintf("/api/%s/devices/%s/", suite.server.version, systemId)
+	resp, err := http.Get(suite.server.Server.URL + deviceURL)
+	c.Assert(err, IsNil)
+	c.Assert(resp.StatusCode, Equals, http.StatusOK)
+}
+
 func (suite *TestServerSuite) post(c *C, url string, values url.Values) JSONObject {
 	resp, err := http.Post(suite.server.Server.URL+url, "application/x-www-form-urlencoded", strings.NewReader(values.Encode()))
 	c.Assert(err, IsNil)
