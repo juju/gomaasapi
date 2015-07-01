@@ -654,7 +654,10 @@ func newDeviceHandler(server *TestServer, w http.ResponseWriter, r *http.Request
 	checkError(err)
 	values := r.PostForm
 
-	systemId := "baz"
+	// TODO(mfood): generate a "proper" uuid for the system Id.
+	uuid, err := generateNonce()
+	checkError(err)
+	systemId := fmt.Sprintf("node-%v", uuid)
 	// At least one MAC address must be specified, we only support one in
 	// the test server.
 	mac, hasMac := getValue(values, "mac_addresses")

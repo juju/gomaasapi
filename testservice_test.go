@@ -102,6 +102,10 @@ func (suite *TestServerSuite) TestNewDevice(c *C) {
 	mac, err := macMap["mac_address"].GetString()
 	c.Assert(err, IsNil)
 	c.Assert(mac, Equals, "foo")
+
+	systemId, err := resultMap["system_id"].GetString()
+
+	c.Assert(suite.server.devices[systemId], DeepEquals, result)
 }
 
 func (suite *TestServerSuite) post(c *C, url string, values url.Values) JSONObject {
