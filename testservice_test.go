@@ -62,6 +62,25 @@ func (suite *TestServerSuite) TestSetVersionJSON(c *C) {
 	c.Assert(string(content), Equals, capabilities)
 }
 
+func (suite *TestServerSuite) TestNewDeviceRequiredParameters(c *C) {
+	devicesURL := fmt.Sprintf("/api/%s/devices/", suite.server.version) + "?op=new"
+	values := url.Values{}
+	values.Add("mac_addresses", "foo")
+	values.Add("hostname", "bar")
+	post := func(values url.Values) int {
+		resp, err := http.Post(suite.server.Server.URL+devicesURL, "application/x-www-form-urlencoded", strings.NewReader(values.Encode()))
+		c.Assert(err, IsNil)
+		return resp.StatusCode
+	}
+	c.Check(post(values), Equals, http.StatusBadRequest)
+	values.Del("hostname")
+	values.Add("parent", "baz")
+	c.Check(post(values), Equals, http.StatusBadRequest)
+	values.Del("mac_addresses")
+	values.Add("hostname", "bam")
+	c.Check(post(values), Equals, http.StatusBadRequest)
+}
+
 func (suite *TestServerSuite) TestNewDevice(c *C) {
 	devicesURL := fmt.Sprintf("/api/%s/devices/", suite.server.version) + "?op=new"
 
