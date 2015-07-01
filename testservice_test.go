@@ -103,7 +103,23 @@ func (suite *TestServerSuite) TestNewDevice(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(mac, Equals, "foo")
 
+	parent, err := resultMap["parent"].GetString()
+	c.Assert(err, IsNil)
+	c.Assert(parent, Equals, "baz")
+	hostname, err := resultMap["hostname"].GetString()
+	c.Assert(err, IsNil)
+	c.Assert(hostname, Equals, "bar")
+
+	addresses, err := resultMap["ip_addresses"].GetArray()
+	c.Assert(err, IsNil)
+	c.Assert(addresses, HasLen, 0)
+
 	systemId, err := resultMap["system_id"].GetString()
+	c.Assert(err, IsNil)
+
+	resourceURI, err := resultMap["resource_uri"].GetString()
+	c.Assert(err, IsNil)
+	c.Assert(resourceURI, Equals, fmt.Sprintf("/MAAS/api/%v/devices/%v/", suite.server.version, systemId))
 
 	c.Assert(suite.server.devices[systemId], DeepEquals, result)
 }
