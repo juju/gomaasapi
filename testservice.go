@@ -650,8 +650,9 @@ func getValue(values url.Values, value string) (string, bool) {
 
 // newDeviceHandler creates, stores and returns new devices.
 func newDeviceHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
-	values, err := url.ParseQuery(r.URL.RawQuery)
+	err := r.ParseForm()
 	checkError(err)
+	values := r.PostForm
 
 	systemId := "baz"
 	// At least one MAC address must be specified, we only support one in

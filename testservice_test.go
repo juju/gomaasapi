@@ -74,10 +74,15 @@ func (suite *TestServerSuite) TestNewDevice(c *C) {
 	resultMap, err := result.GetMap()
 	c.Assert(err, IsNil)
 
-	macMap, err := resultMap["macaddress_set"].GetMap()
+	macArray, err := resultMap["macaddress_set"].GetArray()
+	c.Assert(err, IsNil)
+	c.Assert(macArray, HasLen, 1)
+	macMap, err := macArray[0].GetMap()
 	c.Assert(err, IsNil)
 
-	c.Assert(macMap["mac_address"], Equals, "foo")
+	mac, err := macMap["mac_address"].GetString()
+	c.Assert(err, IsNil)
+	c.Assert(mac, Equals, "foo")
 }
 
 func (suite *TestServerSuite) post(c *C, url string, values url.Values) JSONObject {
