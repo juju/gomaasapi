@@ -174,8 +174,6 @@ func (suite *TestServerSuite) TestNewDevice(c *C) {
 	systemId := getString(c, resultMap, "system_id")
 	resourceURI := getString(c, resultMap, "resource_uri")
 	c.Assert(resourceURI, Equals, fmt.Sprintf("/MAAS/api/%v/devices/%v/", suite.server.version, systemId))
-
-	c.Assert(suite.server.devices[systemId], DeepEquals, result)
 }
 
 func (suite *TestServerSuite) TestGetDevice(c *C) {
