@@ -718,7 +718,7 @@ func deviceHandler(server *TestServer, w http.ResponseWriter, r *http.Request, s
 			_ = fmt.Sprintf("%v %v", address, deviceMap)
 			deviceJSON, _ := json.Marshal(device)
 			w.WriteHeader(http.StatusOK)
-			fmt.Fprint(w, deviceJSON)
+			fmt.Fprint(w, string(deviceJSON))
 			return
 		} else {
 			w.WriteHeader(http.StatusBadRequest)
