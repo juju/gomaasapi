@@ -237,6 +237,28 @@ func (suite *TestServerSuite) TestDevicesListMacFiltering(c *C) {
 	checkDevice(c, deviceMap, "foo", "bar", "baz")
 }
 
+func (suite *TestServerSuite) TestDeviceClaimStickyIPRequiresAddress(c *C) {
+	systemId := suite.createDevice(c, "foo", "bar", "baz")
+	op := "?op=claim_sticky_ip_address"
+	deviceURL := fmt.Sprintf("/api/%s/devices/%s/%s", suite.server.version, systemId, op)
+	values := url.Values{}
+	resp, err := http.Post(suite.server.Server.URL+deviceURL, "application/x-www-form-urlencoded", strings.NewReader(values.Encode()))
+	c.Assert(err, IsNil)
+	c.Assert(resp.StatusCode, Equals, http.StatusBadRequest)
+}
+
+func (suite *TestServerSuite) TestDeviceClaimStickyIP(c *C) {
+	systemId := suite.createDevice(c, "foo", "bar", "baz")
+	op := "?op=claim_sticky_ip_address"
+	deviceURL := fmt.Sprintf("/api/%s/devices/%s/", suite.server.version, systemId)
+	values := url.Values{}
+	values.Add("requested_address", "127.0.0.1")
+	_ = suite.post(c, deviceURL+op, values)
+
+	_ = suite.get(c, deviceURL)
+
+}
+
 func (suite *TestServerSuite) TestInvalidOperationOnNodesIsBadRequest(c *C) {
 	badURL := getNodesEndpoint(suite.server.version) + "?op=procrastinate"
 

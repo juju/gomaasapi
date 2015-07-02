@@ -704,7 +704,18 @@ func deviceHandler(server *TestServer, w http.ResponseWriter, r *http.Request, s
 	}
 	if r.Method == "POST" {
 		if operation == "claim_sticky_ip_address" {
-			// XXX needs implementing
+			err := r.ParseForm()
+			checkError(err)
+			values := r.PostForm
+			// TODO(mfoord): support optional mac_address parameter
+			address, hasAddress := values["requested_address"]
+			if !hasAddress {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			deviceMap, err := device.GetMap()
+			checkError(err)
+			_ = fmt.Sprintf("%v %v", address, deviceMap)
 			deviceJSON, _ := json.Marshal(device)
 			w.WriteHeader(http.StatusOK)
 			fmt.Fprint(w, deviceJSON)
