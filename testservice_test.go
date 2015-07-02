@@ -141,16 +141,8 @@ func getString(c *C, object map[string]JSONObject, key string) string {
 func (suite *TestServerSuite) TestGetDevice(c *C) {
 	systemId := suite.createDevice(c, "foo", "bar", "baz")
 	deviceURL := fmt.Sprintf("/api/%v/devices/%v/", suite.server.version, systemId)
-	resp, err := http.Get(suite.server.Server.URL + deviceURL)
-	c.Assert(err, IsNil)
-	c.Assert(resp.StatusCode, Equals, http.StatusOK)
 
-	content, err := readAndClose(resp.Body)
-	c.Assert(err, IsNil)
-
-	result, err := Parse(suite.server.client, content)
-	c.Assert(err, IsNil)
-
+	result := suite.get(c, deviceURL)
 	resultMap, err := result.GetMap()
 	c.Assert(err, IsNil)
 
@@ -180,7 +172,31 @@ func (suite *TestServerSuite) post(c *C, url string, values url.Values) JSONObje
 	return result
 }
 
+func (suite *TestServerSuite) get(c *C, url string) JSONObject {
+	resp, err := http.Get(suite.server.Server.URL + url)
+	c.Assert(err, IsNil)
+	c.Assert(resp.StatusCode, Equals, http.StatusOK)
+
+	content, err := readAndClose(resp.Body)
+	c.Assert(err, IsNil)
+
+	result, err := Parse(suite.server.client, content)
+	c.Assert(err, IsNil)
+	return result
+}
+
 func (suite *TestServerSuite) TestDevicesList(c *C) {
+	firstId := suite.createDevice(c, "foo", "bar", "baz")
+	c.Assert(firstId, Not(Equals), nil)
+	secondId := suite.createDevice(c, "bam", "bing", "bong")
+	c.Assert(secondId, Not(Equals), nil)
+
+	devicesURL := fmt.Sprintf("/api/%s/devices/", suite.server.version) + "?op=list"
+	result := suite.get(c, devicesURL)
+
+	devicesArray, err := result.GetArray()
+	c.Assert(err, IsNil)
+	c.Assert(devicesArray, HasLen, 2)
 }
 
 func (suite *TestServerSuite) TestInvalidOperationOnNodesIsBadRequest(c *C) {
