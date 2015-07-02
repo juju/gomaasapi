@@ -747,7 +747,7 @@ func deviceHandler(server *TestServer, w http.ResponseWriter, r *http.Request, s
 		}
 	} else if r.Method == "DELETE" {
 		delete(server.devices, systemId)
-		w.WriteHeader(http.StatusOK)
+		w.WriteHeader(http.StatusNoContent)
 		return
 
 	}

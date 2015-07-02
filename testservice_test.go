@@ -263,6 +263,20 @@ func (suite *TestServerSuite) TestDeviceClaimStickyIP(c *C) {
 	c.Assert(address, Equals, "127.0.0.1")
 }
 
+func (suite *TestServerSuite) TestDeleteDevice(c *C) {
+	systemId := suite.createDevice(c, "foo", "bar", "baz")
+	deviceURL := fmt.Sprintf("/api/%s/devices/%s/", suite.server.version, systemId)
+	req, err := http.NewRequest("DELETE", suite.server.Server.URL+deviceURL, nil)
+	c.Assert(err, IsNil)
+	resp, err := http.DefaultClient.Do(req)
+	c.Assert(err, IsNil)
+	c.Assert(resp.StatusCode, Equals, http.StatusNoContent)
+
+	resp, err = http.Get(suite.server.Server.URL + deviceURL)
+	c.Assert(err, IsNil)
+	c.Assert(resp.StatusCode, Equals, http.StatusNotFound)
+}
+
 func (suite *TestServerSuite) TestInvalidOperationOnNodesIsBadRequest(c *C) {
 	badURL := getNodesEndpoint(suite.server.version) + "?op=procrastinate"
 
