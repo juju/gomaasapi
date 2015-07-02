@@ -225,7 +225,7 @@ func (suite *TestServerSuite) TestDevicesListMacFiltering(c *C) {
 	secondId := suite.createDevice(c, "bam", "bing", "bong")
 	c.Assert(secondId, Not(Equals), "")
 
-	op := fmt.Sprintf("?op=list&mac_address=%v", firstId)
+	op := fmt.Sprintf("?op=list&mac_address=%v", "foo")
 	devicesURL := fmt.Sprintf("/api/%s/devices/", suite.server.version) + op
 	result := suite.get(c, devicesURL)
 
