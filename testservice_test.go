@@ -180,6 +180,9 @@ func (suite *TestServerSuite) post(c *C, url string, values url.Values) JSONObje
 	return result
 }
 
+func (suite *TestServerSuite) TestDevicesList(c *C) {
+}
+
 func (suite *TestServerSuite) TestInvalidOperationOnNodesIsBadRequest(c *C) {
 	badURL := getNodesEndpoint(suite.server.version) + "?op=procrastinate"
 

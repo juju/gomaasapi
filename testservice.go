@@ -576,23 +576,27 @@ func devicesTopLevelHandler(server *TestServer, w http.ResponseWriter, r *http.R
 	}
 }
 
-func idMatches(systemId string, ids []string, hasId bool) bool {
-	if !hasId {
-		return true
-	}
-	return contains(ids, systemId)
-}
-
 func macMatches(device JSONObject, macs []string, hasMac bool) bool {
 	if !hasMac {
 		return true
 	}
-	return false
-}
-
-func hostnameMatches(device JSONObject, hostnames []string, hasHostname bool) bool {
-	if !hasHostname {
-		return true
+	deviceMap, err := device.GetMap()
+	checkError(err)
+	macArray, err := deviceMap["macaddress_set"].GetArray()
+	checkError(err)
+	if len(macArray) == 0 {
+		// Shouldn't be possible, every device is created with 1 MAC in
+		// this test server.
+		return false
+	}
+	for _, macObj := range macArray {
+		macMap, err := macObj.GetMap()
+		checkError(err)
+		mac, err := macMap["mac_address"].GetString()
+		checkError(err)
+		if contains(macs, mac) {
+			return true
+		}
 	}
 	return false
 }
@@ -601,12 +605,11 @@ func hostnameMatches(device JSONObject, hostnames []string, hasHostname bool) bo
 func deviceListingHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
 	values, err := url.ParseQuery(r.URL.RawQuery)
 	checkError(err)
+	// TODO(mfoord): support filtering by hostname and id
 	macs, hasMac := values["mac_address"]
-	hostnames, hasHostname := values["hostname"]
-	ids, hasId := values["id"]
 	var matchedDevices = []JSONObject{}
-	for systemId, device := range server.devices {
-		if idMatches(systemId, ids, hasId) && macMatches(device, macs, hasMac) && hostnameMatches(device, hostnames, hasHostname) {
+	for _, device := range server.devices {
+		if macMatches(device, macs, hasMac) {
 			matchedDevices = append(matchedDevices, device)
 		}
 	}
@@ -700,15 +703,8 @@ func deviceHandler(server *TestServer, w http.ResponseWriter, r *http.Request, s
 		}
 	}
 	if r.Method == "POST" {
-		// The only operations supported are "start", "stop" and "release".
 		if operation == "claim_sticky_ip_address" {
-			// Record operation on node.
-			server.addNodeOperation(systemId, operation, r)
-
-			if operation == "release" {
-				delete(server.OwnedNodes(), systemId)
-			}
-
+			// XXX needs implementing
 			deviceJSON, _ := json.Marshal(device)
 			w.WriteHeader(http.StatusOK)
 			fmt.Fprint(w, deviceJSON)
@@ -718,15 +714,7 @@ func deviceHandler(server *TestServer, w http.ResponseWriter, r *http.Request, s
 			return
 		}
 	}
-	if r.Method == "DELETE" {
-		delete(server.devices, systemId)
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-	if r.Method == "PUT" {
-		w.WriteHeader(http.StatusOK)
-		return
-	}
+	// TODO(mfoord): support DELETE and PUT methods
 	http.NotFoundHandler().ServeHTTP(w, r)
 }
 
