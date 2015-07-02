@@ -253,10 +253,16 @@ func (suite *TestServerSuite) TestDeviceClaimStickyIP(c *C) {
 	deviceURL := fmt.Sprintf("/api/%s/devices/%s/", suite.server.version, systemId)
 	values := url.Values{}
 	values.Add("requested_address", "127.0.0.1")
-	_ = suite.post(c, deviceURL+op, values)
+	result := suite.post(c, deviceURL+op, values)
+	resultMap, err := result.GetMap()
+	c.Assert(err, IsNil)
 
-	_ = suite.get(c, deviceURL)
-
+	addresses, err := resultMap["ip_addresses"].GetArray()
+	c.Assert(err, IsNil)
+	c.Assert(addresses, HasLen, 1)
+	address, err := addresses[0].GetString()
+	c.Assert(err, IsNil)
+	c.Assert(address, Equals, "127.0.0.1")
 }
 
 func (suite *TestServerSuite) TestInvalidOperationOnNodesIsBadRequest(c *C) {
