@@ -661,12 +661,12 @@ func newDeviceHandler(server *TestServer, w http.ResponseWriter, r *http.Request
 	uuid, err := generateNonce()
 	checkError(err)
 	systemId := fmt.Sprintf("node-%v", uuid)
-	// At least one MAC address must be specified, we only support one in
-	// the test server.
+	// At least one MAC address must be specified.
+	// TODO(mfoord) we only support a single MAC in the test server.
 	mac, hasMac := getValue(values, "mac_addresses")
 
-	// hostname and parent are optional, we require both to be set in the
-	// test server.
+	// hostname and parent are optional.
+	// TODO(mfoord): we require both to be set in the test server.
 	hostname, hasHostname := getValue(values, "hostname")
 	parent, hasParent := getValue(values, "parent")
 	if !hasHostname || !hasMac || !hasParent {
