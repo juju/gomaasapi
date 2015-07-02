@@ -187,9 +187,9 @@ func (suite *TestServerSuite) get(c *C, url string) JSONObject {
 
 func (suite *TestServerSuite) TestDevicesList(c *C) {
 	firstId := suite.createDevice(c, "foo", "bar", "baz")
-	c.Assert(firstId, Not(Equals), nil)
+	c.Assert(firstId, Not(Equals), "")
 	secondId := suite.createDevice(c, "bam", "bing", "bong")
-	c.Assert(secondId, Not(Equals), nil)
+	c.Assert(secondId, Not(Equals), "")
 
 	devicesURL := fmt.Sprintf("/api/%s/devices/", suite.server.version) + "?op=list"
 	result := suite.get(c, devicesURL)
@@ -197,6 +197,36 @@ func (suite *TestServerSuite) TestDevicesList(c *C) {
 	devicesArray, err := result.GetArray()
 	c.Assert(err, IsNil)
 	c.Assert(devicesArray, HasLen, 2)
+
+	checkDevice := func(device map[string]JSONObject, mac, hostname, parent string) {
+		macArray, err := device["macaddress_set"].GetArray()
+		c.Assert(err, IsNil)
+		c.Assert(macArray, HasLen, 1)
+		macMap, err := macArray[0].GetMap()
+		c.Assert(err, IsNil)
+
+		actualMac := getString(c, macMap, "mac_address")
+		c.Assert(actualMac, Equals, mac)
+
+		actualParent := getString(c, device, "parent")
+		c.Assert(actualParent, Equals, parent)
+		actualHostname := getString(c, device, "hostname")
+		c.Assert(actualHostname, Equals, hostname)
+	}
+	for _, device := range devicesArray {
+		deviceMap, err := device.GetMap()
+		c.Assert(err, IsNil)
+		systemId, err := deviceMap["system_id"].GetString()
+		c.Assert(err, IsNil)
+		switch systemId {
+		case firstId:
+			checkDevice(deviceMap, "foo", "bar", "baz")
+		case secondId:
+			checkDevice(deviceMap, "bam", "bing", "bong")
+		default:
+			c.Fatalf("unknown system id %q", systemId)
+		}
+	}
 }
 
 func (suite *TestServerSuite) TestInvalidOperationOnNodesIsBadRequest(c *C) {
