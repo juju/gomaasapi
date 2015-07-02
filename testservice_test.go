@@ -225,12 +225,16 @@ func (suite *TestServerSuite) TestDevicesListMacFiltering(c *C) {
 	secondId := suite.createDevice(c, "bam", "bing", "bong")
 	c.Assert(secondId, Not(Equals), "")
 
-	devicesURL := fmt.Sprintf("/api/%s/devices/", suite.server.version) + "?op=list"
+	op := fmt.Sprintf("?op=list&mac_address=%v", firstId)
+	devicesURL := fmt.Sprintf("/api/%s/devices/", suite.server.version) + op
 	result := suite.get(c, devicesURL)
 
 	devicesArray, err := result.GetArray()
 	c.Assert(err, IsNil)
 	c.Assert(devicesArray, HasLen, 1)
+	deviceMap, err := devicesArray[0].GetMap()
+	c.Assert(err, IsNil)
+	checkDevice(c, deviceMap, "foo", "bar", "baz")
 }
 
 func (suite *TestServerSuite) TestInvalidOperationOnNodesIsBadRequest(c *C) {
