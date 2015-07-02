@@ -745,7 +745,13 @@ func deviceHandler(server *TestServer, w http.ResponseWriter, r *http.Request, s
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
+	} else if r.Method == "DELETE" {
+		delete(server.devices, systemId)
+		w.WriteHeader(http.StatusOK)
+		return
+
 	}
+
 	// TODO(mfoord): support DELETE and PUT methods
 	http.NotFoundHandler().ServeHTTP(w, r)
 }
