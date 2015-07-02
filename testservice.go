@@ -730,6 +730,8 @@ func deviceHandler(server *TestServer, w http.ResponseWriter, r *http.Request, s
 			checkError(err)
 			values := r.PostForm
 			// TODO(mfoord): support optional mac_address parameter
+			// TODO(mfoord): requested_address should be optional
+			// and we should generate one if it isn't provided.
 			address, hasAddress := getValue(values, "requested_address")
 			if !hasAddress {
 				w.WriteHeader(http.StatusBadRequest)
@@ -752,7 +754,7 @@ func deviceHandler(server *TestServer, w http.ResponseWriter, r *http.Request, s
 
 	}
 
-	// TODO(mfoord): support DELETE and PUT methods
+	// TODO(mfoord): support PUT method for updating device
 	http.NotFoundHandler().ServeHTTP(w, r)
 }
 
