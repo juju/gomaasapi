@@ -5,6 +5,7 @@ package gomaasapi
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -18,6 +19,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 
 	"gopkg.in/mgo.v2/bson"
@@ -85,6 +87,24 @@ type TestServer struct {
 	// nodegroupsInterfaces is a map of nodegroup UUIDs to interface
 	// objects.
 	nodegroupsInterfaces map[string][]JSONObject
+
+	// versionJSON is the response to the /version/ endpoint listing the
+	// capabilities of the MAAS server.
+	versionJSON string
+
+	// devices is a map of device UUIDs to devices.
+	devices map[string]*device
+}
+
+type device struct {
+	IPAddresses []string
+	SystemId    string
+	MACAddress  string
+	Parent      string
+	Hostname    string
+
+	// Not part of the device definition but used by the template.
+	APIVersion string
 }
 
 func getNodesEndpoint(version string) string {
@@ -97,6 +117,19 @@ func getNodeURL(version, systemId string) string {
 
 func getNodeURLRE(version string) *regexp.Regexp {
 	reString := fmt.Sprintf("^/api/%s/nodes/([^/]*)/$", regexp.QuoteMeta(version))
+	return regexp.MustCompile(reString)
+}
+
+func getDevicesEndpoint(version string) string {
+	return fmt.Sprintf("/api/%s/devices/", version)
+}
+
+func getDeviceURL(version, systemId string) string {
+	return fmt.Sprintf("/api/%s/devices/%s/", version, systemId)
+}
+
+func getDeviceURLRE(version string) *regexp.Regexp {
+	reString := fmt.Sprintf("^/api/%s/devices/([^/]*)/$", regexp.QuoteMeta(version))
 	return regexp.MustCompile(reString)
 }
 
@@ -141,10 +174,6 @@ func getVersionURL(version string) string {
 	return fmt.Sprintf("/api/%s/version/", version)
 }
 
-func getVersionJSON() string {
-	return `{"capabilities": ["networks-management","static-ipaddresses"]}`
-}
-
 func getNodegroupsEndpoint(version string) string {
 	return fmt.Sprintf("/api/%s/nodegroups/", version)
 }
@@ -185,6 +214,14 @@ func (server *TestServer) Clear() {
 	server.bootImages = make(map[string][]JSONObject)
 	server.nodegroupsInterfaces = make(map[string][]JSONObject)
 	server.zones = make(map[string]JSONObject)
+	server.versionJSON = `{"capabilities": ["networks-management","static-ipaddresses"]}`
+	server.devices = make(map[string]*device)
+}
+
+// SetVersionJSON sets the JSON response (capabilities) returned from the
+// /version/ endpoint.
+func (server *TestServer) SetVersionJSON(json string) {
+	server.versionJSON = json
 }
 
 // NodesOperations returns the list of operations performed at the /nodes/
@@ -466,6 +503,11 @@ func NewTestServer(version string) *TestServer {
 	server := &TestServer{version: version}
 
 	serveMux := http.NewServeMux()
+	devicesURL := getDevicesEndpoint(server.version)
+	// Register handler for '/api/<version>/devices/*'.
+	serveMux.HandleFunc(devicesURL, func(w http.ResponseWriter, r *http.Request) {
+		devicesHandler(server, w, r)
+	})
 	nodesURL := getNodesEndpoint(server.version)
 	// Register handler for '/api/<version>/nodes/*'.
 	serveMux.HandleFunc(nodesURL, func(w http.ResponseWriter, r *http.Request) {
@@ -511,6 +553,209 @@ func NewTestServer(version string) *TestServer {
 	server.client = *client
 	server.Clear()
 	return server
+}
+
+// devicesHandler handles requests for '/api/<version>/devices/*'.
+func devicesHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
+	values, err := url.ParseQuery(r.URL.RawQuery)
+	checkError(err)
+	op := values.Get("op")
+	deviceURLRE := getDeviceURLRE(server.version)
+	deviceURLMatch := deviceURLRE.FindStringSubmatch(r.URL.Path)
+	devicesURL := getDevicesEndpoint(server.version)
+	switch {
+	case r.URL.Path == devicesURL:
+		devicesTopLevelHandler(server, w, r, op)
+	case deviceURLMatch != nil:
+		// Request for a single device.
+		deviceHandler(server, w, r, deviceURLMatch[1], op)
+	default:
+		// Default handler: not found.
+		http.NotFoundHandler().ServeHTTP(w, r)
+	}
+}
+
+// devicesTopLevelHandler handles a request for /api/<version>/devices/
+// (with no device id following as part of the path).
+func devicesTopLevelHandler(server *TestServer, w http.ResponseWriter, r *http.Request, op string) {
+	switch {
+	case r.Method == "GET" && op == "list":
+		// Device listing operation.
+		deviceListingHandler(server, w, r)
+	case r.Method == "POST" && op == "new":
+		newDeviceHandler(server, w, r)
+	default:
+		w.WriteHeader(http.StatusBadRequest)
+	}
+}
+
+func macMatches(device *device, macs []string, hasMac bool) bool {
+	if !hasMac {
+		return true
+	}
+	return contains(macs, device.MACAddress)
+}
+
+// deviceListingHandler handles requests for '/devices/'.
+func deviceListingHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
+	values, err := url.ParseQuery(r.URL.RawQuery)
+	checkError(err)
+	// TODO(mfoord): support filtering by hostname and id
+	macs, hasMac := values["mac_address"]
+	var matchedDevices []string
+	for _, device := range server.devices {
+		if macMatches(device, macs, hasMac) {
+			matchedDevices = append(matchedDevices, renderDevice(device))
+		}
+	}
+	json := fmt.Sprintf("[%v]", strings.Join(matchedDevices, ", "))
+
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprint(w, json)
+}
+
+var templateFuncs = template.FuncMap{
+	"quotedList": func(items []string) string {
+		var pieces []string
+		for _, item := range items {
+			pieces = append(pieces, fmt.Sprintf("%q", item))
+		}
+		return strings.Join(pieces, ", ")
+	},
+}
+
+const (
+	// The json template for generating new devices.
+	// TODO(mfoord): set resource_uri in MAC addresses
+	deviceTemplate = `{
+	"macaddress_set": [
+	    {
+		"mac_address": "{{.MACAddress}}"
+	    }
+	],
+	"zone": {
+	    "resource_uri": "/MAAS/api/{{.APIVersion}}/zones/default/",
+	    "name": "default",
+	    "description": ""
+	},
+	"parent": "{{.Parent}}",
+	"ip_addresses": [{{.IPAddresses | quotedList }}],
+	"hostname": "{{.Hostname}}",
+	"tag_names": [],
+	"owner": "maas-admin",
+	"system_id": "{{.SystemId}}",
+	"resource_uri": "/MAAS/api/{{.APIVersion}}/devices/{{.SystemId}}/"
+}`
+)
+
+func renderDevice(device *device) string {
+	t := template.New("Device template")
+	t = t.Funcs(templateFuncs)
+	t, err := t.Parse(deviceTemplate)
+	checkError(err)
+	var buf bytes.Buffer
+	err = t.Execute(&buf, device)
+	checkError(err)
+	return buf.String()
+}
+
+func getValue(values url.Values, value string) (string, bool) {
+	result, hasResult := values[value]
+	if !hasResult || len(result) != 1 || result[0] == "" {
+		return "", false
+	}
+	return result[0], true
+}
+
+// newDeviceHandler creates, stores and returns new devices.
+func newDeviceHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	checkError(err)
+	values := r.PostForm
+
+	// TODO(mfood): generate a "proper" uuid for the system Id.
+	uuid, err := generateNonce()
+	checkError(err)
+	systemId := fmt.Sprintf("node-%v", uuid)
+	// At least one MAC address must be specified.
+	// TODO(mfoord) we only support a single MAC in the test server.
+	mac, hasMac := getValue(values, "mac_addresses")
+
+	// hostname and parent are optional.
+	// TODO(mfoord): we require both to be set in the test server.
+	hostname, hasHostname := getValue(values, "hostname")
+	parent, hasParent := getValue(values, "parent")
+	if !hasHostname || !hasMac || !hasParent {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	device := &device{
+		MACAddress: mac,
+		APIVersion: server.version,
+		Parent:     parent,
+		Hostname:   hostname,
+		SystemId:   systemId,
+	}
+
+	deviceJSON := renderDevice(device)
+	server.devices[systemId] = device
+
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprint(w, deviceJSON)
+	return
+}
+
+// deviceHandler handles requests for '/api/<version>/devices/<system_id>/'.
+func deviceHandler(server *TestServer, w http.ResponseWriter, r *http.Request, systemId string, operation string) {
+	device, ok := server.devices[systemId]
+	if !ok {
+		http.NotFoundHandler().ServeHTTP(w, r)
+		return
+	}
+	if r.Method == "GET" {
+		deviceJSON := renderDevice(device)
+		if operation == "" {
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprint(w, deviceJSON)
+			return
+		} else {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+	}
+	if r.Method == "POST" {
+		if operation == "claim_sticky_ip_address" {
+			err := r.ParseForm()
+			checkError(err)
+			values := r.PostForm
+			// TODO(mfoord): support optional mac_address parameter
+			// TODO(mfoord): requested_address should be optional
+			// and we should generate one if it isn't provided.
+			address, hasAddress := getValue(values, "requested_address")
+			if !hasAddress {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			checkError(err)
+			device.IPAddresses = append(device.IPAddresses, address)
+			deviceJSON := renderDevice(device)
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprint(w, deviceJSON)
+			return
+		} else {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+	} else if r.Method == "DELETE" {
+		delete(server.devices, systemId)
+		w.WriteHeader(http.StatusNoContent)
+		return
+
+	}
+
+	// TODO(mfoord): support PUT method for updating device
+	http.NotFoundHandler().ServeHTTP(w, r)
 }
 
 // nodesHandler handles requests for '/api/<version>/nodes/*'.
@@ -1188,7 +1433,7 @@ func versionHandler(server *TestServer, w http.ResponseWriter, r *http.Request) 
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprint(w, getVersionJSON())
+	fmt.Fprint(w, server.versionJSON)
 }
 
 // nodegroupsHandler handles requests for '/api/<version>/nodegroups/*'.
