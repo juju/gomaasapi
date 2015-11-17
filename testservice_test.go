@@ -603,6 +603,153 @@ func (suite *TestServerSuite) TestListZonesNotSupported(c *C) {
 	c.Check(resp.StatusCode, Equals, http.StatusNotFound)
 }
 
+func (suite *TestServerSuite) TestSubnetAdd(c *C) {
+	suite.server.NewSubnet(strings.NewReader(`{
+        "dns_servers": [
+            "192.168.1.2"
+        ], 
+        "name": "maas-eth0", 
+        "space": "space-0", 
+        "vlan": 0,
+        "gateway_ip": "192.168.1.1", 
+        "cidr": "192.168.1.0/24"
+    }`))
+
+	subnetsURL := getSubnetsEndpoint(suite.server.version)
+	resp, err := http.Get(suite.server.Server.URL + subnetsURL)
+
+	c.Check(err, IsNil)
+	c.Check(resp.StatusCode, Equals, http.StatusOK)
+
+	var subnets []Subnet
+	decoder := json.NewDecoder(resp.Body)
+	err = decoder.Decode(&subnets)
+	c.Check(err, IsNil)
+	c.Check(len(subnets), Equals, 1)
+	s := subnets[0]
+	c.Check(s.DNSServers, DeepEquals, []string{"192.168.1.2"})
+	c.Check(s.Name, Equals, "maas-eth0")
+	c.Check(s.Space, Equals, "space-0")
+	c.Check(s.VLAN.ID, Equals, uint(0))
+	c.Check(s.CIDR, Equals, "192.168.1.0/24")
+}
+
+func (suite *TestServerSuite) TestSubnetGet(c *C) {
+	suite.server.NewSubnet(strings.NewReader(`{
+        "dns_servers": [
+            "192.168.1.2"
+        ], 
+        "name": "maas-eth0", 
+        "space": "space-0", 
+        "vlan": 0,
+        "gateway_ip": "192.168.1.1", 
+        "cidr": "192.168.1.0/24"
+    }`))
+
+	suite.server.NewSubnet(strings.NewReader(`{
+        "dns_servers": [
+            "192.168.1.2"
+        ], 
+        "name": "maas-eth1", 
+        "space": "space-0", 
+        "vlan": 0,
+        "gateway_ip": "192.168.2.1", 
+        "cidr": "192.168.2.0/24"
+    }`))
+
+	subnetsURL := getSubnetsEndpoint(suite.server.version)
+	resp, err := http.Get(suite.server.Server.URL + subnetsURL)
+
+	c.Check(err, IsNil)
+	c.Check(resp.StatusCode, Equals, http.StatusOK)
+
+	var subnets []Subnet
+	decoder := json.NewDecoder(resp.Body)
+	err = decoder.Decode(&subnets)
+	c.Check(err, IsNil)
+	c.Check(len(subnets), Equals, 2)
+	c.Check(subnets[0].CIDR, Equals, "192.168.1.0/24")
+	c.Check(subnets[1].CIDR, Equals, "192.168.2.0/24")
+}
+
+func (suite *TestServerSuite) TestSubnetPut(c *C) {
+	suite.server.NewSubnet(strings.NewReader(`{
+        "dns_servers": [
+            "192.168.1.2"
+        ], 
+        "name": "maas-eth0", 
+        "space": "space-0", 
+        "vlan": 0,
+        "gateway_ip": "192.168.1.1", 
+        "cidr": "192.168.1.0/24"
+    }`))
+
+	subnetsURL := getSubnetsEndpoint(suite.server.version)
+	resp, err := http.Get(suite.server.Server.URL + subnetsURL)
+
+	c.Check(err, IsNil)
+	c.Check(resp.StatusCode, Equals, http.StatusOK)
+
+	var subnets []Subnet
+	decoder := json.NewDecoder(resp.Body)
+	err = decoder.Decode(&subnets)
+	c.Check(err, IsNil)
+	c.Check(len(subnets), Equals, 1)
+	c.Check(subnets[0].DNSServers, DeepEquals, []string{"192.168.1.2"})
+
+	suite.server.UpdateSubnet(strings.NewReader(`{
+        "dns_servers": [
+            "192.168.1.2",
+            "192.168.1.3"
+        ], 
+        "name": "maas-eth0", 
+        "space": "space-0", 
+        "vlan": 0,
+        "gateway_ip": "192.168.1.1", 
+        "cidr": "192.168.1.0/24",
+        "id": 1
+    }`))
+
+	resp, err = http.Get(suite.server.Server.URL + subnetsURL)
+
+	c.Check(err, IsNil)
+	c.Check(resp.StatusCode, Equals, http.StatusOK)
+
+	decoder = json.NewDecoder(resp.Body)
+	err = decoder.Decode(&subnets)
+	c.Check(err, IsNil)
+	c.Check(len(subnets), Equals, 1)
+	c.Check(subnets[0].DNSServers, DeepEquals, []string{"192.168.1.2", "192.168.1.3"})
+}
+
+func (suite *TestServerSuite) TestSubnetDelete(c *C) {
+	suite.server.NewSubnet(strings.NewReader(`{
+        "dns_servers": [
+            "192.168.1.2"
+        ], 
+        "name": "maas-eth0", 
+        "space": "space-0", 
+        "vlan": 0,
+        "gateway_ip": "192.168.1.1", 
+        "cidr": "192.168.1.0/24"
+    }`))
+
+	subnetsURL := suite.server.Server.URL + getSubnetsEndpoint(suite.server.version) + "1/"
+	resp, err := http.Get(subnetsURL)
+	c.Check(err, IsNil)
+	c.Check(resp.StatusCode, Equals, http.StatusOK)
+
+	req, err := http.NewRequest("DELETE", subnetsURL, nil)
+	c.Check(err, IsNil)
+	resp, err = http.DefaultClient.Do(req)
+	c.Check(err, IsNil)
+	c.Check(resp.StatusCode, Equals, http.StatusOK)
+
+	resp, err = http.Get(subnetsURL)
+	c.Check(err, IsNil)
+	c.Check(resp.StatusCode, Equals, http.StatusNotFound)
+}
+
 // TestMAASObjectSuite validates that the object created by
 // NewTestMAAS can be used by the gomaasapi library as if it were a real
 // MAAS server.

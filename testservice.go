@@ -94,6 +94,11 @@ type TestServer struct {
 
 	// devices is a map of device UUIDs to devices.
 	devices map[string]*device
+
+	subnets    map[int]Subnet
+	nextSubnet int
+	vlans      map[int]VLAN
+	nextVLAN   int
 }
 
 type device struct {
@@ -216,6 +221,10 @@ func (server *TestServer) Clear() {
 	server.zones = make(map[string]JSONObject)
 	server.versionJSON = `{"capabilities": ["networks-management","static-ipaddresses"]}`
 	server.devices = make(map[string]*device)
+	server.subnets = make(map[int]Subnet)
+	server.nextSubnet = 1
+	server.vlans = make(map[int]VLAN)
+	server.nextVLAN = 1
 }
 
 // SetVersionJSON sets the JSON response (capabilities) returned from the
@@ -543,6 +552,16 @@ func NewTestServer(version string) *TestServer {
 	zonesURL := getZonesEndpoint(server.version)
 	serveMux.HandleFunc(zonesURL, func(w http.ResponseWriter, r *http.Request) {
 		zonesHandler(server, w, r)
+	})
+
+	subnetsURL := getSubnetsEndpoint(server.version)
+	serveMux.HandleFunc(subnetsURL, func(w http.ResponseWriter, r *http.Request) {
+		subnetsHandler(server, w, r)
+	})
+
+	vlansURL := getVLANsEndpoint(server.version)
+	serveMux.HandleFunc(vlansURL, func(w http.ResponseWriter, r *http.Request) {
+		vlansHandler(server, w, r)
 	})
 
 	newServer := httptest.NewServer(serveMux)
