@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -748,6 +749,116 @@ func (suite *TestServerSuite) TestSubnetDelete(c *C) {
 	resp, err = http.Get(subnetsURL)
 	c.Check(err, IsNil)
 	c.Check(resp.StatusCode, Equals, http.StatusNotFound)
+}
+
+func (suite *TestServerSuite) TestSubnetReservedIPRanges(c *C) {
+	suite.server.NewSubnet(strings.NewReader(`{
+        "dns_servers": [
+            "192.168.1.2"
+        ], 
+        "name": "maas-eth0", 
+        "space": "space-0", 
+        "vlan": 0,
+        "gateway_ip": "192.168.1.1", 
+        "cidr": "192.168.1.0/24"
+    }`))
+
+	reserved := make(map[int]bool)
+	rand.Seed(6)
+
+	// Insert some random test data
+	for i := 0; i < 200; i++ {
+		r := rand.Intn(253) + 1
+		_, ok := reserved[r]
+		for ok == true {
+			r++
+			if r == 255 {
+				r = 1
+			}
+			_, ok = reserved[r]
+		}
+		reserved[r] = true
+		addr := fmt.Sprintf("192.168.1.%d", r)
+		suite.server.NewIPAddress(addr, "maas-eth0")
+	}
+
+	// Fetch from the server
+	subnetsURL := suite.server.Server.URL + getSubnetsEndpoint(suite.server.version) + "1/"
+	reservedIPRangeURL := subnetsURL + "?op=reserved_ip_ranges"
+	resp, err := http.Get(reservedIPRangeURL)
+
+	var reservedFromAPI []AddressRange
+	decoder := json.NewDecoder(resp.Body)
+	err = decoder.Decode(&reservedFromAPI)
+	c.Check(err, IsNil)
+
+	// Check that anything in a reserved range was an address we allocated
+	// with NewIPAddress
+	for _, addressRange := range reservedFromAPI {
+		var start, end int
+		fmt.Sscanf(addressRange.Start, "192.168.1.%d", &start)
+		fmt.Sscanf(addressRange.End, "192.168.1.%d", &end)
+		c.Check(addressRange.NumAddresses, Equals, uint(1+end-start))
+		for i := start; i <= end; i++ {
+			_, ok := reserved[int(i)]
+			c.Check(ok, Equals, true)
+		}
+	}
+}
+
+func (suite *TestServerSuite) TestSubnetUnreservedIPRanges(c *C) {
+	suite.server.NewSubnet(strings.NewReader(`{
+        "dns_servers": [
+            "192.168.1.2"
+        ], 
+        "name": "maas-eth0", 
+        "space": "space-0", 
+        "vlan": 0,
+        "gateway_ip": "192.168.1.1", 
+        "cidr": "192.168.1.0/24"
+    }`))
+
+	reserved := make(map[int]bool)
+	rand.Seed(7)
+
+	// Insert some random test data
+	for i := 0; i < 100; i++ {
+		r := rand.Intn(253) + 1
+		_, ok := reserved[r]
+		for ok == true {
+			r++
+			if r == 255 {
+				r = 1
+			}
+			_, ok = reserved[r]
+		}
+		reserved[r] = true
+		addr := fmt.Sprintf("192.168.1.%d", r)
+		suite.server.NewIPAddress(addr, "maas-eth0")
+	}
+
+	// Fetch from the server
+	subnetsURL := suite.server.Server.URL + getSubnetsEndpoint(suite.server.version) + "1/"
+	reservedIPRangeURL := subnetsURL + "?op=unreserved_ip_ranges"
+	resp, err := http.Get(reservedIPRangeURL)
+
+	var unreservedFromAPI []AddressRange
+	decoder := json.NewDecoder(resp.Body)
+	err = decoder.Decode(&unreservedFromAPI)
+	c.Check(err, IsNil)
+
+	// Check that anything in an unreserved range wasn't an address we allocated
+	// with NewIPAddress
+	for _, addressRange := range unreservedFromAPI {
+		var start, end int
+		fmt.Sscanf(addressRange.Start, "192.168.1.%d", &start)
+		fmt.Sscanf(addressRange.End, "192.168.1.%d", &end)
+		c.Check(addressRange.NumAddresses, Equals, uint(1+end-start))
+		for i := start; i <= end; i++ {
+			_, ok := reserved[int(i)]
+			c.Check(ok, Equals, false)
+		}
+	}
 }
 
 // TestMAASObjectSuite validates that the object created by

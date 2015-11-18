@@ -4,11 +4,16 @@
 package gomaasapi
 
 import (
+	"bytes"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
 	"regexp"
+	"sort"
 	"strconv"
 )
 
@@ -51,16 +56,17 @@ type Subnet struct {
 	GatewayIP  string   `json:"gateway_ip"`
 	CIDR       string   `json:"cidr"`
 
-	ResourceURI string `json:"resource_uri"`
-	ID          int    `json:"id"`
+	ResourceURI      string `json:"resource_uri"`
+	ID               int    `json:"id"`
+	InUseIPAddresses []IP   `json:"-"`
 }
 
 // subnetsHandler handles requests for '/api/<version>/subnets/'.
 func subnetsHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
 	var err error
-	/*values, err := url.ParseQuery(r.URL.RawQuery)
+	values, err := url.ParseQuery(r.URL.RawQuery)
 	checkError(err)
-	op := values.Get("op")*/
+	op := values.Get("op")
 	subnetsURLRE := regexp.MustCompile(`/subnets/(\d+)/`)
 	subnetsURLMatch := subnetsURLRE.FindStringSubmatch(r.URL.Path)
 	subnetsURL := getSubnetsEndpoint(server.version)
@@ -101,7 +107,16 @@ func subnetsHandler(server *TestServer, w http.ResponseWriter, r *http.Request) 
 		} else if gotID == false {
 			w.WriteHeader(http.StatusBadRequest)
 		} else {
-			err = json.NewEncoder(w).Encode(server.subnets[ID])
+			switch op {
+			case "unreserved_ip_ranges":
+				err = json.NewEncoder(w).Encode(
+					server.subnetUnreservedIPRanges(server.subnets[ID]))
+			case "reserved_ip_ranges":
+				err = json.NewEncoder(w).Encode(
+					server.subnetReservedIPRanges(server.subnets[ID]))
+			default:
+				err = json.NewEncoder(w).Encode(server.subnets[ID])
+			}
 		}
 		checkError(err)
 	case "POST":
@@ -114,6 +129,153 @@ func subnetsHandler(server *TestServer, w http.ResponseWriter, r *http.Request) 
 	default:
 		w.WriteHeader(http.StatusBadRequest)
 	}
+}
+
+// IP is an enhanced net.IP
+type IP struct {
+	netIP net.IP
+}
+
+// IPFromNetIP creates a IP from a net.IP.
+func IPFromNetIP(netIP net.IP) IP {
+	var ip IP
+	ip.netIP = netIP
+	return ip
+}
+
+func (ip IP) To4() net.IP {
+	return ip.netIP.To4()
+}
+
+func (ip IP) To16() net.IP {
+	return ip.netIP.To16()
+}
+
+func (ip IP) String() string {
+	return ip.netIP.String()
+}
+
+// UInt64 returns a uint64 holding the IP address
+func (ip IP) UInt64() uint64 {
+	var bb *bytes.Reader
+	if ip.To4() != nil {
+		var v uint32
+		bb = bytes.NewReader(ip.To4())
+		err := binary.Read(bb, binary.BigEndian, &v)
+		checkError(err)
+		return uint64(v)
+	}
+
+	var v uint64
+	bb = bytes.NewReader(ip.To16())
+	err := binary.Read(bb, binary.BigEndian, &v)
+	checkError(err)
+	return v
+}
+
+// SetUInt64 sets the IP value to v
+func (ip *IP) SetUInt64(v uint64) {
+	bb := new(bytes.Buffer)
+	var first int
+	if ip.To4() != nil {
+		binary.Write(bb, binary.BigEndian, uint32(v))
+		first = len(ip.netIP) - 4
+	} else {
+		binary.Write(bb, binary.BigEndian, v)
+	}
+	copy(ip.netIP[first:], bb.Bytes())
+}
+
+type addressList []IP
+
+func (a addressList) Len() int           { return len(a) }
+func (a addressList) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a addressList) Less(i, j int) bool { return a[i].UInt64() < a[j].UInt64() }
+
+// AddressRange is used to generate reserved IP address range lists
+type AddressRange struct {
+	Start        string   `json:"start"`
+	End          string   `json:"end"`
+	Purpose      []string `json:"purpose,omitempty"`
+	NumAddresses uint     `json:"num_addresses"`
+}
+
+func (server *TestServer) subnetUnreservedIPRanges(subnet Subnet) []AddressRange {
+	// Make a sorted copy of subnet.InUseIPAddresses
+	ipAddresses := make([]IP, len(subnet.InUseIPAddresses))
+	copy(ipAddresses, subnet.InUseIPAddresses)
+	sort.Sort(addressList(ipAddresses))
+
+	// We need the first and last address in the subnet
+	var ranges []AddressRange
+	var i AddressRange
+	var startIP, endIP IP
+
+	_, ipNet, err := net.ParseCIDR(subnet.CIDR)
+	checkError(err)
+	startIP = IPFromNetIP(ipNet.IP)
+	// Start with the lowest usable address in the range, which is 1 above
+	// what net.ParseCIDR will give back.
+	startIP.SetUInt64(startIP.UInt64() + 1)
+
+	for _, endIP = range ipAddresses {
+		end := endIP.UInt64()
+		endIP.SetUInt64(end - 1)
+		i.Start, i.End = startIP.String(), endIP.String()
+		i.NumAddresses = uint(1 + endIP.UInt64() - startIP.UInt64())
+		ranges = append(ranges, i)
+		startIP.SetUInt64(end + 1)
+	}
+
+	ones, bits := ipNet.Mask.Size()
+	set := ^((^uint64(0)) << uint(bits-ones))
+
+	// The last usable address is one below the broadcast address, which is
+	// what you get by bitwise ORing 'set' with any IP address in the subnet.
+	endIP.SetUInt64((endIP.UInt64() | set) - 1)
+	i.Start, i.End = startIP.String(), endIP.String()
+	i.NumAddresses = uint(1 + endIP.UInt64() - startIP.UInt64())
+	ranges = append(ranges, i)
+
+	return ranges
+}
+
+func (server *TestServer) subnetReservedIPRanges(subnet Subnet) []AddressRange {
+	// Make a sorted copy of subnet.InUseIPAddresses
+	ipAddresses := make([]IP, len(subnet.InUseIPAddresses))
+	copy(ipAddresses, subnet.InUseIPAddresses)
+	sort.Sort(addressList(ipAddresses))
+
+	var ranges []AddressRange
+	var i AddressRange
+	startIP := ipAddresses[0]
+	var thisIP IP
+	var lastIP uint64
+	var startIPValid bool
+
+	for _, thisIP = range ipAddresses {
+		ip := thisIP.UInt64()
+		if startIPValid == false {
+			startIP.SetUInt64(ip)
+			startIPValid = true
+		} else if ip != lastIP && ip != lastIP+1 {
+			thisIP.SetUInt64(lastIP)
+			i.Start, i.End = startIP.String(), thisIP.String()
+			i.NumAddresses = uint(1 + thisIP.UInt64() - startIP.UInt64())
+			ranges = append(ranges, i)
+			startIP.SetUInt64(ip + 1)
+			startIPValid = false
+		}
+		lastIP = ip
+	}
+	if startIPValid {
+		thisIP.SetUInt64(lastIP)
+		i.Start, i.End = startIP.String(), thisIP.String()
+		i.NumAddresses = uint(1 + thisIP.UInt64() - startIP.UInt64())
+		ranges = append(ranges, i)
+	}
+
+	return ranges
 }
 
 func decodePostedSubnet(subnetJSON io.Reader) CreateSubnet {
@@ -138,6 +300,8 @@ func (server *TestServer) NewSubnet(subnetJSON io.Reader) Subnet {
 	newSubnet := subnetFromCreateSubnet(postedSubnet)
 	newSubnet.ID = server.nextSubnet
 	server.subnets[server.nextSubnet] = newSubnet
+	server.subnetNameToID[newSubnet.Name] = newSubnet.ID
+
 	server.nextSubnet++
 	return newSubnet
 }

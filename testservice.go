@@ -95,10 +95,11 @@ type TestServer struct {
 	// devices is a map of device UUIDs to devices.
 	devices map[string]*device
 
-	subnets    map[int]Subnet
-	nextSubnet int
-	vlans      map[int]VLAN
-	nextVLAN   int
+	subnets        map[int]Subnet
+	subnetNameToID map[string]int
+	nextSubnet     int
+	vlans          map[int]VLAN
+	nextVLAN       int
 }
 
 type device struct {
@@ -222,6 +223,7 @@ func (server *TestServer) Clear() {
 	server.versionJSON = `{"capabilities": ["networks-management","static-ipaddresses"]}`
 	server.devices = make(map[string]*device)
 	server.subnets = make(map[int]Subnet)
+	server.subnetNameToID = make(map[string]int)
 	server.nextSubnet = 1
 	server.vlans = make(map[int]VLAN)
 	server.nextVLAN = 1
@@ -365,17 +367,30 @@ func (server *TestServer) ChangeNode(systemId, key, value string) {
 
 // NewIPAddress creates a new static IP address reservation for the
 // given network and ipAddress.
-func (server *TestServer) NewIPAddress(ipAddress, network string) {
-	if _, found := server.networks[network]; !found {
-		panic("No such network: " + network)
+func (server *TestServer) NewIPAddress(ipAddress, networkOrSubnet string) {
+	_, foundNetwork := server.networks[networkOrSubnet]
+	subnetID, foundSubnet := server.subnetNameToID[networkOrSubnet]
+
+	if (foundNetwork || foundSubnet) == false {
+		panic("No such network or subnet: " + networkOrSubnet)
 	}
-	ips, found := server.ipAddressesPerNetwork[network]
-	if found {
-		ips = append(ips, ipAddress)
+	if foundNetwork {
+		ips, found := server.ipAddressesPerNetwork[networkOrSubnet]
+		if found {
+			ips = append(ips, ipAddress)
+		} else {
+			ips = []string{ipAddress}
+		}
+		server.ipAddressesPerNetwork[networkOrSubnet] = ips
 	} else {
-		ips = []string{ipAddress}
+		subnet := server.subnets[subnetID]
+		netIp := net.ParseIP(ipAddress)
+		if netIp == nil {
+			panic(ipAddress + " is in valid")
+		}
+		subnet.InUseIPAddresses = append(subnet.InUseIPAddresses, IPFromNetIP(netIp))
+		server.subnets[subnetID] = subnet
 	}
-	server.ipAddressesPerNetwork[network] = ips
 }
 
 // RemoveIPAddress removes the given existing ipAddress and returns
