@@ -29,16 +29,19 @@ type CreateSubnet struct {
 	GatewayIP  string   `json:"gateway_ip"`
 	CIDR       string   `json:"cidr"`
 
-	// VLAN this subnet belongs to. Defaults to the default VLAN
+	// VLAN this subnet belongs to. Currently ignored.
+	// TODO: Defaults to the default VLAN
 	// for the provided fabric or defaults to the default VLAN
 	// in the default fabric.
 	VLAN *uint `json:"vlan"`
 
-	// Fabric for the subnet. Defaults to the fabric the provided
+	// Fabric for the subnet. Currently ignored.
+	// TODO: Defaults to the fabric the provided
 	// VLAN belongs to or defaults to the default fabric.
 	Fabric *uint `json:"fabric"`
 
-	// VID of the VLAN this subnet belongs to. Only used when vlan
+	// VID of the VLAN this subnet belongs to. Currently ignored.
+	// TODO: Only used when vlan
 	// is not provided. Picks the VLAN with this VID in the provided
 	// fabric or the default fabric if one is not given.
 	VID *uint `json:"vid"`
@@ -80,6 +83,7 @@ func subnetsHandler(server *TestServer, w http.ResponseWriter, r *http.Request) 
 		if len(server.subnets) < ID-1 || ID == 0 {
 			// IDs start at 1...
 			w.WriteHeader(http.StatusBadRequest)
+			return
 		}
 
 		gotID = true
@@ -87,6 +91,7 @@ func subnetsHandler(server *TestServer, w http.ResponseWriter, r *http.Request) 
 
 	switch r.Method {
 	case "GET":
+		w.Header().Set("Content-Type", "application/vnd.api+json")
 		if len(server.subnets) == 0 {
 			// Until a subnet is registered, behave as if the endpoint
 			// does not exist. This way we can simulate older MAAS
@@ -143,10 +148,14 @@ func IPFromNetIP(netIP net.IP) IP {
 	return ip
 }
 
+// To4 converts the IPv4 address ip to a 4-byte representation. If ip is not
+// an IPv4 address, To4 returns nil.
 func (ip IP) To4() net.IP {
 	return ip.netIP.To4()
 }
 
+// To16 converts the IP address ip to a 16-byte representation. If ip is not
+// an IP address (it is the wrong length), To16 returns nil.
 func (ip IP) To16() net.IP {
 	return ip.netIP.To16()
 }
@@ -176,6 +185,18 @@ func (ip IP) UInt64() uint64 {
 // SetUInt64 sets the IP value to v
 func (ip *IP) SetUInt64(v uint64) {
 	bb := new(bytes.Buffer)
+
+	if len(ip.netIP) == 0 {
+		// If we don't have allocated storage make an educated guess
+		// at if the address we received is an IPv4 or IPv6 address.
+		if v == (v & 0x00000000ffffFFFF) {
+			// Guessing IPv4
+			ip.netIP = net.ParseIP("0.0.0.0")
+		} else {
+			ip.netIP = net.ParseIP("2001:4860:0:2001::68")
+		}
+	}
+
 	var first int
 	if ip.To4() != nil {
 		binary.Write(bb, binary.BigEndian, uint32(v))

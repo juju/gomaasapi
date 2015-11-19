@@ -366,7 +366,8 @@ func (server *TestServer) ChangeNode(systemId, key, value string) {
 }
 
 // NewIPAddress creates a new static IP address reservation for the
-// given network and ipAddress.
+// given network/subnet and ipAddress. While networks is being depreicated
+// try the given name as both a netowrk and a subnet.
 func (server *TestServer) NewIPAddress(ipAddress, networkOrSubnet string) {
 	_, foundNetwork := server.networks[networkOrSubnet]
 	subnetID, foundSubnet := server.subnetNameToID[networkOrSubnet]

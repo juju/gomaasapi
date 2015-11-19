@@ -11,6 +11,7 @@ import (
 	"io"
 	"math/rand"
 	"mime/multipart"
+	"net"
 	"net/http"
 	"net/url"
 	"sort"
@@ -859,6 +860,28 @@ func (suite *TestServerSuite) TestSubnetUnreservedIPRanges(c *C) {
 			c.Check(ok, Equals, false)
 		}
 	}
+}
+
+type IPSuite struct {
+}
+
+var _ = Suite(&IPSuite{})
+
+func (suite *IPSuite) TestIPFromNetIP(c *C) {
+	ip := IPFromNetIP(net.ParseIP("1.2.3.4"))
+	c.Check(ip.String(), Equals, "1.2.3.4")
+}
+
+func (suite *IPSuite) TestIPUInt64(c *C) {
+	ip := IPFromNetIP(net.ParseIP("1.2.3.4"))
+	v := ip.UInt64()
+	c.Check(v, Equals, uint64(0x01020304))
+}
+
+func (suite *IPSuite) TestIPSetUInt64(c *C) {
+	var ip IP
+	ip.SetUInt64(0x01020304)
+	c.Check(ip.String(), Equals, "1.2.3.4")
 }
 
 // TestMAASObjectSuite validates that the object created by
