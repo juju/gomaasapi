@@ -4,8 +4,6 @@
 package gomaasapi
 
 import (
-	"bytes"
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -14,7 +12,6 @@ import (
 	"net/url"
 	"regexp"
 	"sort"
-	"strconv"
 )
 
 func getSubnetsEndpoint(version string) string {
@@ -47,7 +44,7 @@ type CreateSubnet struct {
 	VID *uint `json:"vid"`
 
 	// This is used for updates (PUT) and is ignored by create (POST)
-	ID int `json:"id"`
+	ID uint `json:"id"`
 }
 
 // Subnet is the MAAS API subnet representation
@@ -60,7 +57,7 @@ type Subnet struct {
 	CIDR       string   `json:"cidr"`
 
 	ResourceURI      string `json:"resource_uri"`
-	ID               int    `json:"id"`
+	ID               uint   `json:"id"`
 	InUseIPAddresses []IP   `json:"-"`
 }
 
@@ -70,19 +67,17 @@ func subnetsHandler(server *TestServer, w http.ResponseWriter, r *http.Request) 
 	values, err := url.ParseQuery(r.URL.RawQuery)
 	checkError(err)
 	op := values.Get("op")
-	subnetsURLRE := regexp.MustCompile(`/subnets/(\d+)/`)
+	subnetsURLRE := regexp.MustCompile(`/subnets/(.+?)/`)
 	subnetsURLMatch := subnetsURLRE.FindStringSubmatch(r.URL.Path)
 	subnetsURL := getSubnetsEndpoint(server.version)
 
-	var ID int
+	var ID uint
 	var gotID bool
 	if subnetsURLMatch != nil {
-		ID, err = strconv.Atoi(subnetsURLMatch[1])
-		checkError(err)
+		ID, err = NameOrIDToID(subnetsURLMatch[1], server.subnetNameToID, 1, uint(len(server.subnets)))
 
-		if len(server.subnets) < ID-1 || ID == 0 {
-			// IDs start at 1...
-			w.WriteHeader(http.StatusBadRequest)
+		if err != nil {
+			http.NotFoundHandler().ServeHTTP(w, r)
 			return
 		}
 
@@ -102,7 +97,7 @@ func subnetsHandler(server *TestServer, w http.ResponseWriter, r *http.Request) 
 
 		if r.URL.Path == subnetsURL {
 			var subnets []Subnet
-			for i := 1; i < server.nextSubnet; i++ {
+			for i := uint(1); i < server.nextSubnet; i++ {
 				s, ok := server.subnets[i]
 				if ok {
 					subnets = append(subnets, s)
@@ -134,77 +129,6 @@ func subnetsHandler(server *TestServer, w http.ResponseWriter, r *http.Request) 
 	default:
 		w.WriteHeader(http.StatusBadRequest)
 	}
-}
-
-// IP is an enhanced net.IP
-type IP struct {
-	netIP net.IP
-}
-
-// IPFromNetIP creates a IP from a net.IP.
-func IPFromNetIP(netIP net.IP) IP {
-	var ip IP
-	ip.netIP = netIP
-	return ip
-}
-
-// To4 converts the IPv4 address ip to a 4-byte representation. If ip is not
-// an IPv4 address, To4 returns nil.
-func (ip IP) To4() net.IP {
-	return ip.netIP.To4()
-}
-
-// To16 converts the IP address ip to a 16-byte representation. If ip is not
-// an IP address (it is the wrong length), To16 returns nil.
-func (ip IP) To16() net.IP {
-	return ip.netIP.To16()
-}
-
-func (ip IP) String() string {
-	return ip.netIP.String()
-}
-
-// UInt64 returns a uint64 holding the IP address
-func (ip IP) UInt64() uint64 {
-	var bb *bytes.Reader
-	if ip.To4() != nil {
-		var v uint32
-		bb = bytes.NewReader(ip.To4())
-		err := binary.Read(bb, binary.BigEndian, &v)
-		checkError(err)
-		return uint64(v)
-	}
-
-	var v uint64
-	bb = bytes.NewReader(ip.To16())
-	err := binary.Read(bb, binary.BigEndian, &v)
-	checkError(err)
-	return v
-}
-
-// SetUInt64 sets the IP value to v
-func (ip *IP) SetUInt64(v uint64) {
-	bb := new(bytes.Buffer)
-
-	if len(ip.netIP) == 0 {
-		// If we don't have allocated storage make an educated guess
-		// at if the address we received is an IPv4 or IPv6 address.
-		if v == (v & 0x00000000ffffFFFF) {
-			// Guessing IPv4
-			ip.netIP = net.ParseIP("0.0.0.0")
-		} else {
-			ip.netIP = net.ParseIP("2001:4860:0:2001::68")
-		}
-	}
-
-	var first int
-	if ip.To4() != nil {
-		binary.Write(bb, binary.BigEndian, uint32(v))
-		first = len(ip.netIP) - 4
-	} else {
-		binary.Write(bb, binary.BigEndian, v)
-	}
-	copy(ip.netIP[first:], bb.Bytes())
 }
 
 type addressList []IP

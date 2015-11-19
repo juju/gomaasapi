@@ -95,9 +95,12 @@ type TestServer struct {
 	// devices is a map of device UUIDs to devices.
 	devices map[string]*device
 
-	subnets        map[int]Subnet
-	subnetNameToID map[string]int
-	nextSubnet     int
+	subnets        map[uint]Subnet
+	subnetNameToID map[string]uint
+	nextSubnet     uint
+	spaces         map[uint]Space
+	spaceNameToID  map[string]uint
+	nextSpace      uint
 	vlans          map[int]VLAN
 	nextVLAN       int
 }
@@ -220,11 +223,14 @@ func (server *TestServer) Clear() {
 	server.bootImages = make(map[string][]JSONObject)
 	server.nodegroupsInterfaces = make(map[string][]JSONObject)
 	server.zones = make(map[string]JSONObject)
-	server.versionJSON = `{"capabilities": ["networks-management","static-ipaddresses"]}`
+	server.versionJSON = `{"capabilities": ["networks-management","static-ipaddresses","devices-management","network-deployment-ubuntu"]}`
 	server.devices = make(map[string]*device)
-	server.subnets = make(map[int]Subnet)
-	server.subnetNameToID = make(map[string]int)
+	server.subnets = make(map[uint]Subnet)
+	server.subnetNameToID = make(map[string]uint)
 	server.nextSubnet = 1
+	server.spaces = make(map[uint]Space)
+	server.spaceNameToID = make(map[string]uint)
+	server.nextSpace = 1
 	server.vlans = make(map[int]VLAN)
 	server.nextVLAN = 1
 }
@@ -387,7 +393,7 @@ func (server *TestServer) NewIPAddress(ipAddress, networkOrSubnet string) {
 		subnet := server.subnets[subnetID]
 		netIp := net.ParseIP(ipAddress)
 		if netIp == nil {
-			panic(ipAddress + " is in valid")
+			panic(ipAddress + " is invalid")
 		}
 		subnet.InUseIPAddresses = append(subnet.InUseIPAddresses, IPFromNetIP(netIp))
 		server.subnets[subnetID] = subnet
@@ -573,6 +579,11 @@ func NewTestServer(version string) *TestServer {
 	subnetsURL := getSubnetsEndpoint(server.version)
 	serveMux.HandleFunc(subnetsURL, func(w http.ResponseWriter, r *http.Request) {
 		subnetsHandler(server, w, r)
+	})
+
+	spacesURL := getSpacesEndpoint(server.version)
+	serveMux.HandleFunc(spacesURL, func(w http.ResponseWriter, r *http.Request) {
+		spacesHandler(server, w, r)
 	})
 
 	vlansURL := getVLANsEndpoint(server.version)

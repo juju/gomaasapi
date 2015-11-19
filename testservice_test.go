@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 
 	"gopkg.in/mgo.v2/bson"
@@ -605,20 +606,36 @@ func (suite *TestServerSuite) TestListZonesNotSupported(c *C) {
 	c.Check(resp.StatusCode, Equals, http.StatusNotFound)
 }
 
-func (suite *TestServerSuite) TestSubnetAdd(c *C) {
-	suite.server.NewSubnet(strings.NewReader(`{
-        "dns_servers": [
-            "192.168.1.2"
-        ], 
-        "name": "maas-eth0", 
-        "space": "space-0", 
-        "vlan": 0,
-        "gateway_ip": "192.168.1.1", 
-        "cidr": "192.168.1.0/24"
-    }`))
+func defaultSubnet() CreateSubnet {
+	var s CreateSubnet
+	s.DNSServers = []string{"192.168.1.2"}
+	s.Name = "maas-eth0"
+	s.Space = "space-0"
+	s.GatewayIP = "192.168.1.1"
+	s.CIDR = "192.168.1.0/24"
+	s.ID = 1
+	return s
+}
 
-	subnetsURL := getSubnetsEndpoint(suite.server.version)
-	resp, err := http.Get(suite.server.Server.URL + subnetsURL)
+func (suite *TestServerSuite) subnetJSON(subnet CreateSubnet) *bytes.Buffer {
+	var out bytes.Buffer
+	err := json.NewEncoder(&out).Encode(subnet)
+	if err != nil {
+		panic(err)
+	}
+	return &out
+}
+
+func (suite *TestServerSuite) subnetURL(ID int) string {
+	return suite.subnetsURL() + strconv.Itoa(ID) + "/"
+}
+
+func (suite *TestServerSuite) subnetsURL() string {
+	return suite.server.Server.URL + getSubnetsEndpoint(suite.server.version)
+}
+
+func (suite *TestServerSuite) getSubnets(c *C) []Subnet {
+	resp, err := http.Get(suite.subnetsURL())
 
 	c.Check(err, IsNil)
 	c.Check(resp.StatusCode, Equals, http.StatusOK)
@@ -627,7 +644,14 @@ func (suite *TestServerSuite) TestSubnetAdd(c *C) {
 	decoder := json.NewDecoder(resp.Body)
 	err = decoder.Decode(&subnets)
 	c.Check(err, IsNil)
-	c.Check(len(subnets), Equals, 1)
+	return subnets
+}
+
+func (suite *TestServerSuite) TestSubnetAdd(c *C) {
+	suite.server.NewSubnet(suite.subnetJSON(defaultSubnet()))
+
+	subnets := suite.getSubnets(c)
+	c.Check(subnets, HasLen, 1)
 	s := subnets[0]
 	c.Check(s.DNSServers, DeepEquals, []string{"192.168.1.2"})
 	c.Check(s.Name, Equals, "maas-eth0")
@@ -637,133 +661,54 @@ func (suite *TestServerSuite) TestSubnetAdd(c *C) {
 }
 
 func (suite *TestServerSuite) TestSubnetGet(c *C) {
-	suite.server.NewSubnet(strings.NewReader(`{
-        "dns_servers": [
-            "192.168.1.2"
-        ], 
-        "name": "maas-eth0", 
-        "space": "space-0", 
-        "vlan": 0,
-        "gateway_ip": "192.168.1.1", 
-        "cidr": "192.168.1.0/24"
-    }`))
+	suite.server.NewSubnet(suite.subnetJSON(defaultSubnet()))
 
-	suite.server.NewSubnet(strings.NewReader(`{
-        "dns_servers": [
-            "192.168.1.2"
-        ], 
-        "name": "maas-eth1", 
-        "space": "space-0", 
-        "vlan": 0,
-        "gateway_ip": "192.168.2.1", 
-        "cidr": "192.168.2.0/24"
-    }`))
+	subnet2 := defaultSubnet()
+	subnet2.Name = "maas-eth1"
+	subnet2.CIDR = "192.168.2.0/24"
+	suite.server.NewSubnet(suite.subnetJSON(subnet2))
 
-	subnetsURL := getSubnetsEndpoint(suite.server.version)
-	resp, err := http.Get(suite.server.Server.URL + subnetsURL)
-
-	c.Check(err, IsNil)
-	c.Check(resp.StatusCode, Equals, http.StatusOK)
-
-	var subnets []Subnet
-	decoder := json.NewDecoder(resp.Body)
-	err = decoder.Decode(&subnets)
-	c.Check(err, IsNil)
-	c.Check(len(subnets), Equals, 2)
+	subnets := suite.getSubnets(c)
+	c.Check(subnets, HasLen, 2)
 	c.Check(subnets[0].CIDR, Equals, "192.168.1.0/24")
 	c.Check(subnets[1].CIDR, Equals, "192.168.2.0/24")
 }
 
 func (suite *TestServerSuite) TestSubnetPut(c *C) {
-	suite.server.NewSubnet(strings.NewReader(`{
-        "dns_servers": [
-            "192.168.1.2"
-        ], 
-        "name": "maas-eth0", 
-        "space": "space-0", 
-        "vlan": 0,
-        "gateway_ip": "192.168.1.1", 
-        "cidr": "192.168.1.0/24"
-    }`))
+	subnet1 := defaultSubnet()
+	suite.server.NewSubnet(suite.subnetJSON(subnet1))
 
-	subnetsURL := getSubnetsEndpoint(suite.server.version)
-	resp, err := http.Get(suite.server.Server.URL + subnetsURL)
-
-	c.Check(err, IsNil)
-	c.Check(resp.StatusCode, Equals, http.StatusOK)
-
-	var subnets []Subnet
-	decoder := json.NewDecoder(resp.Body)
-	err = decoder.Decode(&subnets)
-	c.Check(err, IsNil)
-	c.Check(len(subnets), Equals, 1)
+	subnets := suite.getSubnets(c)
+	c.Check(subnets, HasLen, 1)
 	c.Check(subnets[0].DNSServers, DeepEquals, []string{"192.168.1.2"})
 
-	suite.server.UpdateSubnet(strings.NewReader(`{
-        "dns_servers": [
-            "192.168.1.2",
-            "192.168.1.3"
-        ], 
-        "name": "maas-eth0", 
-        "space": "space-0", 
-        "vlan": 0,
-        "gateway_ip": "192.168.1.1", 
-        "cidr": "192.168.1.0/24",
-        "id": 1
-    }`))
+	subnet1.DNSServers = []string{"192.168.1.2", "192.168.1.3"}
+	suite.server.UpdateSubnet(suite.subnetJSON(subnet1))
 
-	resp, err = http.Get(suite.server.Server.URL + subnetsURL)
-
-	c.Check(err, IsNil)
-	c.Check(resp.StatusCode, Equals, http.StatusOK)
-
-	decoder = json.NewDecoder(resp.Body)
-	err = decoder.Decode(&subnets)
-	c.Check(err, IsNil)
-	c.Check(len(subnets), Equals, 1)
+	subnets = suite.getSubnets(c)
+	c.Check(subnets, HasLen, 1)
 	c.Check(subnets[0].DNSServers, DeepEquals, []string{"192.168.1.2", "192.168.1.3"})
 }
 
 func (suite *TestServerSuite) TestSubnetDelete(c *C) {
-	suite.server.NewSubnet(strings.NewReader(`{
-        "dns_servers": [
-            "192.168.1.2"
-        ], 
-        "name": "maas-eth0", 
-        "space": "space-0", 
-        "vlan": 0,
-        "gateway_ip": "192.168.1.1", 
-        "cidr": "192.168.1.0/24"
-    }`))
+	suite.server.NewSubnet(suite.subnetJSON(defaultSubnet()))
 
-	subnetsURL := suite.server.Server.URL + getSubnetsEndpoint(suite.server.version) + "1/"
-	resp, err := http.Get(subnetsURL)
+	subnets := suite.getSubnets(c)
+	c.Check(subnets, HasLen, 1)
+	c.Check(subnets[0].DNSServers, DeepEquals, []string{"192.168.1.2"})
+
+	req, err := http.NewRequest("DELETE", suite.subnetURL(1), nil)
+	c.Check(err, IsNil)
+	resp, err := http.DefaultClient.Do(req)
 	c.Check(err, IsNil)
 	c.Check(resp.StatusCode, Equals, http.StatusOK)
 
-	req, err := http.NewRequest("DELETE", subnetsURL, nil)
-	c.Check(err, IsNil)
-	resp, err = http.DefaultClient.Do(req)
-	c.Check(err, IsNil)
-	c.Check(resp.StatusCode, Equals, http.StatusOK)
-
-	resp, err = http.Get(subnetsURL)
+	resp, err = http.Get(suite.subnetsURL())
 	c.Check(err, IsNil)
 	c.Check(resp.StatusCode, Equals, http.StatusNotFound)
 }
 
-func (suite *TestServerSuite) TestSubnetReservedIPRanges(c *C) {
-	suite.server.NewSubnet(strings.NewReader(`{
-        "dns_servers": [
-            "192.168.1.2"
-        ], 
-        "name": "maas-eth0", 
-        "space": "space-0", 
-        "vlan": 0,
-        "gateway_ip": "192.168.1.1", 
-        "cidr": "192.168.1.0/24"
-    }`))
-
+func (suite *TestServerSuite) reserveSomeAddresses() map[int]bool {
 	reserved := make(map[int]bool)
 	rand.Seed(6)
 
@@ -783,10 +728,17 @@ func (suite *TestServerSuite) TestSubnetReservedIPRanges(c *C) {
 		suite.server.NewIPAddress(addr, "maas-eth0")
 	}
 
+	return reserved
+}
+
+func (suite *TestServerSuite) TestSubnetReservedIPRanges(c *C) {
+	suite.server.NewSubnet(suite.subnetJSON(defaultSubnet()))
+	reserved := suite.reserveSomeAddresses()
+
 	// Fetch from the server
-	subnetsURL := suite.server.Server.URL + getSubnetsEndpoint(suite.server.version) + "1/"
-	reservedIPRangeURL := subnetsURL + "?op=reserved_ip_ranges"
+	reservedIPRangeURL := suite.subnetURL(1) + "?op=reserved_ip_ranges"
 	resp, err := http.Get(reservedIPRangeURL)
+	c.Check(err, IsNil)
 
 	var reservedFromAPI []AddressRange
 	decoder := json.NewDecoder(resp.Body)
@@ -808,40 +760,13 @@ func (suite *TestServerSuite) TestSubnetReservedIPRanges(c *C) {
 }
 
 func (suite *TestServerSuite) TestSubnetUnreservedIPRanges(c *C) {
-	suite.server.NewSubnet(strings.NewReader(`{
-        "dns_servers": [
-            "192.168.1.2"
-        ], 
-        "name": "maas-eth0", 
-        "space": "space-0", 
-        "vlan": 0,
-        "gateway_ip": "192.168.1.1", 
-        "cidr": "192.168.1.0/24"
-    }`))
-
-	reserved := make(map[int]bool)
-	rand.Seed(7)
-
-	// Insert some random test data
-	for i := 0; i < 100; i++ {
-		r := rand.Intn(253) + 1
-		_, ok := reserved[r]
-		for ok == true {
-			r++
-			if r == 255 {
-				r = 1
-			}
-			_, ok = reserved[r]
-		}
-		reserved[r] = true
-		addr := fmt.Sprintf("192.168.1.%d", r)
-		suite.server.NewIPAddress(addr, "maas-eth0")
-	}
+	suite.server.NewSubnet(suite.subnetJSON(defaultSubnet()))
+	reserved := suite.reserveSomeAddresses()
 
 	// Fetch from the server
-	subnetsURL := suite.server.Server.URL + getSubnetsEndpoint(suite.server.version) + "1/"
-	reservedIPRangeURL := subnetsURL + "?op=unreserved_ip_ranges"
+	reservedIPRangeURL := suite.subnetURL(1) + "?op=unreserved_ip_ranges"
 	resp, err := http.Get(reservedIPRangeURL)
+	c.Check(err, IsNil)
 
 	var unreservedFromAPI []AddressRange
 	decoder := json.NewDecoder(resp.Body)
@@ -893,15 +818,15 @@ type TestMAASObjectSuite struct {
 
 var _ = Suite(&TestMAASObjectSuite{})
 
-func (s *TestMAASObjectSuite) SetUpSuite(c *C) {
+func (suite *TestMAASObjectSuite) SetUpSuite(c *C) {
 	s.TestMAASObject = NewTestMAAS("1.0")
 }
 
-func (s *TestMAASObjectSuite) TearDownSuite(c *C) {
+func (suite *TestMAASObjectSuite) TearDownSuite(c *C) {
 	s.TestMAASObject.Close()
 }
 
-func (s *TestMAASObjectSuite) TearDownTest(c *C) {
+func (suite *TestMAASObjectSuite) TearDownTest(c *C) {
 	s.TestMAASObject.TestServer.Clear()
 }
 
@@ -1300,6 +1225,8 @@ func (suite *TestMAASObjectSuite) TestGetVersion(c *C) {
 		switch capName {
 		case "networks-management":
 		case "static-ipaddresses":
+		case "devices-management":
+		case "network-deployment-ubuntu":
 		default:
 			c.Fatalf("unknown capability %q", capName)
 		}
