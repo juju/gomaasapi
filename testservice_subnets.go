@@ -339,6 +339,3 @@ func subnetFromCreateSubnet(postedSubnet CreateSubnet) Subnet {
 	newSubnet.ID = postedSubnet.ID
 	return newSubnet
 }
-
-func subnetsHandlerDelete(server *TestServer, w http.ResponseWriter, r *http.Request) {
-}
