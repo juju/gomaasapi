@@ -60,6 +60,10 @@ func (ip IP) String() string {
 
 // UInt64 returns a uint64 holding the IP address
 func (ip IP) UInt64() uint64 {
+	if len(ip.netIP) == 0 {
+		return uint64(0)
+	}
+
 	var bb *bytes.Reader
 	if ip.To4() != nil {
 		var v uint32
@@ -78,8 +82,6 @@ func (ip IP) UInt64() uint64 {
 
 // SetUInt64 sets the IP value to v
 func (ip *IP) SetUInt64(v uint64) {
-	bb := new(bytes.Buffer)
-
 	if len(ip.netIP) == 0 {
 		// If we don't have allocated storage make an educated guess
 		// at if the address we received is an IPv4 or IPv6 address.
@@ -91,6 +93,7 @@ func (ip *IP) SetUInt64(v uint64) {
 		}
 	}
 
+	bb := new(bytes.Buffer)
 	var first int
 	if ip.To4() != nil {
 		binary.Write(bb, binary.BigEndian, uint32(v))

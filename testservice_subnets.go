@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"regexp"
 	"sort"
+	"strings"
 )
 
 func getSubnetsEndpoint(version string) string {
@@ -67,6 +68,7 @@ func subnetsHandler(server *TestServer, w http.ResponseWriter, r *http.Request) 
 	values, err := url.ParseQuery(r.URL.RawQuery)
 	checkError(err)
 	op := values.Get("op")
+	includeRangesString := strings.ToLower(values.Get("include_ranges"))
 	subnetsURLRE := regexp.MustCompile(`/subnets/(.+?)/`)
 	subnetsURLMatch := subnetsURLRE.FindStringSubmatch(r.URL.Path)
 	subnetsURL := getSubnetsEndpoint(server.version)
@@ -82,6 +84,12 @@ func subnetsHandler(server *TestServer, w http.ResponseWriter, r *http.Request) 
 		}
 
 		gotID = true
+	}
+
+	var includeRanges bool
+	switch includeRangesString {
+	case "true", "yes", "1":
+		includeRanges = true
 	}
 
 	switch r.Method {
@@ -114,6 +122,9 @@ func subnetsHandler(server *TestServer, w http.ResponseWriter, r *http.Request) 
 			case "reserved_ip_ranges":
 				err = json.NewEncoder(w).Encode(
 					server.subnetReservedIPRanges(server.subnets[ID]))
+			case "statistics":
+				err = json.NewEncoder(w).Encode(
+					server.subnetStatistics(server.subnets[ID], includeRanges))
 			default:
 				err = json.NewEncoder(w).Encode(server.subnets[ID])
 			}
@@ -139,8 +150,10 @@ func (a addressList) Less(i, j int) bool { return a[i].UInt64() < a[j].UInt64() 
 
 // AddressRange is used to generate reserved IP address range lists
 type AddressRange struct {
-	Start        string   `json:"start"`
-	End          string   `json:"end"`
+	Start        string `json:"start"`
+	startUint    uint64
+	End          string `json:"end"`
+	endUint      uint64
 	Purpose      []string `json:"purpose,omitempty"`
 	NumAddresses uint     `json:"num_addresses"`
 }
@@ -154,7 +167,7 @@ func (server *TestServer) subnetUnreservedIPRanges(subnet Subnet) []AddressRange
 	// We need the first and last address in the subnet
 	var ranges []AddressRange
 	var i AddressRange
-	var startIP, endIP IP
+	var startIP, endIP, lastUsableIP IP
 
 	_, ipNet, err := net.ParseCIDR(subnet.CIDR)
 	checkError(err)
@@ -163,24 +176,41 @@ func (server *TestServer) subnetUnreservedIPRanges(subnet Subnet) []AddressRange
 	// what net.ParseCIDR will give back.
 	startIP.SetUInt64(startIP.UInt64() + 1)
 
-	for _, endIP = range ipAddresses {
-		end := endIP.UInt64()
-		endIP.SetUInt64(end - 1)
-		i.Start, i.End = startIP.String(), endIP.String()
-		i.NumAddresses = uint(1 + endIP.UInt64() - startIP.UInt64())
-		ranges = append(ranges, i)
-		startIP.SetUInt64(end + 1)
-	}
-
 	ones, bits := ipNet.Mask.Size()
 	set := ^((^uint64(0)) << uint(bits-ones))
 
 	// The last usable address is one below the broadcast address, which is
 	// what you get by bitwise ORing 'set' with any IP address in the subnet.
-	endIP.SetUInt64((endIP.UInt64() | set) - 1)
-	i.Start, i.End = startIP.String(), endIP.String()
-	i.NumAddresses = uint(1 + endIP.UInt64() - startIP.UInt64())
-	ranges = append(ranges, i)
+	lastUsableIP.SetUInt64((startIP.UInt64() | set) - 1)
+
+	for _, endIP = range ipAddresses {
+		end := endIP.UInt64()
+
+		if endIP.UInt64() == startIP.UInt64() {
+			if endIP.UInt64() != lastUsableIP.UInt64() {
+				startIP.SetUInt64(end + 1)
+			}
+			continue
+		}
+
+		if end == lastUsableIP.UInt64() {
+			continue
+		}
+
+		endIP.SetUInt64(end - 1)
+		i.Start, i.End = startIP.String(), endIP.String()
+		i.startUint, i.endUint = startIP.UInt64(), endIP.UInt64()
+		i.NumAddresses = uint(1 + endIP.UInt64() - startIP.UInt64())
+		ranges = append(ranges, i)
+		startIP.SetUInt64(end + 1)
+	}
+
+	if startIP.UInt64() != lastUsableIP.UInt64() {
+		i.Start, i.End = startIP.String(), lastUsableIP.String()
+		i.startUint, i.endUint = startIP.UInt64(), lastUsableIP.UInt64()
+		i.NumAddresses = uint(1 + lastUsableIP.UInt64() - startIP.UInt64())
+		ranges = append(ranges, i)
+	}
 
 	return ranges
 }
@@ -193,34 +223,69 @@ func (server *TestServer) subnetReservedIPRanges(subnet Subnet) []AddressRange {
 
 	var ranges []AddressRange
 	var i AddressRange
-	startIP := ipAddresses[0]
-	var thisIP IP
-	var lastIP uint64
-	var startIPValid bool
+	var startIP, thisIP IP
+	startIP = ipAddresses[0]
+	lastIP := ipAddresses[0].UInt64()
 
 	for _, thisIP = range ipAddresses {
 		ip := thisIP.UInt64()
-		if startIPValid == false {
-			startIP.SetUInt64(ip)
-			startIPValid = true
-		} else if ip != lastIP && ip != lastIP+1 {
+		if ip != lastIP && ip != lastIP+1 {
 			thisIP.SetUInt64(lastIP)
 			i.Start, i.End = startIP.String(), thisIP.String()
+			i.startUint, i.endUint = startIP.UInt64(), thisIP.UInt64()
 			i.NumAddresses = uint(1 + thisIP.UInt64() - startIP.UInt64())
 			ranges = append(ranges, i)
-			startIP.SetUInt64(ip + 1)
-			startIPValid = false
+			startIP.SetUInt64(ip)
 		}
 		lastIP = ip
 	}
-	if startIPValid {
+	if ranges[len(ranges)-1].endUint != lastIP {
 		thisIP.SetUInt64(lastIP)
 		i.Start, i.End = startIP.String(), thisIP.String()
+		i.startUint, i.endUint = startIP.UInt64(), thisIP.UInt64()
 		i.NumAddresses = uint(1 + thisIP.UInt64() - startIP.UInt64())
 		ranges = append(ranges, i)
 	}
 
 	return ranges
+}
+
+// SubnetStats holds statistics about a subnet
+type SubnetStats struct {
+	NumAvailable     uint           `json:"num_available"`
+	LargestAvailable uint           `json:"largest_available"`
+	NumUnavailable   uint           `json:"num_unavailable"`
+	TotalAddresses   uint           `json:"total_addresses"`
+	Usage            float32        `json:"usage"`
+	UsageString      string         `json:"usage_string"`
+	Ranges           []AddressRange `json:"ranges"`
+}
+
+func (server *TestServer) subnetStatistics(subnet Subnet, includeRanges bool) SubnetStats {
+	var stats SubnetStats
+	_, ipNet, err := net.ParseCIDR(subnet.CIDR)
+	checkError(err)
+
+	ones, bits := ipNet.Mask.Size()
+	stats.TotalAddresses = (1 << uint(bits-ones)) - 2
+	stats.NumUnavailable = uint(len(subnet.InUseIPAddresses))
+	stats.NumAvailable = stats.TotalAddresses - stats.NumUnavailable
+	stats.Usage = float32(stats.NumUnavailable) / float32(stats.TotalAddresses)
+	stats.UsageString = fmt.Sprintf("%0.1f%%", stats.Usage*100)
+
+	// Calculate stats.LargestAvailable - the largest contiguous block of IP addresses available
+	reserved := server.subnetUnreservedIPRanges(subnet)
+	for _, addressRange := range reserved {
+		if addressRange.NumAddresses > stats.LargestAvailable {
+			stats.LargestAvailable = addressRange.NumAddresses
+		}
+	}
+
+	if includeRanges {
+		stats.Ranges = reserved
+	}
+
+	return stats
 }
 
 func decodePostedSubnet(subnetJSON io.Reader) CreateSubnet {

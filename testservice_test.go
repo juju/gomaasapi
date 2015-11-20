@@ -752,16 +752,22 @@ func (suite *TestServerSuite) TestSubnetReservedIPRanges(c *C) {
 		fmt.Sscanf(addressRange.Start, "192.168.1.%d", &start)
 		fmt.Sscanf(addressRange.End, "192.168.1.%d", &end)
 		c.Check(addressRange.NumAddresses, Equals, uint(1+end-start))
+		c.Check(start <= end, Equals, true)
+		c.Check(start < 255, Equals, true)
+		c.Check(end < 255, Equals, true)
 		for i := start; i <= end; i++ {
 			_, ok := reserved[int(i)]
 			c.Check(ok, Equals, true)
+			delete(reserved, int(i))
 		}
 	}
+	c.Check(reserved, HasLen, 0)
 }
 
 func (suite *TestServerSuite) TestSubnetUnreservedIPRanges(c *C) {
 	suite.server.NewSubnet(suite.subnetJSON(defaultSubnet()))
 	reserved := suite.reserveSomeAddresses()
+	unreserved := make(map[int]bool)
 
 	// Fetch from the server
 	reservedIPRangeURL := suite.subnetURL(1) + "?op=unreserved_ip_ranges"
@@ -780,11 +786,78 @@ func (suite *TestServerSuite) TestSubnetUnreservedIPRanges(c *C) {
 		fmt.Sscanf(addressRange.Start, "192.168.1.%d", &start)
 		fmt.Sscanf(addressRange.End, "192.168.1.%d", &end)
 		c.Check(addressRange.NumAddresses, Equals, uint(1+end-start))
+		c.Check(start <= end, Equals, true)
+		c.Check(start < 255, Equals, true)
+		c.Check(end < 255, Equals, true)
 		for i := start; i <= end; i++ {
 			_, ok := reserved[int(i)]
 			c.Check(ok, Equals, false)
+			unreserved[int(i)] = true
 		}
 	}
+	for i := 1; i < 255; i++ {
+		_, r := reserved[i]
+		_, u := unreserved[i]
+		if (r || u) == false {
+			fmt.Println(i, r, u)
+		}
+		c.Check(r || u, Equals, true)
+	}
+	c.Check(len(reserved)+len(unreserved), Equals, 254)
+}
+
+func (suite *TestServerSuite) getSubnetStats(c *C, subnetID int) SubnetStats {
+	URL := suite.subnetURL(1) + "?op=statistics"
+	resp, err := http.Get(URL)
+	c.Check(err, IsNil)
+
+	var s SubnetStats
+	decoder := json.NewDecoder(resp.Body)
+	err = decoder.Decode(&s)
+	c.Check(err, IsNil)
+	return s
+}
+
+func (suite *TestServerSuite) TestSubnetStats(c *C) {
+	suite.server.NewSubnet(suite.subnetJSON(defaultSubnet()))
+
+	stats := suite.getSubnetStats(c, 1)
+	// There are 254 usable addresses in a class C subnet, so these
+	// stats are fixed
+	expected := SubnetStats{
+		NumAvailable:     254,
+		LargestAvailable: 254,
+		NumUnavailable:   0,
+		TotalAddresses:   254,
+		Usage:            0,
+		UsageString:      "0.0%",
+		Ranges:           nil,
+	}
+	c.Check(stats, DeepEquals, expected)
+
+	suite.reserveSomeAddresses()
+	stats = suite.getSubnetStats(c, 1)
+	// We have reserved 200 addresses so parts of these
+	// stats are fixed.
+	expected = SubnetStats{
+		NumAvailable:   54,
+		NumUnavailable: 200,
+		TotalAddresses: 254,
+		Usage:          0.787401556968689,
+		UsageString:    "78.7%",
+		Ranges:         nil,
+	}
+
+	reserved := suite.server.subnetUnreservedIPRanges(suite.server.subnets[1])
+	var largestAvailable uint
+	for _, addressRange := range reserved {
+		if addressRange.NumAddresses > largestAvailable {
+			largestAvailable = addressRange.NumAddresses
+		}
+	}
+
+	expected.LargestAvailable = largestAvailable
+	c.Check(stats, DeepEquals, expected)
 }
 
 type IPSuite struct {
@@ -819,15 +892,15 @@ type TestMAASObjectSuite struct {
 var _ = Suite(&TestMAASObjectSuite{})
 
 func (suite *TestMAASObjectSuite) SetUpSuite(c *C) {
-	s.TestMAASObject = NewTestMAAS("1.0")
+	suite.TestMAASObject = NewTestMAAS("1.0")
 }
 
 func (suite *TestMAASObjectSuite) TearDownSuite(c *C) {
-	s.TestMAASObject.Close()
+	suite.TestMAASObject.Close()
 }
 
 func (suite *TestMAASObjectSuite) TearDownTest(c *C) {
-	s.TestMAASObject.TestServer.Clear()
+	suite.TestMAASObject.TestServer.Clear()
 }
 
 func (suite *TestMAASObjectSuite) TestListNodes(c *C) {
