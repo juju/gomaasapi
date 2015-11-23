@@ -18,6 +18,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/dooferlad/here"
+
 	"gopkg.in/mgo.v2/bson"
 	. "launchpad.net/gocheck"
 )
@@ -909,6 +911,7 @@ func (suite *TestMAASObjectSuite) TestListNodes(c *C) {
 	nodeListing := suite.TestMAASObject.GetSubObject("nodes")
 
 	listNodeObjects, err := nodeListing.CallGet("list", url.Values{})
+	here.Is(listNodeObjects)
 
 	c.Check(err, IsNil)
 	listNodes, err := listNodeObjects.GetArray()

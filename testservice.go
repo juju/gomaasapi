@@ -22,6 +22,8 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/dooferlad/here"
+
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -74,6 +76,7 @@ type TestServer struct {
 	// list of Values passed when performing operations at the
 	// /nodes/ level.
 	nodesOperationRequestValues []url.Values
+	nodeMetadata                map[string]Node
 	files                       map[string]MAASObject
 	networks                    map[string]MAASObject
 	networksPerNode             map[string][]string
@@ -214,6 +217,7 @@ func (server *TestServer) Clear() {
 	server.nodeOperations = make(map[string][]string)
 	server.nodesOperationRequestValues = make([]url.Values, 0)
 	server.nodeOperationRequestValues = make(map[string][]url.Values)
+	server.nodeMetadata = make(map[string]Node)
 	server.files = make(map[string]MAASObject)
 	server.networks = make(map[string]MAASObject)
 	server.networksPerNode = make(map[string][]string)
@@ -831,12 +835,36 @@ func nodeHandler(server *TestServer, w http.ResponseWriter, r *http.Request, sys
 		http.NotFoundHandler().ServeHTTP(w, r)
 		return
 	}
+	UUID, UUIDError := node.values["system_id"].GetString()
+	here.Is(UUID)
+	here.V("UUIDError", UUIDError)
+
 	if r.Method == "GET" {
 		if operation == "" {
 			w.WriteHeader(http.StatusOK)
+			if UUIDError == nil {
+				here.Is(server.nodeMetadata)
+				i, err := JSONObjectFromStruct(server.client, server.nodeMetadata[UUID].Interfaces)
+				checkError(err)
+				if err == nil {
+					node.values["interface_set"] = i
+				}
+				here.Is(node.values["interface_set"])
+				s, err := json.Marshal(i)
+				checkError(err)
+				here.V("Interfaces", string(s))
+				here.V("err", err)
+				here.V("marshalNode(node)", marshalNode(node))
+			}
 			fmt.Fprint(w, marshalNode(node))
 			return
 		} else if operation == "details" {
+			if UUIDError == nil {
+				i, err := JSONObjectFromStruct(server.client, server.nodeMetadata[UUID].Interfaces)
+				if err == nil {
+					node.values["interface_set"] = i
+				}
+			}
 			nodeDetailsHandler(server, w, r, systemId)
 			return
 		} else {
@@ -857,10 +885,10 @@ func nodeHandler(server *TestServer, w http.ResponseWriter, r *http.Request, sys
 			w.WriteHeader(http.StatusOK)
 			fmt.Fprint(w, marshalNode(node))
 			return
-		} else {
-			w.WriteHeader(http.StatusBadRequest)
-			return
 		}
+
+		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 	if r.Method == "DELETE" {
 		delete(server.nodes, systemId)

@@ -305,7 +305,7 @@ func (server *TestServer) UpdateSubnet(subnetJSON io.Reader) Subnet {
 }
 
 // NewSubnet creates a subnet in the test server
-func (server *TestServer) NewSubnet(subnetJSON io.Reader) Subnet {
+func (server *TestServer) NewSubnet(subnetJSON io.Reader) *Subnet {
 	postedSubnet := decodePostedSubnet(subnetJSON)
 	newSubnet := subnetFromCreateSubnet(postedSubnet)
 	newSubnet.ID = server.nextSubnet
@@ -313,7 +313,39 @@ func (server *TestServer) NewSubnet(subnetJSON io.Reader) Subnet {
 	server.subnetNameToID[newSubnet.Name] = newSubnet.ID
 
 	server.nextSubnet++
-	return newSubnet
+	return &newSubnet
+}
+
+// NodeNetworkInterface represents a network interface attached to a node
+type NodeNetworkInterface struct {
+	Name  string        `json:"name"`
+	Links []NetworkLink `json:"links"`
+}
+
+// Node represents a node
+type Node struct {
+	Interfaces []NodeNetworkInterface
+	UUID       string
+}
+
+// NetworkLink represents a MAAS network link
+type NetworkLink struct {
+	ID     string  `json:"id"`
+	Mode   string  `json:"mode"`
+	Subnet *Subnet `json:"subnet"`
+}
+
+// SetNodeNetworkLink recordds that the given node + interface are in subnet
+func (server *TestServer) SetNodeNetworkLink(node Node, nodeNetworkInterface NodeNetworkInterface) {
+	for i, ni := range server.nodeMetadata[node.UUID].Interfaces {
+		if ni.Name == nodeNetworkInterface.Name {
+			server.nodeMetadata[node.UUID].Interfaces[i] = nodeNetworkInterface
+			return
+		}
+	}
+	n := server.nodeMetadata[node.UUID]
+	n.Interfaces = append(n.Interfaces, nodeNetworkInterface)
+	server.nodeMetadata[node.UUID] = n
 }
 
 // subnetFromCreateSubnet creates a subnet in the test server
