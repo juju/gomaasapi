@@ -324,28 +324,28 @@ type NodeNetworkInterface struct {
 
 // Node represents a node
 type Node struct {
-	Interfaces []NodeNetworkInterface
-	UUID       string
+	SystemID   string                 `json:"system_id"`
+	Interfaces []NodeNetworkInterface `json:"interface_set"`
 }
 
 // NetworkLink represents a MAAS network link
 type NetworkLink struct {
-	ID     string  `json:"id"`
+	ID     uint    `json:"id"`
 	Mode   string  `json:"mode"`
 	Subnet *Subnet `json:"subnet"`
 }
 
 // SetNodeNetworkLink recordds that the given node + interface are in subnet
 func (server *TestServer) SetNodeNetworkLink(node Node, nodeNetworkInterface NodeNetworkInterface) {
-	for i, ni := range server.nodeMetadata[node.UUID].Interfaces {
+	for i, ni := range server.nodeMetadata[node.SystemID].Interfaces {
 		if ni.Name == nodeNetworkInterface.Name {
-			server.nodeMetadata[node.UUID].Interfaces[i] = nodeNetworkInterface
+			server.nodeMetadata[node.SystemID].Interfaces[i] = nodeNetworkInterface
 			return
 		}
 	}
-	n := server.nodeMetadata[node.UUID]
+	n := server.nodeMetadata[node.SystemID]
 	n.Interfaces = append(n.Interfaces, nodeNetworkInterface)
-	server.nodeMetadata[node.UUID] = n
+	server.nodeMetadata[node.SystemID] = n
 }
 
 // subnetFromCreateSubnet creates a subnet in the test server

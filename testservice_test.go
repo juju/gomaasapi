@@ -18,8 +18,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/dooferlad/here"
-
 	"gopkg.in/mgo.v2/bson"
 	. "launchpad.net/gocheck"
 )
@@ -862,6 +860,39 @@ func (suite *TestServerSuite) TestSubnetStats(c *C) {
 	c.Check(stats, DeepEquals, expected)
 }
 
+func (suite *TestServerSuite) TestSubnetsInNodes(c *C) {
+	// Create a subnet
+	subnet := suite.server.NewSubnet(suite.subnetJSON(defaultSubnet()))
+
+	// Create a node
+	var node Node
+	node.SystemID = "node-89d832ca-8877-11e5-b5a5-00163e86022b"
+	suite.server.NewNode(fmt.Sprintf(`{"system_id": "%s"}`, "node-89d832ca-8877-11e5-b5a5-00163e86022b"))
+
+	// Put the node in the subnet
+	var nni NodeNetworkInterface
+	nni.Name = "eth0"
+	nni.Links = append(nni.Links, NetworkLink{uint(1), "auto", subnet})
+	suite.server.SetNodeNetworkLink(node, nni)
+
+	// Fetch the node details
+	URL := suite.server.Server.URL + getNodesEndpoint(suite.server.version) + node.SystemID + "/"
+	resp, err := http.Get(URL)
+	c.Check(err, IsNil)
+
+	var n Node
+	decoder := json.NewDecoder(resp.Body)
+	err = decoder.Decode(&n)
+	c.Check(err, IsNil)
+	c.Check(n.SystemID, Equals, node.SystemID)
+	c.Check(n.Interfaces, HasLen, 1)
+	i := n.Interfaces[0]
+	c.Check(i.Name, Equals, "eth0")
+	c.Check(i.Links, HasLen, 1)
+	c.Check(i.Links[0].ID, Equals, uint(1))
+	c.Check(i.Links[0].Subnet.Name, Equals, "maas-eth0")
+}
+
 type IPSuite struct {
 }
 
@@ -911,7 +942,6 @@ func (suite *TestMAASObjectSuite) TestListNodes(c *C) {
 	nodeListing := suite.TestMAASObject.GetSubObject("nodes")
 
 	listNodeObjects, err := nodeListing.CallGet("list", url.Values{})
-	here.Is(listNodeObjects)
 
 	c.Check(err, IsNil)
 	listNodes, err := listNodeObjects.GetArray()

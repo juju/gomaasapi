@@ -22,8 +22,6 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/dooferlad/here"
-
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -836,25 +834,16 @@ func nodeHandler(server *TestServer, w http.ResponseWriter, r *http.Request, sys
 		return
 	}
 	UUID, UUIDError := node.values["system_id"].GetString()
-	here.Is(UUID)
-	here.V("UUIDError", UUIDError)
 
 	if r.Method == "GET" {
 		if operation == "" {
 			w.WriteHeader(http.StatusOK)
 			if UUIDError == nil {
-				here.Is(server.nodeMetadata)
 				i, err := JSONObjectFromStruct(server.client, server.nodeMetadata[UUID].Interfaces)
 				checkError(err)
 				if err == nil {
 					node.values["interface_set"] = i
 				}
-				here.Is(node.values["interface_set"])
-				s, err := json.Marshal(i)
-				checkError(err)
-				here.V("Interfaces", string(s))
-				here.V("err", err)
-				here.V("marshalNode(node)", marshalNode(node))
 			}
 			fmt.Fprint(w, marshalNode(node))
 			return

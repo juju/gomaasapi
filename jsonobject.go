@@ -7,8 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-
-	"github.com/dooferlad/here"
 )
 
 // JSONObject is a wrapper around a JSON structure which provides
@@ -109,7 +107,6 @@ func Parse(client Client, input []byte) (JSONObject, error) {
 // JSONObjectFromStruct takes a struct and converts it to a JSONObject
 func JSONObjectFromStruct(client Client, input interface{}) (JSONObject, error) {
 	j, err := json.Marshal(input)
-	here.Is(string(j))
 	if err != nil {
 		return JSONObject{}, err
 	}
