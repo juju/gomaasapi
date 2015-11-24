@@ -57,9 +57,16 @@ type Subnet struct {
 	GatewayIP  string   `json:"gateway_ip"`
 	CIDR       string   `json:"cidr"`
 
-	ResourceURI      string `json:"resource_uri"`
-	ID               uint   `json:"id"`
-	InUseIPAddresses []IP   `json:"-"`
+	ResourceURI        string         `json:"resource_uri"`
+	ID                 uint           `json:"id"`
+	InUseIPAddresses   []IP           `json:"-"`
+	FixedAddressRanges []AddressRange `json:"-"`
+}
+
+// AddFixedAddressRange adds an AddressRange to the list of fixed address ranges
+// that subnet stores.
+func (subnet *Subnet) AddFixedAddressRange(ar AddressRange) {
+	subnet.FixedAddressRanges = append(subnet.FixedAddressRanges, ar)
 }
 
 // subnetsHandler handles requests for '/api/<version>/subnets/'.
@@ -151,19 +158,44 @@ type AddressRange struct {
 	startUint    uint64
 	End          string `json:"end"`
 	endUint      uint64
-	Purpose      []string `json:"purpose,omitempty"`
-	NumAddresses uint     `json:"num_addresses"`
+	Purpose      string `json:"purpose,omitempty"`
+	NumAddresses uint   `json:"num_addresses"`
+}
+
+// AddressRangeList is a list of AddressRange
+type AddressRangeList struct {
+	ar []AddressRange
+}
+
+// Append appends a new AddressRange to an AddressRangeList
+func (ranges *AddressRangeList) Append(startIP, endIP IP) {
+	var i AddressRange
+	i.Start, i.End = startIP.String(), endIP.String()
+	i.startUint, i.endUint = startIP.UInt64(), endIP.UInt64()
+	i.NumAddresses = uint(1 + endIP.UInt64() - startIP.UInt64())
+	i.Purpose = startIP.Purpose
+	ranges.ar = append(ranges.ar, i)
+}
+
+func appendRangesToIPList(subnet Subnet, ipAddresses *[]IP) {
+	for _, r := range subnet.FixedAddressRanges {
+		for v := r.startUint; v <= r.endUint; v++ {
+			ip := IPFromInt64(v)
+			ip.Purpose = r.Purpose
+			*ipAddresses = append(*ipAddresses, ip)
+		}
+	}
 }
 
 func (server *TestServer) subnetUnreservedIPRanges(subnet Subnet) []AddressRange {
 	// Make a sorted copy of subnet.InUseIPAddresses
 	ipAddresses := make([]IP, len(subnet.InUseIPAddresses))
 	copy(ipAddresses, subnet.InUseIPAddresses)
+	appendRangesToIPList(subnet, &ipAddresses)
 	sort.Sort(addressList(ipAddresses))
 
 	// We need the first and last address in the subnet
-	var ranges []AddressRange
-	var i AddressRange
+	var ranges AddressRangeList
 	var startIP, endIP, lastUsableIP IP
 
 	_, ipNet, err := net.ParseCIDR(subnet.CIDR)
@@ -194,58 +226,42 @@ func (server *TestServer) subnetUnreservedIPRanges(subnet Subnet) []AddressRange
 			continue
 		}
 
-		endIP.SetUInt64(end - 1)
-		i.Start, i.End = startIP.String(), endIP.String()
-		i.startUint, i.endUint = startIP.UInt64(), endIP.UInt64()
-		i.NumAddresses = uint(1 + endIP.UInt64() - startIP.UInt64())
-		ranges = append(ranges, i)
+		ranges.Append(startIP, IPFromInt64(end-1))
 		startIP.SetUInt64(end + 1)
 	}
 
 	if startIP.UInt64() != lastUsableIP.UInt64() {
-		i.Start, i.End = startIP.String(), lastUsableIP.String()
-		i.startUint, i.endUint = startIP.UInt64(), lastUsableIP.UInt64()
-		i.NumAddresses = uint(1 + lastUsableIP.UInt64() - startIP.UInt64())
-		ranges = append(ranges, i)
+		ranges.Append(startIP, lastUsableIP)
 	}
 
-	return ranges
+	return ranges.ar
 }
 
 func (server *TestServer) subnetReservedIPRanges(subnet Subnet) []AddressRange {
 	// Make a sorted copy of subnet.InUseIPAddresses
 	ipAddresses := make([]IP, len(subnet.InUseIPAddresses))
 	copy(ipAddresses, subnet.InUseIPAddresses)
+	appendRangesToIPList(subnet, &ipAddresses)
 	sort.Sort(addressList(ipAddresses))
 
-	var ranges []AddressRange
-	var i AddressRange
+	var ranges AddressRangeList
 	var startIP, thisIP IP
 	startIP = ipAddresses[0]
-	lastIP := ipAddresses[0].UInt64()
+	lastIP := ipAddresses[0]
 
 	for _, thisIP = range ipAddresses {
-		ip := thisIP.UInt64()
-		if ip != lastIP && ip != lastIP+1 {
-			thisIP.SetUInt64(lastIP)
-			i.Start, i.End = startIP.String(), thisIP.String()
-			i.startUint, i.endUint = startIP.UInt64(), thisIP.UInt64()
-			i.NumAddresses = uint(1 + thisIP.UInt64() - startIP.UInt64())
-			ranges = append(ranges, i)
-			startIP.SetUInt64(ip)
+		if (thisIP.UInt64() != lastIP.UInt64() && thisIP.UInt64() != lastIP.UInt64()+1) || thisIP.Purpose != startIP.Purpose {
+			ranges.Append(startIP, lastIP)
+			startIP = thisIP
 		}
-		lastIP = ip
+		lastIP = thisIP
 	}
 
-	if len(ranges) == 0 || ranges[len(ranges)-1].endUint != lastIP {
-		thisIP.SetUInt64(lastIP)
-		i.Start, i.End = startIP.String(), thisIP.String()
-		i.startUint, i.endUint = startIP.UInt64(), thisIP.UInt64()
-		i.NumAddresses = uint(1 + thisIP.UInt64() - startIP.UInt64())
-		ranges = append(ranges, i)
+	if len(ranges.ar) == 0 || ranges.ar[len(ranges.ar)-1].endUint != lastIP.UInt64() {
+		ranges.Append(startIP, lastIP)
 	}
 
-	return ranges
+	return ranges.ar
 }
 
 // SubnetStats holds statistics about a subnet

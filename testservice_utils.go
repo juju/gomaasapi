@@ -34,13 +34,26 @@ func NameOrIDToID(v string, nameToID map[string]uint, minID, maxID uint) (ID uin
 
 // IP is an enhanced net.IP
 type IP struct {
-	netIP net.IP
+	netIP   net.IP
+	Purpose string
 }
 
 // IPFromNetIP creates a IP from a net.IP.
 func IPFromNetIP(netIP net.IP) IP {
 	var ip IP
 	ip.netIP = netIP
+	return ip
+}
+
+// IPFromString creates a new IP from a string IP address representation
+func IPFromString(v string) IP {
+	return IPFromNetIP(net.ParseIP(v))
+}
+
+// IPFromInt64 creates a new IP from a uint64 IP address representation
+func IPFromInt64(v uint64) IP {
+	var ip IP
+	ip.SetUInt64(v)
 	return ip
 }
 

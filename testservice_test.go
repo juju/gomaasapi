@@ -806,6 +806,46 @@ func (suite *TestServerSuite) TestSubnetUnreservedIPRanges(c *C) {
 	c.Check(len(reserved)+len(unreserved), Equals, 254)
 }
 
+func (suite *TestServerSuite) TestSubnetReserveRange(c *C) {
+	suite.server.NewSubnet(suite.subnetJSON(defaultSubnet()))
+	suite.server.NewIPAddress("192.168.1.10", "maas-eth0")
+
+	var ar AddressRange
+	startIP := IPFromString("192.168.1.100")
+	endIP := IPFromString("192.168.1.200")
+	ar.Start = startIP.String()
+	ar.End = endIP.String()
+	ar.Purpose = "dynamic"
+	ar.startUint = startIP.UInt64()
+	ar.endUint = endIP.UInt64()
+
+	s := suite.server.subnets[1]
+	s.AddFixedAddressRange(ar)
+	suite.server.subnets[1] = s
+
+	// Fetch from the server
+	reservedIPRangeURL := suite.subnetURL(1) + "?op=reserved_ip_ranges"
+	resp, err := http.Get(reservedIPRangeURL)
+	c.Check(err, IsNil)
+
+	var reservedFromAPI []AddressRange
+	decoder := json.NewDecoder(resp.Body)
+	err = decoder.Decode(&reservedFromAPI)
+	c.Check(err, IsNil)
+
+	// Check that the address ranges we got back were as expected
+	addressRange := reservedFromAPI[0]
+	c.Check(addressRange.Start, Equals, "192.168.1.10")
+	c.Check(addressRange.End, Equals, "192.168.1.10")
+	c.Check(addressRange.NumAddresses, Equals, uint(1))
+
+	addressRange = reservedFromAPI[1]
+	c.Check(addressRange.Start, Equals, "192.168.1.100")
+	c.Check(addressRange.End, Equals, "192.168.1.200")
+	c.Check(addressRange.NumAddresses, Equals, uint(101))
+	c.Check(addressRange.Purpose, Equals, "dynamic")
+}
+
 func (suite *TestServerSuite) getSubnetStats(c *C, subnetID int) SubnetStats {
 	URL := suite.subnetURL(1) + "?op=statistics"
 	resp, err := http.Get(URL)
