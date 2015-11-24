@@ -111,22 +111,19 @@ func subnetsHandler(server *TestServer, w http.ResponseWriter, r *http.Request) 
 					subnets = append(subnets, s)
 				}
 			}
-			err = json.NewEncoder(w).Encode(subnets)
+			PrettyJsonWriter(subnets, w)
 		} else if gotID == false {
 			w.WriteHeader(http.StatusBadRequest)
 		} else {
 			switch op {
 			case "unreserved_ip_ranges":
-				err = json.NewEncoder(w).Encode(
-					server.subnetUnreservedIPRanges(server.subnets[ID]))
+				PrettyJsonWriter(server.subnetUnreservedIPRanges(server.subnets[ID]), w)
 			case "reserved_ip_ranges":
-				err = json.NewEncoder(w).Encode(
-					server.subnetReservedIPRanges(server.subnets[ID]))
+				PrettyJsonWriter(server.subnetReservedIPRanges(server.subnets[ID]), w)
 			case "statistics":
-				err = json.NewEncoder(w).Encode(
-					server.subnetStatistics(server.subnets[ID], includeRanges))
+				PrettyJsonWriter(server.subnetStatistics(server.subnets[ID], includeRanges), w)
 			default:
-				err = json.NewEncoder(w).Encode(server.subnets[ID])
+				PrettyJsonWriter(server.subnets[ID], w)
 			}
 		}
 		checkError(err)
@@ -239,7 +236,8 @@ func (server *TestServer) subnetReservedIPRanges(subnet Subnet) []AddressRange {
 		}
 		lastIP = ip
 	}
-	if ranges[len(ranges)-1].endUint != lastIP {
+
+	if len(ranges) == 0 || ranges[len(ranges)-1].endUint != lastIP {
 		thisIP.SetUInt64(lastIP)
 		i.Start, i.End = startIP.String(), thisIP.String()
 		i.startUint, i.endUint = startIP.UInt64(), thisIP.UInt64()

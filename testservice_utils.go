@@ -6,8 +6,10 @@ package gomaasapi
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"net"
+	"net/http"
 	"strconv"
 )
 
@@ -102,4 +104,12 @@ func (ip *IP) SetUInt64(v uint64) {
 		binary.Write(bb, binary.BigEndian, v)
 	}
 	copy(ip.netIP[first:], bb.Bytes())
+}
+
+func PrettyJsonWriter(thing interface{}, w http.ResponseWriter) {
+	var out bytes.Buffer
+	b, err := json.MarshalIndent(thing, "", "  ")
+	checkError(err)
+	out.Write(b)
+	out.WriteTo(w)
 }

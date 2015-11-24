@@ -106,7 +106,7 @@ func Parse(client Client, input []byte) (JSONObject, error) {
 
 // JSONObjectFromStruct takes a struct and converts it to a JSONObject
 func JSONObjectFromStruct(client Client, input interface{}) (JSONObject, error) {
-	j, err := json.Marshal(input)
+	j, err := json.MarshalIndent(input, "", "  ")
 	if err != nil {
 		return JSONObject{}, err
 	}
@@ -125,7 +125,7 @@ func (obj JSONObject) MarshalJSON() ([]byte, error) {
 	if obj.IsNil() {
 		return json.Marshal(nil)
 	}
-	return json.Marshal(obj.value)
+	return json.MarshalIndent(obj.value, "", "  ")
 }
 
 // With MarshalJSON, JSONObject implements json.Marshaler.

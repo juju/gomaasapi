@@ -907,7 +907,7 @@ func nodeListingHandler(server *TestServer, w http.ResponseWriter, r *http.Reque
 			convertedNodes = append(convertedNodes, node.GetMap())
 		}
 	}
-	res, err := json.Marshal(convertedNodes)
+	res, err := json.MarshalIndent(convertedNodes, "", "  ")
 	checkError(err)
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, string(res))
@@ -935,7 +935,7 @@ func nodeDeploymentStatusHandler(server *TestServer, w http.ResponseWriter, r *h
 		}
 	}
 	obj := maasify(server.client, nodeStatus)
-	res, err := json.Marshal(obj)
+	res, err := json.MarshalIndent(obj, "", "  ")
 	checkError(err)
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, string(res))
@@ -1034,7 +1034,7 @@ func nodesAcquireHandler(server *TestServer, w http.ResponseWriter, r *http.Requ
 		systemId, err := node.GetField("system_id")
 		checkError(err)
 		server.OwnedNodes()[systemId] = true
-		res, err := json.Marshal(node)
+		res, err := json.MarshalIndent(node, "", "  ")
 		checkError(err)
 		// Record operation.
 		server.addNodeOperation(systemId, "acquire", r)
@@ -1068,7 +1068,7 @@ func nodesReleaseHandler(server *TestServer, w http.ResponseWriter, r *http.Requ
 		node := server.Nodes()[systemId]
 		releasedNodes = append(releasedNodes, node.GetMap())
 	}
-	res, err := json.Marshal(releasedNodes)
+	res, err := json.MarshalIndent(releasedNodes, "", "  ")
 	checkError(err)
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, string(res))
@@ -1184,7 +1184,7 @@ func fileListingHandler(server *TestServer, w http.ResponseWriter, r *http.Reque
 		fileMap := stripContent(server.files[filename].GetMap())
 		convertedFiles = append(convertedFiles, fileMap)
 	}
-	res, err := json.Marshal(convertedFiles)
+	res, err := json.MarshalIndent(convertedFiles, "", "  ")
 	checkError(err)
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, string(res))
@@ -1204,7 +1204,7 @@ func fileHandler(server *TestServer, w http.ResponseWriter, r *http.Request, fil
 			http.NotFoundHandler().ServeHTTP(w, r)
 			return
 		}
-		jsonText, err := json.Marshal(file)
+		jsonText, err := json.MarshalIndent(file, "", "  ")
 		if err != nil {
 			panic(err)
 		}
@@ -1296,7 +1296,7 @@ func networkListConnectedMACSHandler(server *TestServer, w http.ResponseWriter, 
 			convertedMacAddresses = append(convertedMacAddresses, m)
 		}
 	}
-	res, err := json.Marshal(convertedMacAddresses)
+	res, err := json.MarshalIndent(convertedMacAddresses, "", "  ")
 	checkError(err)
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, string(res))
@@ -1328,7 +1328,7 @@ func networksHandler(server *TestServer, w http.ResponseWriter, r *http.Request)
 			networks[i] = server.networks[networkName]
 		}
 	}
-	res, err := json.Marshal(networks)
+	res, err := json.MarshalIndent(networks, "", "  ")
 	checkError(err)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
@@ -1394,7 +1394,7 @@ func listIPAddressesHandler(server *TestServer, w http.ResponseWriter, r *http.R
 			results = append(results, maasObj)
 		}
 	}
-	res, err := json.Marshal(results)
+	res, err := json.MarshalIndent(results, "", "  ")
 	checkError(err)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
@@ -1470,7 +1470,7 @@ func reserveIPAddressHandler(server *TestServer, w http.ResponseWriter, r *http.
 	checkError(err)
 	maasObj, err := jsonObj.GetMAASObject()
 	checkError(err)
-	res, err := json.Marshal(maasObj)
+	res, err := json.MarshalIndent(maasObj, "", "  ")
 	checkError(err)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
@@ -1539,7 +1539,7 @@ func nodegroupsTopLevelHandler(server *TestServer, w http.ResponseWriter, r *htt
 		nodegroups = append(nodegroups, obj)
 	}
 
-	res, err := json.Marshal(nodegroups)
+	res, err := json.MarshalIndent(nodegroups, "", "  ")
 	checkError(err)
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, string(res))
@@ -1558,7 +1558,7 @@ func bootimagesHandler(server *TestServer, w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	res, err := json.Marshal(bootImages)
+	res, err := json.MarshalIndent(bootImages, "", "  ")
 	checkError(err)
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, string(res))
@@ -1581,7 +1581,7 @@ func nodegroupsInterfacesHandler(server *TestServer, w http.ResponseWriter, r *h
 		// we already checked the nodegroup exists, so return an empty list
 		interfaces = []JSONObject{}
 	}
-	res, err := json.Marshal(interfaces)
+	res, err := json.MarshalIndent(interfaces, "", "  ")
 	checkError(err)
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, string(res))
@@ -1606,7 +1606,7 @@ func zonesHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
 	for _, zone := range server.zones {
 		zones = append(zones, zone)
 	}
-	res, err := json.Marshal(zones)
+	res, err := json.MarshalIndent(zones, "", "  ")
 	checkError(err)
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, string(res))
