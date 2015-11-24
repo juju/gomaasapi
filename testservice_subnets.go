@@ -158,8 +158,8 @@ type AddressRange struct {
 	startUint    uint64
 	End          string `json:"end"`
 	endUint      uint64
-	Purpose      string `json:"purpose,omitempty"`
-	NumAddresses uint   `json:"num_addresses"`
+	Purpose      []string `json:"purpose,omitempty"`
+	NumAddresses uint     `json:"num_addresses"`
 }
 
 // AddressRangeList is a list of AddressRange
@@ -238,19 +238,29 @@ func (server *TestServer) subnetUnreservedIPRanges(subnet Subnet) []AddressRange
 }
 
 func (server *TestServer) subnetReservedIPRanges(subnet Subnet) []AddressRange {
+	var ranges AddressRangeList
+	var startIP, thisIP IP
+
+	if len(subnet.InUseIPAddresses) == 0 {
+		return ranges.ar
+	}
+
 	// Make a sorted copy of subnet.InUseIPAddresses
 	ipAddresses := make([]IP, len(subnet.InUseIPAddresses))
 	copy(ipAddresses, subnet.InUseIPAddresses)
 	appendRangesToIPList(subnet, &ipAddresses)
 	sort.Sort(addressList(ipAddresses))
-
-	var ranges AddressRangeList
-	var startIP, thisIP IP
 	startIP = ipAddresses[0]
 	lastIP := ipAddresses[0]
 
 	for _, thisIP = range ipAddresses {
-		if (thisIP.UInt64() != lastIP.UInt64() && thisIP.UInt64() != lastIP.UInt64()+1) || thisIP.Purpose != startIP.Purpose {
+		var purposeMissmatch bool
+		for i, p := range thisIP.Purpose {
+			if startIP.Purpose[i] != p {
+				purposeMissmatch = true
+			}
+		}
+		if (thisIP.UInt64() != lastIP.UInt64() && thisIP.UInt64() != lastIP.UInt64()+1) || purposeMissmatch {
 			ranges.Append(startIP, lastIP)
 			startIP = thisIP
 		}

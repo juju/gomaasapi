@@ -398,7 +398,7 @@ func (server *TestServer) NewIPAddress(ipAddress, networkOrSubnet string) {
 			panic(ipAddress + " is invalid")
 		}
 		ip := IPFromNetIP(netIp)
-		ip.Purpose = "assigned-ip"
+		ip.Purpose = []string{"assigned-ip"}
 		subnet.InUseIPAddresses = append(subnet.InUseIPAddresses, ip)
 		server.subnets[subnetID] = subnet
 	}

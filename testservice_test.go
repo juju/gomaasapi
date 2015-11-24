@@ -815,7 +815,7 @@ func (suite *TestServerSuite) TestSubnetReserveRange(c *C) {
 	endIP := IPFromString("192.168.1.200")
 	ar.Start = startIP.String()
 	ar.End = endIP.String()
-	ar.Purpose = "dynamic"
+	ar.Purpose = []string{"dynamic"}
 	ar.startUint = startIP.UInt64()
 	ar.endUint = endIP.UInt64()
 
@@ -838,12 +838,15 @@ func (suite *TestServerSuite) TestSubnetReserveRange(c *C) {
 	c.Check(addressRange.Start, Equals, "192.168.1.10")
 	c.Check(addressRange.End, Equals, "192.168.1.10")
 	c.Check(addressRange.NumAddresses, Equals, uint(1))
+	c.Check(addressRange.Purpose[0], Equals, "assigned-ip")
+	c.Check(addressRange.Purpose, HasLen, 1)
 
 	addressRange = reservedFromAPI[1]
 	c.Check(addressRange.Start, Equals, "192.168.1.100")
 	c.Check(addressRange.End, Equals, "192.168.1.200")
 	c.Check(addressRange.NumAddresses, Equals, uint(101))
-	c.Check(addressRange.Purpose, Equals, "dynamic")
+	c.Check(addressRange.Purpose[0], Equals, "dynamic")
+	c.Check(addressRange.Purpose, HasLen, 1)
 }
 
 func (suite *TestServerSuite) getSubnetStats(c *C, subnetID int) SubnetStats {

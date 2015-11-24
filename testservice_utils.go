@@ -35,7 +35,7 @@ func NameOrIDToID(v string, nameToID map[string]uint, minID, maxID uint) (ID uin
 // IP is an enhanced net.IP
 type IP struct {
 	netIP   net.IP
-	Purpose string
+	Purpose []string
 }
 
 // IPFromNetIP creates a IP from a net.IP.
