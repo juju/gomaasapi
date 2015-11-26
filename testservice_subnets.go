@@ -363,17 +363,17 @@ type NetworkLink struct {
 	Subnet *Subnet `json:"subnet"`
 }
 
-// SetNodeNetworkLink recordds that the given node + interface are in subnet
-func (server *TestServer) SetNodeNetworkLink(node Node, nodeNetworkInterface NodeNetworkInterface) {
-	for i, ni := range server.nodeMetadata[node.SystemID].Interfaces {
+// SetNodeNetworkLink records that the given node + interface are in subnet
+func (server *TestServer) SetNodeNetworkLink(SystemID string, nodeNetworkInterface NodeNetworkInterface) {
+	for i, ni := range server.nodeMetadata[SystemID].Interfaces {
 		if ni.Name == nodeNetworkInterface.Name {
-			server.nodeMetadata[node.SystemID].Interfaces[i] = nodeNetworkInterface
+			server.nodeMetadata[SystemID].Interfaces[i] = nodeNetworkInterface
 			return
 		}
 	}
-	n := server.nodeMetadata[node.SystemID]
+	n := server.nodeMetadata[SystemID]
 	n.Interfaces = append(n.Interfaces, nodeNetworkInterface)
-	server.nodeMetadata[node.SystemID] = n
+	server.nodeMetadata[SystemID] = n
 }
 
 // subnetFromCreateSubnet creates a subnet in the test server

@@ -910,7 +910,7 @@ func (suite *TestServerSuite) TestSubnetsInNodes(c *C) {
 	var nni NodeNetworkInterface
 	nni.Name = "eth0"
 	nni.Links = append(nni.Links, NetworkLink{uint(1), "auto", subnet})
-	suite.server.SetNodeNetworkLink(node, nni)
+	suite.server.SetNodeNetworkLink(node.SystemID, nni)
 
 	// Fetch the node details
 	URL := suite.server.Server.URL + getNodesEndpoint(suite.server.version) + node.SystemID + "/"
