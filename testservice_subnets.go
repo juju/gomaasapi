@@ -245,10 +245,6 @@ func (server *TestServer) subnetReservedIPRanges(subnet Subnet) []AddressRange {
 	var ranges AddressRangeList
 	var startIP, thisIP IP
 
-	if len(subnet.InUseIPAddresses) == 0 {
-		return ranges.ar
-	}
-
 	// Make a sorted copy of subnet.InUseIPAddresses
 	ipAddresses := make([]IP, len(subnet.InUseIPAddresses))
 	copy(ipAddresses, subnet.InUseIPAddresses)
@@ -256,6 +252,10 @@ func (server *TestServer) subnetReservedIPRanges(subnet Subnet) []AddressRange {
 	sort.Sort(addressList(ipAddresses))
 	startIP = ipAddresses[0]
 	lastIP := ipAddresses[0]
+
+	if len(ipAddresses) == 0 {
+		return ranges.ar
+	}
 
 	for _, thisIP = range ipAddresses {
 		var purposeMissmatch bool
