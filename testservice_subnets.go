@@ -65,8 +65,12 @@ type Subnet struct {
 
 // AddFixedAddressRange adds an AddressRange to the list of fixed address ranges
 // that subnet stores.
-func (subnet *Subnet) AddFixedAddressRange(ar AddressRange) {
+func (server *TestServer) AddFixedAddressRange(subnetID uint, ar AddressRange) {
+	subnet := server.subnets[subnetID]
+	ar.startUint = IPFromString(ar.Start).UInt64()
+	ar.endUint = IPFromString(ar.End).UInt64()
 	subnet.FixedAddressRanges = append(subnet.FixedAddressRanges, ar)
+	server.subnets[subnetID] = subnet
 }
 
 // subnetsHandler handles requests for '/api/<version>/subnets/'.

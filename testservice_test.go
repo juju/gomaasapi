@@ -811,17 +811,11 @@ func (suite *TestServerSuite) TestSubnetReserveRange(c *C) {
 	suite.server.NewIPAddress("192.168.1.10", "maas-eth0")
 
 	var ar AddressRange
-	startIP := IPFromString("192.168.1.100")
-	endIP := IPFromString("192.168.1.200")
-	ar.Start = startIP.String()
-	ar.End = endIP.String()
+	ar.Start = "192.168.1.100"
+	ar.End = "192.168.1.200"
 	ar.Purpose = []string{"dynamic"}
-	ar.startUint = startIP.UInt64()
-	ar.endUint = endIP.UInt64()
 
-	s := suite.server.subnets[1]
-	s.AddFixedAddressRange(ar)
-	suite.server.subnets[1] = s
+	suite.server.AddFixedAddressRange(1, ar)
 
 	// Fetch from the server
 	reservedIPRangeURL := suite.subnetURL(1) + "?op=reserved_ip_ranges"
