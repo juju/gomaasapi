@@ -36,14 +36,14 @@ func newJSONMAASObject(jmap map[string]interface{}, client Client) MAASObject {
 
 // MarshalJSON tells the standard json package how to serialize a MAASObject.
 func (obj MAASObject) MarshalJSON() ([]byte, error) {
-	return json.Marshal(obj.GetMap())
+	return json.MarshalIndent(obj.GetMap(), "", "  ")
 }
 
 // With MarshalJSON, MAASObject implements json.Marshaler.
 var _ json.Marshaler = (*MAASObject)(nil)
 
 func marshalNode(node MAASObject) string {
-	res, _ := json.Marshal(node)
+	res, _ := json.MarshalIndent(node, "", "  ")
 	return string(res)
 
 }

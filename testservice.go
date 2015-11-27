@@ -74,6 +74,7 @@ type TestServer struct {
 	// list of Values passed when performing operations at the
 	// /nodes/ level.
 	nodesOperationRequestValues []url.Values
+	nodeMetadata                map[string]Node
 	files                       map[string]MAASObject
 	networks                    map[string]MAASObject
 	networksPerNode             map[string][]string
@@ -94,6 +95,15 @@ type TestServer struct {
 
 	// devices is a map of device UUIDs to devices.
 	devices map[string]*device
+
+	subnets        map[uint]Subnet
+	subnetNameToID map[string]uint
+	nextSubnet     uint
+	spaces         map[uint]Space
+	spaceNameToID  map[string]uint
+	nextSpace      uint
+	vlans          map[int]VLAN
+	nextVLAN       int
 }
 
 type device struct {
@@ -205,6 +215,7 @@ func (server *TestServer) Clear() {
 	server.nodeOperations = make(map[string][]string)
 	server.nodesOperationRequestValues = make([]url.Values, 0)
 	server.nodeOperationRequestValues = make(map[string][]url.Values)
+	server.nodeMetadata = make(map[string]Node)
 	server.files = make(map[string]MAASObject)
 	server.networks = make(map[string]MAASObject)
 	server.networksPerNode = make(map[string][]string)
@@ -214,8 +225,16 @@ func (server *TestServer) Clear() {
 	server.bootImages = make(map[string][]JSONObject)
 	server.nodegroupsInterfaces = make(map[string][]JSONObject)
 	server.zones = make(map[string]JSONObject)
-	server.versionJSON = `{"capabilities": ["networks-management","static-ipaddresses"]}`
+	server.versionJSON = `{"capabilities": ["networks-management","static-ipaddresses","devices-management","network-deployment-ubuntu"]}`
 	server.devices = make(map[string]*device)
+	server.subnets = make(map[uint]Subnet)
+	server.subnetNameToID = make(map[string]uint)
+	server.nextSubnet = 1
+	server.spaces = make(map[uint]Space)
+	server.spaceNameToID = make(map[string]uint)
+	server.nextSpace = 1
+	server.vlans = make(map[int]VLAN)
+	server.nextVLAN = 1
 }
 
 // SetVersionJSON sets the JSON response (capabilities) returned from the
@@ -355,18 +374,34 @@ func (server *TestServer) ChangeNode(systemId, key, value string) {
 }
 
 // NewIPAddress creates a new static IP address reservation for the
-// given network and ipAddress.
-func (server *TestServer) NewIPAddress(ipAddress, network string) {
-	if _, found := server.networks[network]; !found {
-		panic("No such network: " + network)
+// given network/subnet and ipAddress. While networks is being deprecated
+// try the given name as both a netowrk and a subnet.
+func (server *TestServer) NewIPAddress(ipAddress, networkOrSubnet string) {
+	_, foundNetwork := server.networks[networkOrSubnet]
+	subnetID, foundSubnet := server.subnetNameToID[networkOrSubnet]
+
+	if (foundNetwork || foundSubnet) == false {
+		panic("No such network or subnet: " + networkOrSubnet)
 	}
-	ips, found := server.ipAddressesPerNetwork[network]
-	if found {
-		ips = append(ips, ipAddress)
+	if foundNetwork {
+		ips, found := server.ipAddressesPerNetwork[networkOrSubnet]
+		if found {
+			ips = append(ips, ipAddress)
+		} else {
+			ips = []string{ipAddress}
+		}
+		server.ipAddressesPerNetwork[networkOrSubnet] = ips
 	} else {
-		ips = []string{ipAddress}
+		subnet := server.subnets[subnetID]
+		netIp := net.ParseIP(ipAddress)
+		if netIp == nil {
+			panic(ipAddress + " is invalid")
+		}
+		ip := IPFromNetIP(netIp)
+		ip.Purpose = []string{"assigned-ip"}
+		subnet.InUseIPAddresses = append(subnet.InUseIPAddresses, ip)
+		server.subnets[subnetID] = subnet
 	}
-	server.ipAddressesPerNetwork[network] = ips
 }
 
 // RemoveIPAddress removes the given existing ipAddress and returns
@@ -543,6 +578,21 @@ func NewTestServer(version string) *TestServer {
 	zonesURL := getZonesEndpoint(server.version)
 	serveMux.HandleFunc(zonesURL, func(w http.ResponseWriter, r *http.Request) {
 		zonesHandler(server, w, r)
+	})
+
+	subnetsURL := getSubnetsEndpoint(server.version)
+	serveMux.HandleFunc(subnetsURL, func(w http.ResponseWriter, r *http.Request) {
+		subnetsHandler(server, w, r)
+	})
+
+	spacesURL := getSpacesEndpoint(server.version)
+	serveMux.HandleFunc(spacesURL, func(w http.ResponseWriter, r *http.Request) {
+		spacesHandler(server, w, r)
+	})
+
+	vlansURL := getVLANsEndpoint(server.version)
+	serveMux.HandleFunc(vlansURL, func(w http.ResponseWriter, r *http.Request) {
+		vlansHandler(server, w, r)
 	})
 
 	newServer := httptest.NewServer(serveMux)
@@ -785,12 +835,27 @@ func nodeHandler(server *TestServer, w http.ResponseWriter, r *http.Request, sys
 		http.NotFoundHandler().ServeHTTP(w, r)
 		return
 	}
+	UUID, UUIDError := node.values["system_id"].GetString()
+
 	if r.Method == "GET" {
 		if operation == "" {
 			w.WriteHeader(http.StatusOK)
+			if UUIDError == nil {
+				i, err := JSONObjectFromStruct(server.client, server.nodeMetadata[UUID].Interfaces)
+				checkError(err)
+				if err == nil {
+					node.values["interface_set"] = i
+				}
+			}
 			fmt.Fprint(w, marshalNode(node))
 			return
 		} else if operation == "details" {
+			if UUIDError == nil {
+				i, err := JSONObjectFromStruct(server.client, server.nodeMetadata[UUID].Interfaces)
+				if err == nil {
+					node.values["interface_set"] = i
+				}
+			}
 			nodeDetailsHandler(server, w, r, systemId)
 			return
 		} else {
@@ -811,10 +876,10 @@ func nodeHandler(server *TestServer, w http.ResponseWriter, r *http.Request, sys
 			w.WriteHeader(http.StatusOK)
 			fmt.Fprint(w, marshalNode(node))
 			return
-		} else {
-			w.WriteHeader(http.StatusBadRequest)
-			return
 		}
+
+		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 	if r.Method == "DELETE" {
 		delete(server.nodes, systemId)
@@ -844,7 +909,7 @@ func nodeListingHandler(server *TestServer, w http.ResponseWriter, r *http.Reque
 			convertedNodes = append(convertedNodes, node.GetMap())
 		}
 	}
-	res, err := json.Marshal(convertedNodes)
+	res, err := json.MarshalIndent(convertedNodes, "", "  ")
 	checkError(err)
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, string(res))
@@ -872,7 +937,7 @@ func nodeDeploymentStatusHandler(server *TestServer, w http.ResponseWriter, r *h
 		}
 	}
 	obj := maasify(server.client, nodeStatus)
-	res, err := json.Marshal(obj)
+	res, err := json.MarshalIndent(obj, "", "  ")
 	checkError(err)
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, string(res))
@@ -971,7 +1036,7 @@ func nodesAcquireHandler(server *TestServer, w http.ResponseWriter, r *http.Requ
 		systemId, err := node.GetField("system_id")
 		checkError(err)
 		server.OwnedNodes()[systemId] = true
-		res, err := json.Marshal(node)
+		res, err := json.MarshalIndent(node, "", "  ")
 		checkError(err)
 		// Record operation.
 		server.addNodeOperation(systemId, "acquire", r)
@@ -1005,7 +1070,7 @@ func nodesReleaseHandler(server *TestServer, w http.ResponseWriter, r *http.Requ
 		node := server.Nodes()[systemId]
 		releasedNodes = append(releasedNodes, node.GetMap())
 	}
-	res, err := json.Marshal(releasedNodes)
+	res, err := json.MarshalIndent(releasedNodes, "", "  ")
 	checkError(err)
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, string(res))
@@ -1121,7 +1186,7 @@ func fileListingHandler(server *TestServer, w http.ResponseWriter, r *http.Reque
 		fileMap := stripContent(server.files[filename].GetMap())
 		convertedFiles = append(convertedFiles, fileMap)
 	}
-	res, err := json.Marshal(convertedFiles)
+	res, err := json.MarshalIndent(convertedFiles, "", "  ")
 	checkError(err)
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, string(res))
@@ -1141,7 +1206,7 @@ func fileHandler(server *TestServer, w http.ResponseWriter, r *http.Request, fil
 			http.NotFoundHandler().ServeHTTP(w, r)
 			return
 		}
-		jsonText, err := json.Marshal(file)
+		jsonText, err := json.MarshalIndent(file, "", "  ")
 		if err != nil {
 			panic(err)
 		}
@@ -1233,7 +1298,7 @@ func networkListConnectedMACSHandler(server *TestServer, w http.ResponseWriter, 
 			convertedMacAddresses = append(convertedMacAddresses, m)
 		}
 	}
-	res, err := json.Marshal(convertedMacAddresses)
+	res, err := json.MarshalIndent(convertedMacAddresses, "", "  ")
 	checkError(err)
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, string(res))
@@ -1265,7 +1330,7 @@ func networksHandler(server *TestServer, w http.ResponseWriter, r *http.Request)
 			networks[i] = server.networks[networkName]
 		}
 	}
-	res, err := json.Marshal(networks)
+	res, err := json.MarshalIndent(networks, "", "  ")
 	checkError(err)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
@@ -1331,7 +1396,7 @@ func listIPAddressesHandler(server *TestServer, w http.ResponseWriter, r *http.R
 			results = append(results, maasObj)
 		}
 	}
-	res, err := json.Marshal(results)
+	res, err := json.MarshalIndent(results, "", "  ")
 	checkError(err)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
@@ -1407,7 +1472,7 @@ func reserveIPAddressHandler(server *TestServer, w http.ResponseWriter, r *http.
 	checkError(err)
 	maasObj, err := jsonObj.GetMAASObject()
 	checkError(err)
-	res, err := json.Marshal(maasObj)
+	res, err := json.MarshalIndent(maasObj, "", "  ")
 	checkError(err)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
@@ -1476,7 +1541,7 @@ func nodegroupsTopLevelHandler(server *TestServer, w http.ResponseWriter, r *htt
 		nodegroups = append(nodegroups, obj)
 	}
 
-	res, err := json.Marshal(nodegroups)
+	res, err := json.MarshalIndent(nodegroups, "", "  ")
 	checkError(err)
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, string(res))
@@ -1495,7 +1560,7 @@ func bootimagesHandler(server *TestServer, w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	res, err := json.Marshal(bootImages)
+	res, err := json.MarshalIndent(bootImages, "", "  ")
 	checkError(err)
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, string(res))
@@ -1518,7 +1583,7 @@ func nodegroupsInterfacesHandler(server *TestServer, w http.ResponseWriter, r *h
 		// we already checked the nodegroup exists, so return an empty list
 		interfaces = []JSONObject{}
 	}
-	res, err := json.Marshal(interfaces)
+	res, err := json.MarshalIndent(interfaces, "", "  ")
 	checkError(err)
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, string(res))
@@ -1543,7 +1608,7 @@ func zonesHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
 	for _, zone := range server.zones {
 		zones = append(zones, zone)
 	}
-	res, err := json.Marshal(zones)
+	res, err := json.MarshalIndent(zones, "", "  ")
 	checkError(err)
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, string(res))

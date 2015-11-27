@@ -9,10 +9,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand"
 	"mime/multipart"
+	"net"
 	"net/http"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 
 	"gopkg.in/mgo.v2/bson"
@@ -603,6 +606,352 @@ func (suite *TestServerSuite) TestListZonesNotSupported(c *C) {
 	c.Check(resp.StatusCode, Equals, http.StatusNotFound)
 }
 
+func defaultSubnet() CreateSubnet {
+	var s CreateSubnet
+	s.DNSServers = []string{"192.168.1.2"}
+	s.Name = "maas-eth0"
+	s.Space = "space-0"
+	s.GatewayIP = "192.168.1.1"
+	s.CIDR = "192.168.1.0/24"
+	s.ID = 1
+	return s
+}
+
+func (suite *TestServerSuite) subnetJSON(subnet CreateSubnet) *bytes.Buffer {
+	var out bytes.Buffer
+	err := json.NewEncoder(&out).Encode(subnet)
+	if err != nil {
+		panic(err)
+	}
+	return &out
+}
+
+func (suite *TestServerSuite) subnetURL(ID int) string {
+	return suite.subnetsURL() + strconv.Itoa(ID) + "/"
+}
+
+func (suite *TestServerSuite) subnetsURL() string {
+	return suite.server.Server.URL + getSubnetsEndpoint(suite.server.version)
+}
+
+func (suite *TestServerSuite) getSubnets(c *C) []Subnet {
+	resp, err := http.Get(suite.subnetsURL())
+
+	c.Check(err, IsNil)
+	c.Check(resp.StatusCode, Equals, http.StatusOK)
+
+	var subnets []Subnet
+	decoder := json.NewDecoder(resp.Body)
+	err = decoder.Decode(&subnets)
+	c.Check(err, IsNil)
+	return subnets
+}
+
+func (suite *TestServerSuite) TestSubnetAdd(c *C) {
+	suite.server.NewSubnet(suite.subnetJSON(defaultSubnet()))
+
+	subnets := suite.getSubnets(c)
+	c.Check(subnets, HasLen, 1)
+	s := subnets[0]
+	c.Check(s.DNSServers, DeepEquals, []string{"192.168.1.2"})
+	c.Check(s.Name, Equals, "maas-eth0")
+	c.Check(s.Space, Equals, "space-0")
+	c.Check(s.VLAN.ID, Equals, uint(0))
+	c.Check(s.CIDR, Equals, "192.168.1.0/24")
+}
+
+func (suite *TestServerSuite) TestSubnetGet(c *C) {
+	suite.server.NewSubnet(suite.subnetJSON(defaultSubnet()))
+
+	subnet2 := defaultSubnet()
+	subnet2.Name = "maas-eth1"
+	subnet2.CIDR = "192.168.2.0/24"
+	suite.server.NewSubnet(suite.subnetJSON(subnet2))
+
+	subnets := suite.getSubnets(c)
+	c.Check(subnets, HasLen, 2)
+	c.Check(subnets[0].CIDR, Equals, "192.168.1.0/24")
+	c.Check(subnets[1].CIDR, Equals, "192.168.2.0/24")
+}
+
+func (suite *TestServerSuite) TestSubnetPut(c *C) {
+	subnet1 := defaultSubnet()
+	suite.server.NewSubnet(suite.subnetJSON(subnet1))
+
+	subnets := suite.getSubnets(c)
+	c.Check(subnets, HasLen, 1)
+	c.Check(subnets[0].DNSServers, DeepEquals, []string{"192.168.1.2"})
+
+	subnet1.DNSServers = []string{"192.168.1.2", "192.168.1.3"}
+	suite.server.UpdateSubnet(suite.subnetJSON(subnet1))
+
+	subnets = suite.getSubnets(c)
+	c.Check(subnets, HasLen, 1)
+	c.Check(subnets[0].DNSServers, DeepEquals, []string{"192.168.1.2", "192.168.1.3"})
+}
+
+func (suite *TestServerSuite) TestSubnetDelete(c *C) {
+	suite.server.NewSubnet(suite.subnetJSON(defaultSubnet()))
+
+	subnets := suite.getSubnets(c)
+	c.Check(subnets, HasLen, 1)
+	c.Check(subnets[0].DNSServers, DeepEquals, []string{"192.168.1.2"})
+
+	req, err := http.NewRequest("DELETE", suite.subnetURL(1), nil)
+	c.Check(err, IsNil)
+	resp, err := http.DefaultClient.Do(req)
+	c.Check(err, IsNil)
+	c.Check(resp.StatusCode, Equals, http.StatusOK)
+
+	resp, err = http.Get(suite.subnetsURL())
+	c.Check(err, IsNil)
+	c.Check(resp.StatusCode, Equals, http.StatusNotFound)
+}
+
+func (suite *TestServerSuite) reserveSomeAddresses() map[int]bool {
+	reserved := make(map[int]bool)
+	rand.Seed(6)
+
+	// Insert some random test data
+	for i := 0; i < 200; i++ {
+		r := rand.Intn(253) + 1
+		_, ok := reserved[r]
+		for ok == true {
+			r++
+			if r == 255 {
+				r = 1
+			}
+			_, ok = reserved[r]
+		}
+		reserved[r] = true
+		addr := fmt.Sprintf("192.168.1.%d", r)
+		suite.server.NewIPAddress(addr, "maas-eth0")
+	}
+
+	return reserved
+}
+
+func (suite *TestServerSuite) TestSubnetReservedIPRanges(c *C) {
+	suite.server.NewSubnet(suite.subnetJSON(defaultSubnet()))
+	reserved := suite.reserveSomeAddresses()
+
+	// Fetch from the server
+	reservedIPRangeURL := suite.subnetURL(1) + "?op=reserved_ip_ranges"
+	resp, err := http.Get(reservedIPRangeURL)
+	c.Check(err, IsNil)
+
+	var reservedFromAPI []AddressRange
+	decoder := json.NewDecoder(resp.Body)
+	err = decoder.Decode(&reservedFromAPI)
+	c.Check(err, IsNil)
+
+	// Check that anything in a reserved range was an address we allocated
+	// with NewIPAddress
+	for _, addressRange := range reservedFromAPI {
+		var start, end int
+		fmt.Sscanf(addressRange.Start, "192.168.1.%d", &start)
+		fmt.Sscanf(addressRange.End, "192.168.1.%d", &end)
+		c.Check(addressRange.NumAddresses, Equals, uint(1+end-start))
+		c.Check(start <= end, Equals, true)
+		c.Check(start < 255, Equals, true)
+		c.Check(end < 255, Equals, true)
+		for i := start; i <= end; i++ {
+			_, ok := reserved[int(i)]
+			c.Check(ok, Equals, true)
+			delete(reserved, int(i))
+		}
+	}
+	c.Check(reserved, HasLen, 0)
+}
+
+func (suite *TestServerSuite) TestSubnetUnreservedIPRanges(c *C) {
+	suite.server.NewSubnet(suite.subnetJSON(defaultSubnet()))
+	reserved := suite.reserveSomeAddresses()
+	unreserved := make(map[int]bool)
+
+	// Fetch from the server
+	reservedIPRangeURL := suite.subnetURL(1) + "?op=unreserved_ip_ranges"
+	resp, err := http.Get(reservedIPRangeURL)
+	c.Check(err, IsNil)
+
+	var unreservedFromAPI []AddressRange
+	decoder := json.NewDecoder(resp.Body)
+	err = decoder.Decode(&unreservedFromAPI)
+	c.Check(err, IsNil)
+
+	// Check that anything in an unreserved range wasn't an address we allocated
+	// with NewIPAddress
+	for _, addressRange := range unreservedFromAPI {
+		var start, end int
+		fmt.Sscanf(addressRange.Start, "192.168.1.%d", &start)
+		fmt.Sscanf(addressRange.End, "192.168.1.%d", &end)
+		c.Check(addressRange.NumAddresses, Equals, uint(1+end-start))
+		c.Check(start <= end, Equals, true)
+		c.Check(start < 255, Equals, true)
+		c.Check(end < 255, Equals, true)
+		for i := start; i <= end; i++ {
+			_, ok := reserved[int(i)]
+			c.Check(ok, Equals, false)
+			unreserved[int(i)] = true
+		}
+	}
+	for i := 1; i < 255; i++ {
+		_, r := reserved[i]
+		_, u := unreserved[i]
+		if (r || u) == false {
+			fmt.Println(i, r, u)
+		}
+		c.Check(r || u, Equals, true)
+	}
+	c.Check(len(reserved)+len(unreserved), Equals, 254)
+}
+
+func (suite *TestServerSuite) TestSubnetReserveRange(c *C) {
+	suite.server.NewSubnet(suite.subnetJSON(defaultSubnet()))
+	suite.server.NewIPAddress("192.168.1.10", "maas-eth0")
+
+	var ar AddressRange
+	ar.Start = "192.168.1.100"
+	ar.End = "192.168.1.200"
+	ar.Purpose = []string{"dynamic"}
+
+	suite.server.AddFixedAddressRange(1, ar)
+
+	// Fetch from the server
+	reservedIPRangeURL := suite.subnetURL(1) + "?op=reserved_ip_ranges"
+	resp, err := http.Get(reservedIPRangeURL)
+	c.Check(err, IsNil)
+
+	var reservedFromAPI []AddressRange
+	decoder := json.NewDecoder(resp.Body)
+	err = decoder.Decode(&reservedFromAPI)
+	c.Check(err, IsNil)
+
+	// Check that the address ranges we got back were as expected
+	addressRange := reservedFromAPI[0]
+	c.Check(addressRange.Start, Equals, "192.168.1.10")
+	c.Check(addressRange.End, Equals, "192.168.1.10")
+	c.Check(addressRange.NumAddresses, Equals, uint(1))
+	c.Check(addressRange.Purpose[0], Equals, "assigned-ip")
+	c.Check(addressRange.Purpose, HasLen, 1)
+
+	addressRange = reservedFromAPI[1]
+	c.Check(addressRange.Start, Equals, "192.168.1.100")
+	c.Check(addressRange.End, Equals, "192.168.1.200")
+	c.Check(addressRange.NumAddresses, Equals, uint(101))
+	c.Check(addressRange.Purpose[0], Equals, "dynamic")
+	c.Check(addressRange.Purpose, HasLen, 1)
+}
+
+func (suite *TestServerSuite) getSubnetStats(c *C, subnetID int) SubnetStats {
+	URL := suite.subnetURL(1) + "?op=statistics"
+	resp, err := http.Get(URL)
+	c.Check(err, IsNil)
+
+	var s SubnetStats
+	decoder := json.NewDecoder(resp.Body)
+	err = decoder.Decode(&s)
+	c.Check(err, IsNil)
+	return s
+}
+
+func (suite *TestServerSuite) TestSubnetStats(c *C) {
+	suite.server.NewSubnet(suite.subnetJSON(defaultSubnet()))
+
+	stats := suite.getSubnetStats(c, 1)
+	// There are 254 usable addresses in a class C subnet, so these
+	// stats are fixed
+	expected := SubnetStats{
+		NumAvailable:     254,
+		LargestAvailable: 254,
+		NumUnavailable:   0,
+		TotalAddresses:   254,
+		Usage:            0,
+		UsageString:      "0.0%",
+		Ranges:           nil,
+	}
+	c.Check(stats, DeepEquals, expected)
+
+	suite.reserveSomeAddresses()
+	stats = suite.getSubnetStats(c, 1)
+	// We have reserved 200 addresses so parts of these
+	// stats are fixed.
+	expected = SubnetStats{
+		NumAvailable:   54,
+		NumUnavailable: 200,
+		TotalAddresses: 254,
+		Usage:          0.787401556968689,
+		UsageString:    "78.7%",
+		Ranges:         nil,
+	}
+
+	reserved := suite.server.subnetUnreservedIPRanges(suite.server.subnets[1])
+	var largestAvailable uint
+	for _, addressRange := range reserved {
+		if addressRange.NumAddresses > largestAvailable {
+			largestAvailable = addressRange.NumAddresses
+		}
+	}
+
+	expected.LargestAvailable = largestAvailable
+	c.Check(stats, DeepEquals, expected)
+}
+
+func (suite *TestServerSuite) TestSubnetsInNodes(c *C) {
+	// Create a subnet
+	subnet := suite.server.NewSubnet(suite.subnetJSON(defaultSubnet()))
+
+	// Create a node
+	var node Node
+	node.SystemID = "node-89d832ca-8877-11e5-b5a5-00163e86022b"
+	suite.server.NewNode(fmt.Sprintf(`{"system_id": "%s"}`, "node-89d832ca-8877-11e5-b5a5-00163e86022b"))
+
+	// Put the node in the subnet
+	var nni NodeNetworkInterface
+	nni.Name = "eth0"
+	nni.Links = append(nni.Links, NetworkLink{uint(1), "auto", subnet})
+	suite.server.SetNodeNetworkLink(node.SystemID, nni)
+
+	// Fetch the node details
+	URL := suite.server.Server.URL + getNodesEndpoint(suite.server.version) + node.SystemID + "/"
+	resp, err := http.Get(URL)
+	c.Check(err, IsNil)
+
+	var n Node
+	decoder := json.NewDecoder(resp.Body)
+	err = decoder.Decode(&n)
+	c.Check(err, IsNil)
+	c.Check(n.SystemID, Equals, node.SystemID)
+	c.Check(n.Interfaces, HasLen, 1)
+	i := n.Interfaces[0]
+	c.Check(i.Name, Equals, "eth0")
+	c.Check(i.Links, HasLen, 1)
+	c.Check(i.Links[0].ID, Equals, uint(1))
+	c.Check(i.Links[0].Subnet.Name, Equals, "maas-eth0")
+}
+
+type IPSuite struct {
+}
+
+var _ = Suite(&IPSuite{})
+
+func (suite *IPSuite) TestIPFromNetIP(c *C) {
+	ip := IPFromNetIP(net.ParseIP("1.2.3.4"))
+	c.Check(ip.String(), Equals, "1.2.3.4")
+}
+
+func (suite *IPSuite) TestIPUInt64(c *C) {
+	ip := IPFromNetIP(net.ParseIP("1.2.3.4"))
+	v := ip.UInt64()
+	c.Check(v, Equals, uint64(0x01020304))
+}
+
+func (suite *IPSuite) TestIPSetUInt64(c *C) {
+	var ip IP
+	ip.SetUInt64(0x01020304)
+	c.Check(ip.String(), Equals, "1.2.3.4")
+}
+
 // TestMAASObjectSuite validates that the object created by
 // NewTestMAAS can be used by the gomaasapi library as if it were a real
 // MAAS server.
@@ -612,16 +961,16 @@ type TestMAASObjectSuite struct {
 
 var _ = Suite(&TestMAASObjectSuite{})
 
-func (s *TestMAASObjectSuite) SetUpSuite(c *C) {
-	s.TestMAASObject = NewTestMAAS("1.0")
+func (suite *TestMAASObjectSuite) SetUpSuite(c *C) {
+	suite.TestMAASObject = NewTestMAAS("1.0")
 }
 
-func (s *TestMAASObjectSuite) TearDownSuite(c *C) {
-	s.TestMAASObject.Close()
+func (suite *TestMAASObjectSuite) TearDownSuite(c *C) {
+	suite.TestMAASObject.Close()
 }
 
-func (s *TestMAASObjectSuite) TearDownTest(c *C) {
-	s.TestMAASObject.TestServer.Clear()
+func (suite *TestMAASObjectSuite) TearDownTest(c *C) {
+	suite.TestMAASObject.TestServer.Clear()
 }
 
 func (suite *TestMAASObjectSuite) TestListNodes(c *C) {
@@ -1019,6 +1368,8 @@ func (suite *TestMAASObjectSuite) TestGetVersion(c *C) {
 		switch capName {
 		case "networks-management":
 		case "static-ipaddresses":
+		case "devices-management":
+		case "network-deployment-ubuntu":
 		default:
 			c.Fatalf("unknown capability %q", capName)
 		}
