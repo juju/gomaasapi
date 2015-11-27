@@ -79,20 +79,11 @@ func (ip IP) UInt64() uint64 {
 		return uint64(0)
 	}
 
-	var bb *bytes.Reader
 	if ip.To4() != nil {
-		var v uint32
-		bb = bytes.NewReader(ip.To4())
-		err := binary.Read(bb, binary.BigEndian, &v)
-		checkError(err)
-		return uint64(v)
+		return uint64(binary.BigEndian.Uint32([]byte(ip.To4())))
 	}
 
-	var v uint64
-	bb = bytes.NewReader(ip.To16())
-	err := binary.Read(bb, binary.BigEndian, &v)
-	checkError(err)
-	return v
+	return binary.BigEndian.Uint64([]byte(ip.To16()))
 }
 
 // SetUInt64 sets the IP value to v

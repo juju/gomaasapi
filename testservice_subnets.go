@@ -321,6 +321,9 @@ func decodePostedSubnet(subnetJSON io.Reader) CreateSubnet {
 	decoder := json.NewDecoder(subnetJSON)
 	err := decoder.Decode(&postedSubnet)
 	checkError(err)
+	if postedSubnet.DNSServers == nil {
+		postedSubnet.DNSServers = []string{}
+	}
 	return postedSubnet
 }
 
