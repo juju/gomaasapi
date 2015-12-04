@@ -11,7 +11,7 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"launchpad.net/gomaasapi"
+	"github.com/juju/gomaasapi"
 	"net/url"
 )
 
