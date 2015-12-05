@@ -19,7 +19,7 @@ import (
 	"strings"
 
 	"gopkg.in/mgo.v2/bson"
-	. "launchpad.net/gocheck"
+	. "gopkg.in/check.v1"
 )
 
 type TestServerSuite struct {

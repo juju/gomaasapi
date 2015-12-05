@@ -6,7 +6,7 @@ package gomaasapi
 import (
 	"encoding/json"
 	"fmt"
-	. "launchpad.net/gocheck"
+	. "gopkg.in/check.v1"
 )
 
 type JSONObjectSuite struct {

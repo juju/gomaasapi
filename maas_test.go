@@ -4,7 +4,7 @@
 package gomaasapi
 
 import (
-	. "launchpad.net/gocheck"
+	. "gopkg.in/check.v1"
 	"net/url"
 )
 
