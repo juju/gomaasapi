@@ -18,8 +18,8 @@ import (
 	"strconv"
 	"strings"
 
-	"gopkg.in/mgo.v2/bson"
 	. "gopkg.in/check.v1"
+	"gopkg.in/mgo.v2/bson"
 )
 
 type TestServerSuite struct {

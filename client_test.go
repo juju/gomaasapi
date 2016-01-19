@@ -7,10 +7,11 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
-	. "gopkg.in/check.v1"
 	"net/http"
 	"net/url"
 	"strings"
+
+	. "gopkg.in/check.v1"
 )
 
 type ClientSuite struct{}

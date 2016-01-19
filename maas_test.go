@@ -4,8 +4,9 @@
 package gomaasapi
 
 import (
-	. "gopkg.in/check.v1"
 	"net/url"
+
+	. "gopkg.in/check.v1"
 )
 
 type MAASSuite struct{}

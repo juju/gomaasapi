@@ -6,6 +6,7 @@ package gomaasapi
 import (
 	"encoding/json"
 	"fmt"
+
 	. "gopkg.in/check.v1"
 )
 
