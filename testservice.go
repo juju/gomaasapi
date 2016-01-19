@@ -19,6 +19,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"text/template"
 	"time"
 
@@ -595,7 +596,14 @@ func NewTestServer(version string) *TestServer {
 		vlansHandler(server, w, r)
 	})
 
-	newServer := httptest.NewServer(serveMux)
+	var mu sync.Mutex
+	singleFile := func(w http.ResponseWriter, req *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		serveMux.ServeHTTP(w, req)
+	}
+
+	newServer := httptest.NewServer(http.HandlerFunc(singleFile))
 	client, err := NewAnonymousClient(newServer.URL, "1.0")
 	checkError(err)
 	server.Server = newServer

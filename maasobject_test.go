@@ -6,9 +6,10 @@ package gomaasapi
 import (
 	"encoding/json"
 	"fmt"
-	. "gopkg.in/check.v1"
 	"math/rand"
 	"net/url"
+
+	. "gopkg.in/check.v1"
 )
 
 type MAASObjectSuite struct{}
