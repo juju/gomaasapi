@@ -606,6 +606,50 @@ func (suite *TestServerSuite) TestListZonesNotSupported(c *C) {
 	c.Check(resp.StatusCode, Equals, http.StatusNotFound)
 }
 
+func (suite *TestServerSuite) TestSpacesNotFoundWhenEmpty(c *C) {
+	spacesURL := getSpacesEndpoint(suite.server.version)
+	resp, err := http.Get(suite.server.Server.URL + spacesURL)
+
+	c.Check(err, IsNil)
+	c.Check(resp.StatusCode, Equals, http.StatusNotFound)
+}
+
+func (suite *TestServerSuite) TestSpaces(c *C) {
+	for i, name := range []string{"foo", "bar", "bam"} {
+		space := suite.server.NewSpace(spaceJSON(CreateSpace{Name: name}))
+		c.Assert(space.Name, Equals, name)
+		c.Assert(space.ID, Equals, uint(i+1))
+		c.Assert(space.ResourceURI, Equals, fmt.Sprintf("/api/%s/spaces/%d/", suite.server.version, i+1))
+	}
+	sub1 := suite.server.NewSubnet(suite.subnetJSON(newSubnetOnSpace("foo", 1)))
+	sub2 := suite.server.NewSubnet(suite.subnetJSON(newSubnetOnSpace("foo", 2)))
+	sub3 := suite.server.NewSubnet(suite.subnetJSON(newSubnetOnSpace("foo", 3)))
+	sub4 := suite.server.NewSubnet(suite.subnetJSON(newSubnetOnSpace("bar", 4)))
+	sub5 := suite.server.NewSubnet(suite.subnetJSON(newSubnetOnSpace("bar", 5)))
+	suite.server.NewSubnet(suite.subnetJSON(newSubnetOnSpace("baz", 6)))
+
+	spacesURL := getSpacesEndpoint(suite.server.version)
+	resp, err := http.Get(suite.server.Server.URL + spacesURL)
+
+	c.Check(err, IsNil)
+	c.Assert(resp.StatusCode, Equals, http.StatusOK)
+
+	var spaces []Space
+	decoder := json.NewDecoder(resp.Body)
+	err = decoder.Decode(&spaces)
+	c.Assert(err, IsNil)
+
+	getURI := func(id int) string {
+		return fmt.Sprintf("/api/%s/spaces/%d/", suite.server.version, id)
+	}
+	expectedSpaces := []Space{
+		{Name: "foo", ID: 1, Subnets: []Subnet{*sub1, *sub2, *sub3}, ResourceURI: getURI(1)},
+		{Name: "bar", ID: 2, Subnets: []Subnet{*sub4, *sub5}, ResourceURI: getURI(2)},
+		{Name: "bam", ID: 3, ResourceURI: getURI(3)},
+	}
+	c.Assert(spaces, DeepEquals, expectedSpaces)
+}
+
 func defaultSubnet() CreateSubnet {
 	var s CreateSubnet
 	s.DNSServers = []string{"192.168.1.2"}
@@ -615,6 +659,26 @@ func defaultSubnet() CreateSubnet {
 	s.CIDR = "192.168.1.0/24"
 	s.ID = 1
 	return s
+}
+
+func newSubnetOnSpace(space string, id uint) CreateSubnet {
+	var s CreateSubnet
+	s.DNSServers = []string{fmt.Sprintf("192.168.%v.2", id)}
+	s.Name = fmt.Sprintf("maas-eth%v", id)
+	s.Space = space
+	s.GatewayIP = fmt.Sprintf("192.168.%v.1", id)
+	s.CIDR = fmt.Sprintf("192.168.%v.0/24", id)
+	s.ID = id
+	return s
+}
+
+func spaceJSON(space CreateSpace) *bytes.Buffer {
+	var out bytes.Buffer
+	err := json.NewEncoder(&out).Encode(space)
+	if err != nil {
+		panic(err)
+	}
+	return &out
 }
 
 func (suite *TestServerSuite) subnetJSON(subnet CreateSubnet) *bytes.Buffer {
