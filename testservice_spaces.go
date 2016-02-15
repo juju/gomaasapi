@@ -59,6 +59,7 @@ func spacesHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
 			for i := uint(1); i < server.nextSpace; i++ {
 				s, ok := server.spaces[i]
 				if ok {
+					server.setSubnetsOnSpace(s)
 					spaces = append(spaces, s)
 				}
 			}
@@ -99,9 +100,22 @@ func (server *TestServer) NewSpace(spaceJSON io.Reader) *Space {
 	postedSpace := decodePostedSpace(spaceJSON)
 	newSpace := &Space{Name: postedSpace.Name}
 	newSpace.ID = server.nextSpace
+	newSpace.ResourceURI = fmt.Sprintf("/api/%s/nodes/%s/", server.version, server.nextSpace)
 	server.spaces[server.nextSpace] = newSpace
 	server.spaceNameToID[newSpace.Name] = newSpace.ID
 
 	server.nextSpace++
 	return newSpace
+}
+
+// setSubnetsOnSpace fetches the subnets for the specified space and adds them
+// to it.
+func (server *TestServer) addSubnetsToSpace(space *Space) {
+	subnets := make([]Subnet)
+	for _, subnet := range server.subnets {
+		if subnet.Space == space.Name {
+			subnets = append(subnets, subnet)
+		}
+	}
+	space.Subnets = subnets
 }
