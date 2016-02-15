@@ -56,6 +56,8 @@ func spacesHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
 
 		if r.URL.Path == spacesURL {
 			var spaces []*Space
+			// Iterating by id rather than a dictionary iteration
+			// preserves the order of the spaces in the result.
 			for i := uint(1); i < server.nextSpace; i++ {
 				s, ok := server.spaces[i]
 				if ok {
