@@ -100,7 +100,7 @@ type TestServer struct {
 	subnets        map[uint]Subnet
 	subnetNameToID map[string]uint
 	nextSubnet     uint
-	spaces         map[uint]Space
+	spaces         map[uint]*Space
 	spaceNameToID  map[string]uint
 	nextSpace      uint
 	vlans          map[int]VLAN
@@ -231,7 +231,7 @@ func (server *TestServer) Clear() {
 	server.subnets = make(map[uint]Subnet)
 	server.subnetNameToID = make(map[string]uint)
 	server.nextSubnet = 1
-	server.spaces = make(map[uint]Space)
+	server.spaces = make(map[uint]*Space)
 	server.spaceNameToID = make(map[string]uint)
 	server.nextSpace = 1
 	server.vlans = make(map[int]VLAN)

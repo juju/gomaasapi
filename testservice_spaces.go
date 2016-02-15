@@ -6,6 +6,7 @@ package gomaasapi
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"regexp"
 )
@@ -54,7 +55,7 @@ func spacesHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
 		}
 
 		if r.URL.Path == spacesURL {
-			var spaces []Space
+			var spaces []*Space
 			for i := uint(1); i < server.nextSpace; i++ {
 				s, ok := server.spaces[i]
 				if ok {
@@ -78,4 +79,29 @@ func spacesHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
 	default:
 		w.WriteHeader(http.StatusBadRequest)
 	}
+}
+
+// CreateSpace is used to create new spaces on the server.
+type CreateSpace struct {
+	Name string `json:"name"`
+}
+
+func decodePostedSpace(spaceJSON io.Reader) CreateSpace {
+	var postedSpace CreateSpace
+	decoder := json.NewDecoder(spaceJSON)
+	err := decoder.Decode(&postedSpace)
+	checkError(err)
+	return postedSpace
+}
+
+// NewSpace creates a space in the test server
+func (server *TestServer) NewSpace(spaceJSON io.Reader) *Space {
+	postedSpace := decodePostedSpace(spaceJSON)
+	newSpace := &Space{Name: postedSpace.Name}
+	newSpace.ID = server.nextSpace
+	server.spaces[server.nextSpace] = newSpace
+	server.spaceNameToID[newSpace.Name] = newSpace.ID
+
+	server.nextSpace++
+	return newSpace
 }
