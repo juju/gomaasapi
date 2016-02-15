@@ -100,7 +100,7 @@ func (server *TestServer) NewSpace(spaceJSON io.Reader) *Space {
 	postedSpace := decodePostedSpace(spaceJSON)
 	newSpace := &Space{Name: postedSpace.Name}
 	newSpace.ID = server.nextSpace
-	newSpace.ResourceURI = fmt.Sprintf("/api/%s/nodes/%s/", server.version, server.nextSpace)
+	newSpace.ResourceURI = fmt.Sprintf("/api/%s/spaces/%d/", server.version, int(server.nextSpace))
 	server.spaces[server.nextSpace] = newSpace
 	server.spaceNameToID[newSpace.Name] = newSpace.ID
 

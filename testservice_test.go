@@ -616,15 +616,16 @@ func (suite *TestServerSuite) TestSpacesNotFoundWhenEmpty(c *C) {
 
 func (suite *TestServerSuite) TestSpaces(c *C) {
 	for i, name := range []string{"foo", "bar", "bam"} {
-		space1 := suite.server.NewSpace(spaceJSON(CreateSpace{Name: name}))
-		c.Assert(space1.Name, Equals, name)
-		c.Assert(space1.ID, Equals, uint(i+1))
+		space := suite.server.NewSpace(spaceJSON(CreateSpace{Name: name}))
+		c.Assert(space.Name, Equals, name)
+		c.Assert(space.ID, Equals, uint(i+1))
+		c.Assert(space.ResourceURI, Equals, fmt.Sprintf("/api/%s/spaces/%d/", suite.server.version, i+1))
 	}
-	suite.server.NewSubnet(suite.subnetJSON(newSubnetOnSpace("foo", 1)))
-	suite.server.NewSubnet(suite.subnetJSON(newSubnetOnSpace("foo", 2)))
-	suite.server.NewSubnet(suite.subnetJSON(newSubnetOnSpace("foo", 3)))
-	suite.server.NewSubnet(suite.subnetJSON(newSubnetOnSpace("bar", 4)))
-	suite.server.NewSubnet(suite.subnetJSON(newSubnetOnSpace("bar", 5)))
+	sub1 := suite.server.NewSubnet(suite.subnetJSON(newSubnetOnSpace("foo", 1)))
+	sub2 := suite.server.NewSubnet(suite.subnetJSON(newSubnetOnSpace("foo", 2)))
+	sub3 := suite.server.NewSubnet(suite.subnetJSON(newSubnetOnSpace("foo", 3)))
+	sub4 := suite.server.NewSubnet(suite.subnetJSON(newSubnetOnSpace("bar", 4)))
+	sub5 := suite.server.NewSubnet(suite.subnetJSON(newSubnetOnSpace("bar", 5)))
 	suite.server.NewSubnet(suite.subnetJSON(newSubnetOnSpace("baz", 6)))
 
 	spacesURL := getSpacesEndpoint(suite.server.version)
@@ -637,6 +638,16 @@ func (suite *TestServerSuite) TestSpaces(c *C) {
 	decoder := json.NewDecoder(resp.Body)
 	err = decoder.Decode(&spaces)
 	c.Assert(err, IsNil)
+
+	getURI := func(id int) string {
+		return fmt.Sprintf("/api/%s/spaces/%d/", suite.server.version, id)
+	}
+	expectedSpaces := []Space{
+		{Name: "foo", ID: 1, Subnets: []Subnet{*sub1, *sub2, *sub3}, ResourceURI: getURI(1)},
+		{Name: "bar", ID: 2, Subnets: []Subnet{*sub4, *sub5}, ResourceURI: getURI(2)},
+		{Name: "bam", ID: 3, ResourceURI: getURI(3)},
+	}
+	c.Assert(spaces, DeepEquals, expectedSpaces)
 }
 
 func defaultSubnet() CreateSubnet {
