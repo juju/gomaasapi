@@ -615,20 +615,28 @@ func (suite *TestServerSuite) TestSpacesNotFoundWhenEmpty(c *C) {
 }
 
 func (suite *TestServerSuite) TestSpaces(c *C) {
-	space1 := suite.server.NewSpace(spaceJSON(CreateSpace{Name: "foo"}))
-	c.Assert(space1.Name, Equals, "foo")
-	c.Assert(space1.ID, Equals, uint(1))
-
-	space2 := suite.server.NewSpace(spaceJSON(CreateSpace{Name: "bar"}))
-	c.Assert(space2.Name, Equals, "bar")
-	c.Assert(space2.ID, Equals, uint(2))
+	for i, name := range []string{"foo", "bar", "bam"} {
+		space1 := suite.server.NewSpace(spaceJSON(CreateSpace{Name: name}))
+		c.Assert(space1.Name, Equals, name)
+		c.Assert(space1.ID, Equals, uint(i+1))
+	}
 	suite.server.NewSubnet(suite.subnetJSON(newSubnetOnSpace("foo", 1)))
+	suite.server.NewSubnet(suite.subnetJSON(newSubnetOnSpace("foo", 2)))
+	suite.server.NewSubnet(suite.subnetJSON(newSubnetOnSpace("foo", 3)))
+	suite.server.NewSubnet(suite.subnetJSON(newSubnetOnSpace("bar", 4)))
+	suite.server.NewSubnet(suite.subnetJSON(newSubnetOnSpace("bar", 5)))
+	suite.server.NewSubnet(suite.subnetJSON(newSubnetOnSpace("baz", 6)))
 
 	spacesURL := getSpacesEndpoint(suite.server.version)
 	resp, err := http.Get(suite.server.Server.URL + spacesURL)
 
 	c.Check(err, IsNil)
-	c.Check(resp.StatusCode, Equals, http.StatusNotFound)
+	c.Assert(resp.StatusCode, Equals, http.StatusOK)
+
+	var spaces []Space
+	decoder := json.NewDecoder(resp.Body)
+	err = decoder.Decode(&spaces)
+	c.Assert(err, IsNil)
 }
 
 func defaultSubnet() CreateSubnet {
