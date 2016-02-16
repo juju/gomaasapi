@@ -614,6 +614,22 @@ func (suite *TestServerSuite) TestSpacesNotFoundWhenEmpty(c *C) {
 	c.Check(resp.StatusCode, Equals, http.StatusNotFound)
 }
 
+func (suite *TestServerSuite) TestSpacesSubnetsEmptyNotNil(c *C) {
+	suite.server.NewSpace(spaceJSON(CreateSpace{Name: "foo"}))
+	spacesURL := getSpacesEndpoint(suite.server.version)
+	resp, err := http.Get(suite.server.Server.URL + spacesURL)
+
+	c.Check(err, IsNil)
+	c.Assert(resp.StatusCode, Equals, http.StatusOK)
+
+	var spaces []Space
+	decoder := json.NewDecoder(resp.Body)
+	err = decoder.Decode(&spaces)
+	c.Assert(err, IsNil)
+	c.Assert(spaces, HasLen, 1)
+	c.Assert(spaces[0].Subnets, NotNil)
+}
+
 func (suite *TestServerSuite) TestSpaces(c *C) {
 	for i, name := range []string{"foo", "bar", "bam"} {
 		space := suite.server.NewSpace(spaceJSON(CreateSpace{Name: name}))
@@ -645,7 +661,7 @@ func (suite *TestServerSuite) TestSpaces(c *C) {
 	expectedSpaces := []Space{
 		{Name: "foo", ID: 1, Subnets: []Subnet{*sub1, *sub2, *sub3}, ResourceURI: getURI(1)},
 		{Name: "bar", ID: 2, Subnets: []Subnet{*sub4, *sub5}, ResourceURI: getURI(2)},
-		{Name: "bam", ID: 3, ResourceURI: getURI(3)},
+		{Name: "bam", ID: 3, Subnets: []Subnet{}, ResourceURI: getURI(3)},
 	}
 	c.Assert(spaces, DeepEquals, expectedSpaces)
 }
