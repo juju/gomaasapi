@@ -113,9 +113,10 @@ func (server *TestServer) NewSpace(spaceJSON io.Reader) *Space {
 // setSubnetsOnSpace fetches the subnets for the specified space and adds them
 // to it.
 func (server *TestServer) setSubnetsOnSpace(space *Space) {
-	var subnets []Subnet
-	for _, subnet := range server.subnets {
-		if subnet.Space == space.Name {
+	subnets := []Subnet{}
+	for i := uint(1); i < server.nextSubnet; i++ {
+		subnet, ok := server.subnets[i]
+		if ok && subnet.Space == space.Name {
 			subnets = append(subnets, subnet)
 		}
 	}
