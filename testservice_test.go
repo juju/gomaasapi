@@ -852,6 +852,14 @@ func (suite *TestServerSuite) TestSubnetReservedIPRanges(c *C) {
 	c.Check(reserved, HasLen, 0)
 }
 
+func (suite *TestServerSuite) TestSubnetReservedIPRangesNoAddresses(c *C) {
+	suite.server.NewSubnet(suite.subnetJSON(defaultSubnet()))
+
+	reservedIPRangeURL := suite.subnetURL(1) + "?op=reserved_ip_ranges"
+	_, err := http.Get(reservedIPRangeURL)
+	c.Check(err, IsNil)
+}
+
 func (suite *TestServerSuite) TestSubnetUnreservedIPRanges(c *C) {
 	suite.server.NewSubnet(suite.subnetJSON(defaultSubnet()))
 	reserved := suite.reserveSomeAddresses()
