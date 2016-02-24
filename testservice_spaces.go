@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"regexp"
 )
 
@@ -25,7 +26,14 @@ type Space struct {
 
 // spacesHandler handles requests for '/api/<version>/spaces/'.
 func spacesHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
-	var err error
+	values, err := url.ParseQuery(r.URL.RawQuery)
+	checkError(err)
+	op := values.Get("op")
+	if op != "" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
 	spacesURLRE := regexp.MustCompile(`/spaces/(.+?)/`)
 	spacesURLMatch := spacesURLRE.FindStringSubmatch(r.URL.Path)
 	spacesURL := getSpacesEndpoint(server.version)
