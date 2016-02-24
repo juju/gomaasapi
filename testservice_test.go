@@ -614,6 +614,14 @@ func (suite *TestServerSuite) TestSpacesNotFoundWhenEmpty(c *C) {
 	c.Check(resp.StatusCode, Equals, http.StatusNotFound)
 }
 
+func (suite *TestServerSuite) TestSpacesWithOp(c *C) {
+	spacesURL := getSpacesEndpoint(suite.server.version)
+	resp, err := http.Get(suite.server.Server.URL + spacesURL + "?op=list")
+
+	c.Check(err, IsNil)
+	c.Check(resp.StatusCode, Equals, http.StatusBadRequest)
+}
+
 func (suite *TestServerSuite) TestSpacesSubnetsEmptyNotNil(c *C) {
 	suite.server.NewSpace(spaceJSON(CreateSpace{Name: "foo"}))
 	spacesURL := getSpacesEndpoint(suite.server.version)
