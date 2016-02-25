@@ -250,13 +250,16 @@ func (server *TestServer) subnetReservedIPRanges(subnet Subnet) []AddressRange {
 	copy(ipAddresses, subnet.InUseIPAddresses)
 	appendRangesToIPList(subnet, &ipAddresses)
 	sort.Sort(addressList(ipAddresses))
-
 	if len(ipAddresses) == 0 {
-		return ranges.ar
+		ar := ranges.ar
+		if ar == nil {
+			ar = []AddressRange{}
+		}
+		return ar
 	}
+
 	startIP = ipAddresses[0]
 	lastIP := ipAddresses[0]
-
 	for _, thisIP = range ipAddresses {
 		var purposeMissmatch bool
 		for i, p := range thisIP.Purpose {
