@@ -645,12 +645,12 @@ func (suite *TestServerSuite) TestSpaces(c *C) {
 		c.Assert(space.ID, Equals, uint(i+1))
 		c.Assert(space.ResourceURI, Equals, fmt.Sprintf("/api/%s/spaces/%d/", suite.server.version, i+1))
 	}
-	sub1 := suite.server.NewSubnet(suite.subnetJSON(newSubnetOnSpace("foo", 1)))
-	sub2 := suite.server.NewSubnet(suite.subnetJSON(newSubnetOnSpace("foo", 2)))
-	sub3 := suite.server.NewSubnet(suite.subnetJSON(newSubnetOnSpace("foo", 3)))
-	sub4 := suite.server.NewSubnet(suite.subnetJSON(newSubnetOnSpace("bar", 4)))
-	sub5 := suite.server.NewSubnet(suite.subnetJSON(newSubnetOnSpace("bar", 5)))
-	suite.server.NewSubnet(suite.subnetJSON(newSubnetOnSpace("baz", 6)))
+	sub1 := suite.server.NewSubnet(subnetJSON(newSubnetOnSpace("foo", 1)))
+	sub2 := suite.server.NewSubnet(subnetJSON(newSubnetOnSpace("foo", 2)))
+	sub3 := suite.server.NewSubnet(subnetJSON(newSubnetOnSpace("foo", 3)))
+	sub4 := suite.server.NewSubnet(subnetJSON(newSubnetOnSpace("bar", 4)))
+	sub5 := suite.server.NewSubnet(subnetJSON(newSubnetOnSpace("bar", 5)))
+	suite.server.NewSubnet(subnetJSON(newSubnetOnSpace("baz", 6)))
 
 	spacesURL := getSpacesEndpoint(suite.server.version)
 	resp, err := http.Get(suite.server.Server.URL + spacesURL)
@@ -705,7 +705,7 @@ func spaceJSON(space CreateSpace) *bytes.Buffer {
 	return &out
 }
 
-func (suite *TestServerSuite) subnetJSON(subnet CreateSubnet) *bytes.Buffer {
+func subnetJSON(subnet CreateSubnet) *bytes.Buffer {
 	var out bytes.Buffer
 	err := json.NewEncoder(&out).Encode(subnet)
 	if err != nil {
@@ -736,7 +736,7 @@ func (suite *TestServerSuite) getSubnets(c *C) []Subnet {
 }
 
 func (suite *TestServerSuite) TestSubnetAdd(c *C) {
-	suite.server.NewSubnet(suite.subnetJSON(defaultSubnet()))
+	suite.server.NewSubnet(subnetJSON(defaultSubnet()))
 
 	subnets := suite.getSubnets(c)
 	c.Check(subnets, HasLen, 1)
@@ -749,12 +749,12 @@ func (suite *TestServerSuite) TestSubnetAdd(c *C) {
 }
 
 func (suite *TestServerSuite) TestSubnetGet(c *C) {
-	suite.server.NewSubnet(suite.subnetJSON(defaultSubnet()))
+	suite.server.NewSubnet(subnetJSON(defaultSubnet()))
 
 	subnet2 := defaultSubnet()
 	subnet2.Name = "maas-eth1"
 	subnet2.CIDR = "192.168.2.0/24"
-	suite.server.NewSubnet(suite.subnetJSON(subnet2))
+	suite.server.NewSubnet(subnetJSON(subnet2))
 
 	subnets := suite.getSubnets(c)
 	c.Check(subnets, HasLen, 2)
@@ -764,14 +764,14 @@ func (suite *TestServerSuite) TestSubnetGet(c *C) {
 
 func (suite *TestServerSuite) TestSubnetPut(c *C) {
 	subnet1 := defaultSubnet()
-	suite.server.NewSubnet(suite.subnetJSON(subnet1))
+	suite.server.NewSubnet(subnetJSON(subnet1))
 
 	subnets := suite.getSubnets(c)
 	c.Check(subnets, HasLen, 1)
 	c.Check(subnets[0].DNSServers, DeepEquals, []string{"192.168.1.2"})
 
 	subnet1.DNSServers = []string{"192.168.1.2", "192.168.1.3"}
-	suite.server.UpdateSubnet(suite.subnetJSON(subnet1))
+	suite.server.UpdateSubnet(subnetJSON(subnet1))
 
 	subnets = suite.getSubnets(c)
 	c.Check(subnets, HasLen, 1)
@@ -779,7 +779,7 @@ func (suite *TestServerSuite) TestSubnetPut(c *C) {
 }
 
 func (suite *TestServerSuite) TestSubnetDelete(c *C) {
-	suite.server.NewSubnet(suite.subnetJSON(defaultSubnet()))
+	suite.server.NewSubnet(subnetJSON(defaultSubnet()))
 
 	subnets := suite.getSubnets(c)
 	c.Check(subnets, HasLen, 1)
@@ -820,7 +820,7 @@ func (suite *TestServerSuite) reserveSomeAddresses() map[int]bool {
 }
 
 func (suite *TestServerSuite) TestSubnetReservedIPRanges(c *C) {
-	suite.server.NewSubnet(suite.subnetJSON(defaultSubnet()))
+	suite.server.NewSubnet(subnetJSON(defaultSubnet()))
 	reserved := suite.reserveSomeAddresses()
 
 	// Fetch from the server
@@ -852,16 +852,8 @@ func (suite *TestServerSuite) TestSubnetReservedIPRanges(c *C) {
 	c.Check(reserved, HasLen, 0)
 }
 
-func (suite *TestServerSuite) TestSubnetReservedIPRangesNoAddresses(c *C) {
-	suite.server.NewSubnet(suite.subnetJSON(defaultSubnet()))
-
-	reservedIPRangeURL := suite.subnetURL(1) + "?op=reserved_ip_ranges"
-	_, err := http.Get(reservedIPRangeURL)
-	c.Check(err, IsNil)
-}
-
 func (suite *TestServerSuite) TestSubnetUnreservedIPRanges(c *C) {
-	suite.server.NewSubnet(suite.subnetJSON(defaultSubnet()))
+	suite.server.NewSubnet(subnetJSON(defaultSubnet()))
 	reserved := suite.reserveSomeAddresses()
 	unreserved := make(map[int]bool)
 
@@ -903,7 +895,7 @@ func (suite *TestServerSuite) TestSubnetUnreservedIPRanges(c *C) {
 }
 
 func (suite *TestServerSuite) TestSubnetReserveRange(c *C) {
-	suite.server.NewSubnet(suite.subnetJSON(defaultSubnet()))
+	suite.server.NewSubnet(subnetJSON(defaultSubnet()))
 	suite.server.NewIPAddress("192.168.1.10", "maas-eth0")
 
 	var ar AddressRange
@@ -952,7 +944,7 @@ func (suite *TestServerSuite) getSubnetStats(c *C, subnetID int) SubnetStats {
 }
 
 func (suite *TestServerSuite) TestSubnetStats(c *C) {
-	suite.server.NewSubnet(suite.subnetJSON(defaultSubnet()))
+	suite.server.NewSubnet(subnetJSON(defaultSubnet()))
 
 	stats := suite.getSubnetStats(c, 1)
 	// There are 254 usable addresses in a class C subnet, so these
@@ -995,7 +987,7 @@ func (suite *TestServerSuite) TestSubnetStats(c *C) {
 
 func (suite *TestServerSuite) TestSubnetsInNodes(c *C) {
 	// Create a subnet
-	subnet := suite.server.NewSubnet(suite.subnetJSON(defaultSubnet()))
+	subnet := suite.server.NewSubnet(subnetJSON(defaultSubnet()))
 
 	// Create a node
 	var node Node
@@ -1089,6 +1081,16 @@ func (suite *TestMAASObjectSuite) TestListNodes(c *C) {
 	apiVersion := suite.TestMAASObject.TestServer.version
 	expectedResourceURI := fmt.Sprintf("/api/%s/nodes/mysystemid/", apiVersion)
 	c.Check(resourceURI, Equals, expectedResourceURI)
+}
+
+func (suite *TestMAASObjectSuite) TestSubnetReservedIPRangesNoAddresses(c *C) {
+	suite.TestMAASObject.TestServer.NewSubnet(subnetJSON(defaultSubnet()))
+	subnetsListing := suite.TestMAASObject.GetSubObject("subnets").GetSubObject("1")
+	rangesJson, err := subnetsListing.CallGet("reserved_ip_ranges", url.Values{})
+	c.Check(err, IsNil)
+	ranges, err := rangesJson.GetArray()
+	c.Check(err, IsNil)
+	c.Check(ranges, HasLen, 0)
 }
 
 func (suite *TestMAASObjectSuite) TestListNodesNoNodes(c *C) {
