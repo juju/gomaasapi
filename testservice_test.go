@@ -1142,6 +1142,25 @@ func (suite *TestMAASObjectSuite) TestOperationsOnNode(c *C) {
 	}
 }
 
+func (suite *TestMAASObjectSuite) TestNodePostPopulatesInterfaces(c *C) {
+	server := suite.TestMAASObject.TestServer
+	input := `{"system_id": "mysystemid"}`
+	node := server.NewNode(input)
+	subnet := server.NewSubnet(subnetJSON(defaultSubnet()))
+	// Put the node in the subnet
+	var nni NodeNetworkInterface
+	nni.Name = "eth0"
+	nni.Links = append(nni.Links, NetworkLink{uint(1), "auto", subnet})
+	server.SetNodeNetworkLink("mysystemid", nni)
+	result, err := node.CallPost("start", url.Values{})
+	c.Assert(err, IsNil)
+	resultMap, err := result.GetMap()
+	c.Check(err, IsNil)
+	array, err := resultMap["interface_set"].GetArray()
+	c.Check(err, IsNil)
+	c.Check(array, HasLen, 1)
+}
+
 func (suite *TestMAASObjectSuite) TestOperationsOnNodeGetRecorded(c *C) {
 	input := `{"system_id": "mysystemid"}`
 	node := suite.TestMAASObject.TestServer.NewNode(input)

@@ -844,26 +844,18 @@ func nodeHandler(server *TestServer, w http.ResponseWriter, r *http.Request, sys
 		return
 	}
 	UUID, UUIDError := node.values["system_id"].GetString()
+	if UUIDError == nil {
+		i, err := JSONObjectFromStruct(server.client, server.nodeMetadata[UUID].Interfaces)
+		checkError(err)
+		node.values["interface_set"] = i
+	}
 
 	if r.Method == "GET" {
 		if operation == "" {
 			w.WriteHeader(http.StatusOK)
-			if UUIDError == nil {
-				i, err := JSONObjectFromStruct(server.client, server.nodeMetadata[UUID].Interfaces)
-				checkError(err)
-				if err == nil {
-					node.values["interface_set"] = i
-				}
-			}
 			fmt.Fprint(w, marshalNode(node))
 			return
 		} else if operation == "details" {
-			if UUIDError == nil {
-				i, err := JSONObjectFromStruct(server.client, server.nodeMetadata[UUID].Interfaces)
-				if err == nil {
-					node.values["interface_set"] = i
-				}
-			}
 			nodeDetailsHandler(server, w, r, systemId)
 			return
 		} else {
