@@ -417,6 +417,14 @@ func (server *TestServer) RemoveIPAddress(ipAddress string) bool {
 			}
 		}
 	}
+	for _, device := range server.devices {
+		for i, addr := range device.IPAddresses {
+			if addr == ipAddress {
+				device.IPAddresses = append(device.IPAddresses[:i], device.IPAddresses[i+1:]...)
+				return true
+			}
+		}
+	}
 	return false
 }
 

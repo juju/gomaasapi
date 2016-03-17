@@ -125,6 +125,19 @@ func checkDevice(c *C, device map[string]JSONObject, mac, hostname, parent strin
 	c.Assert(actualHostname, Equals, hostname)
 }
 
+func (suite *TestServerSuite) TestReleaseIPPAddressFromDevice(c *C) {
+	systemId := suite.createDevice(c, "foo", "bar", "baz")
+	op := "?op=claim_sticky_ip_address"
+	deviceURL := fmt.Sprintf("/api/%s/devices/%s/", suite.server.version, systemId)
+	values := url.Values{}
+	values.Add("requested_address", "127.0.0.1")
+	suite.post(c, deviceURL+op, values)
+
+	ipaddressesURL := fmt.Sprintf("/api/%s/ipaddresses/", suite.server.version)
+	params := url.Values{"ip": []string{"127.0.0.1"}}
+	suite.post(c, ipaddressesURL+"?op=release", params)
+}
+
 func (suite *TestServerSuite) TestNewDeviceRequiredParameters(c *C) {
 	devicesURL := fmt.Sprintf("/api/%s/devices/", suite.server.version) + "?op=new"
 	values := url.Values{}
