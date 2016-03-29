@@ -1,4 +1,4 @@
-// Copyright 2013 Canonical Ltd.  This software is licensed under the
-// GNU Lesser General Public License version 3 (see the file COPYING).
+// Copyright 2012-2016 Canonical Ltd.
+// Licensed under the LGPLv3, see LICENCE file for details.
 
 package gomaasapi
