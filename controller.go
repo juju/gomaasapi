@@ -6,6 +6,7 @@ package gomaasapi
 import (
 	"encoding/json"
 	"net/url"
+	"sync/atomic"
 
 	"github.com/juju/errors"
 	"github.com/juju/loggo"
@@ -20,12 +21,15 @@ var (
 	// The supported versions should be ordered from most desirable version to
 	// least as they will be tried in order.
 	supportedAPIVersions = []string{"2.0"}
+
+	// Current request number. Informational only for logging.
+	requestNumber int64
 )
 
 // ControllerArgs is an argument struct for passing the required parameters
 // to the NewController method.
 type ControllerArgs struct {
-	BaseUrl string
+	BaseURL string
 	APIKey  string
 }
 
@@ -42,7 +46,7 @@ func NewController(args ControllerArgs) (Controller, error) {
 		if err != nil {
 			return nil, errors.Errorf("bad version defined in supported versions: %q", apiVersion)
 		}
-		client, err := NewAuthenticatedClient(args.BaseUrl, args.APIKey, apiVersion)
+		client, err := NewAuthenticatedClient(args.BaseURL, args.APIKey, apiVersion)
 		if err != nil {
 			outerErr = err
 			continue
@@ -51,18 +55,15 @@ func NewController(args ControllerArgs) (Controller, error) {
 			Major: major,
 			Minor: minor,
 		}
+		controller := &controller{client: client}
 		// The controllerVersion returned from the function will include any patch version.
-		capabilities, controllerVersion, err := readAPIVersion(client, controllerVersion)
+		controller.capabilities, controller.apiVersion, err = controller.readAPIVersion(controllerVersion)
 		if err != nil {
 			logger.Debugf("read version failed: %v", err)
 			outerErr = err
 			continue
 		}
-		return &controller{
-			client:       client,
-			apiVersion:   controllerVersion,
-			capabilities: capabilities,
-		}, nil
+		return controller, nil
 	}
 
 	return nil, errors.Wrap(outerErr, errors.New("unable to create authenticated client"))
@@ -79,9 +80,25 @@ func (c *controller) Capabilities() set.Strings {
 	return c.capabilities
 }
 
-func readAPIVersion(client *Client, apiVersion version.Number) (set.Strings, version.Number, error) {
-	// So want to fix this... it is kinda horrible, will wrap it later.
-	bytes, err := client.Get(&url.URL{Path: "version"}, "", nil) // perhaps "version/"
+func (c *controller) get(path string) ([]byte, error) {
+	path = EnsureTrailingSlash(path)
+	requestID := nextrequestID()
+	logger.Tracef("request %x: GET %s%s", requestID, c.client.APIURL, path)
+	bytes, err := c.client.Get(&url.URL{Path: path}, "", nil)
+	if err != nil {
+		logger.Tracef("response %x: error: %q", requestID, err.Error())
+		return nil, errors.Trace(err)
+	}
+	logger.Tracef("response %x: %s", requestID, string(bytes))
+	return bytes, nil
+}
+
+func nextrequestID() int64 {
+	return atomic.AddInt64(&requestNumber, 1)
+}
+
+func (c *controller) readAPIVersion(apiVersion version.Number) (set.Strings, version.Number, error) {
+	bytes, err := c.get("version")
 	if err != nil {
 		return nil, apiVersion, errors.Trace(err)
 	}

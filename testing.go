@@ -80,3 +80,48 @@ func newFlakyServer(uri string, code int, nbFlakyResponses int) *flakyServer {
 	server := httptest.NewServer(http.HandlerFunc(handler))
 	return &flakyServer{server, &nbRequests, &requests}
 }
+
+type simpleResponse struct {
+	status int
+	body   string
+}
+
+type SimpleTestServer struct {
+	*httptest.Server
+
+	responses     map[string][]simpleResponse
+	responseIndex map[string]int
+}
+
+func NewSimpleServer() *SimpleTestServer {
+	server := &SimpleTestServer{
+		responses:     make(map[string][]simpleResponse),
+		responseIndex: make(map[string]int),
+	}
+	server.Server = httptest.NewUnstartedServer(http.HandlerFunc(server.handler))
+	return server
+}
+
+func (s *SimpleTestServer) addResponse(path string, status int, body string) {
+	s.responses[path] = append(s.responses[path], simpleResponse{status: status, body: body})
+}
+
+func (s *SimpleTestServer) handler(writer http.ResponseWriter, request *http.Request) {
+	_, err := readAndClose(request.Body)
+	if err != nil {
+		panic(err) // it is a test, panic should be fine
+	}
+	uri := request.URL.String()
+	responses, found := s.responses[uri]
+	if !found {
+		errorMsg := fmt.Sprintf("Error 404: page not found ('%v').", uri)
+		http.Error(writer, errorMsg, http.StatusNotFound)
+	} else {
+		index := s.responseIndex[uri]
+		response := responses[index]
+		s.responseIndex[uri] = index + 1
+
+		writer.WriteHeader(response.status)
+		fmt.Fprint(writer, response.body)
+	}
+}
