@@ -1,4 +1,4 @@
-// Copyright 2012-2016 Canonical Ltd.
+// Copyright 2016 Canonical Ltd.
 // Licensed under the LGPLv3, see LICENCE file for details.
 
 package gomaasapi
@@ -13,12 +13,12 @@ type zoneSuite struct{}
 
 var _ = gc.Suite(&zoneSuite{})
 
-func (*controllerSuite) TestReadZonesBadSchema(c *gc.C) {
+func (*zoneSuite) TestReadZonesBadSchema(c *gc.C) {
 	_, err := readZones(twoDotOh, "wat?")
 	c.Assert(err.Error(), gc.Equals, `zone base schema check failed: expected list, got string("wat?")`)
 }
 
-func (*controllerSuite) TestReadZones(c *gc.C) {
+func (*zoneSuite) TestReadZones(c *gc.C) {
 	zones, err := readZones(twoDotOh, parseJSON(c, zoneResponse))
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(zones, gc.HasLen, 2)
@@ -28,12 +28,12 @@ func (*controllerSuite) TestReadZones(c *gc.C) {
 	c.Assert(zones[1].Description(), gc.Equals, "special description")
 }
 
-func (*controllerSuite) TestLowVersion(c *gc.C) {
+func (*zoneSuite) TestLowVersion(c *gc.C) {
 	_, err := readZones(version.MustParse("1.9.0"), parseJSON(c, zoneResponse))
 	c.Assert(err.Error(), gc.Equals, `no zone read func for version 1.9.0`)
 }
 
-func (*controllerSuite) TestHighVersion(c *gc.C) {
+func (*zoneSuite) TestHighVersion(c *gc.C) {
 	zones, err := readZones(version.MustParse("2.1.9"), parseJSON(c, zoneResponse))
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(zones, gc.HasLen, 2)

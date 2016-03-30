@@ -102,6 +102,24 @@ func (c *controller) Zones() ([]Zone, error) {
 	return result, nil
 }
 
+// Machines implements Controller.
+func (c *controller) Machines(params MachinesParams) ([]Machine, error) {
+	// ignore params for now
+	source, err := c.get("machines")
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	machines, err := readMachines(c.apiVersion, source)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	var result []Machine
+	for _, m := range machines {
+		result = append(result, m)
+	}
+	return result, nil
+}
+
 func (c *controller) get(path string) (interface{}, error) {
 	path = EnsureTrailingSlash(path)
 	requestID := nextrequestID()

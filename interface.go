@@ -26,6 +26,9 @@ type Controller interface {
 
 	// Zones lists all the zones known to the MAAS controller.
 	Zones() ([]Zone, error)
+
+	// Machines returns a list of machines that match the params.
+	Machines(MachinesParams) ([]Machine, error)
 }
 
 // Zone represents a physical zone that a Machine is in. The meaning of a
@@ -35,4 +38,24 @@ type Controller interface {
 type Zone interface {
 	Name() string
 	Description() string
+}
+
+// Machine represents a physical machine.
+type Machine interface {
+	SystemId() string
+	Hostname() string
+	FQDN() string
+	IPAddresses() []string
+	Memory() int
+	CpuCount() int
+	PowerState() string
+	Zone() Zone
+	OperatingSystem() string
+	DistroSeries() string
+	Architecture() string
+	Status() string
+}
+
+type MachinesParams struct {
+	SystemIds []string
 }
