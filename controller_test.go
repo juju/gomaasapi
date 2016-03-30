@@ -36,9 +36,9 @@ func (s *controllerSuite) SetUpTest(c *gc.C) {
 	s.CleanupSuite.SetUpTest(c)
 
 	server := NewSimpleServer()
-	server.addResponse("/api/2.0/version/", http.StatusOK, versionResponse)
-	server.addResponse("/api/2.0/zones/", http.StatusOK, zoneResponse)
-	server.addResponse("/api/2.0/machines/", http.StatusOK, machinesResponse)
+	server.AddResponse("/api/2.0/version/", http.StatusOK, versionResponse)
+	server.AddResponse("/api/2.0/zones/", http.StatusOK, zoneResponse)
+	server.AddResponse("/api/2.0/machines/", http.StatusOK, machinesResponse)
 	server.Start()
 	s.AddCleanup(func(*gc.C) { server.Close() })
 	s.server = server

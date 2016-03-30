@@ -102,7 +102,7 @@ func NewSimpleServer() *SimpleTestServer {
 	return server
 }
 
-func (s *SimpleTestServer) addResponse(path string, status int, body string) {
+func (s *SimpleTestServer) AddResponse(path string, status int, body string) {
 	s.responses[path] = append(s.responses[path], simpleResponse{status: status, body: body})
 }
 
