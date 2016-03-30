@@ -45,15 +45,24 @@ type Machine interface {
 	SystemId() string
 	Hostname() string
 	FQDN() string
-	IPAddresses() []string
-	Memory() int
-	CpuCount() int
-	PowerState() string
-	Zone() Zone
+
 	OperatingSystem() string
 	DistroSeries() string
 	Architecture() string
-	Status() string
+	Memory() int
+	CpuCount() int
+
+	IPAddresses() []string
+	PowerState() string
+
+	// Consider bundling the status values into a single struct.
+	// but need to check for consistent representation if exposed on other
+	// entities.
+
+	StatusName() string
+	StatusMessage() string
+
+	Zone() Zone
 }
 
 type MachinesArgs struct {

@@ -14,22 +14,24 @@ type machine struct {
 	// controller Controller
 	resourceURI string
 
-	systemID    string
-	hostname    string
-	fqdn        string
-	ipAddresses []string
-	memory      int
-	cpuCount    int
-	powerState  string
-
-	zone *zone
+	systemID string
+	hostname string
+	fqdn     string
 
 	operatingSystem string
 	distroSeries    string
 	architecture    string
-	// NOTE: status is an int, need to get status values from MAAS
-	// for now we'll set status to be the status_name
-	status string
+	memory          int
+	cpuCount        int
+
+	ipAddresses []string
+	powerState  string
+
+	// NOTE: consider some form of status struct
+	statusName    string
+	statusMessage string
+
+	zone *zone
 }
 
 // SystemId implements Machine.
@@ -87,9 +89,14 @@ func (m *machine) Architecture() string {
 	return m.architecture
 }
 
-// Status implements Machine.
-func (m *machine) Status() string {
-	return m.status
+// StatusName implements Machine.
+func (m *machine) StatusName() string {
+	return m.statusName
+}
+
+// StatusMessage implements Machine.
+func (m *machine) StatusMessage() string {
+	return m.statusMessage
 }
 
 func readMachines(controllerVersion version.Number, source interface{}) ([]*machine, error) {
@@ -149,9 +156,10 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 		"memory":        schema.ForceInt(),
 		"cpu_count":     schema.ForceInt(),
 
-		"ip_addresses": schema.List(schema.String()),
-		"power_state":  schema.String(),
-		"status_name":  schema.String(),
+		"ip_addresses":   schema.List(schema.String()),
+		"power_state":    schema.String(),
+		"status_name":    schema.String(),
+		"status_message": schema.String(),
 
 		"zone": schema.StringMap(schema.Any()),
 	}
@@ -182,9 +190,10 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 		memory:          valid["memory"].(int),
 		cpuCount:        valid["cpu_count"].(int),
 
-		ipAddresses: convertToStringSlice(valid["ip_addresses"]),
-		powerState:  valid["power_state"].(string),
-		status:      valid["status_name"].(string),
+		ipAddresses:   convertToStringSlice(valid["ip_addresses"]),
+		powerState:    valid["power_state"].(string),
+		statusName:    valid["status_name"].(string),
+		statusMessage: valid["status_message"].(string),
 
 		zone: zone,
 	}
