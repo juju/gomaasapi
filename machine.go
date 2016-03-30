@@ -10,7 +10,7 @@ import (
 )
 
 type machine struct {
-	// Add the controller in when we need to do things with the zone.
+	// Add the controller in when we need to do things with the machine.
 	// controller Controller
 	resourceURI string
 
