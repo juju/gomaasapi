@@ -103,7 +103,7 @@ func (c *controller) Zones() ([]Zone, error) {
 }
 
 // Machines implements Controller.
-func (c *controller) Machines(params MachinesParams) ([]Machine, error) {
+func (c *controller) Machines(params MachinesArgs) ([]Machine, error) {
 	// ignore params for now
 	source, err := c.get("machines")
 	if err != nil {

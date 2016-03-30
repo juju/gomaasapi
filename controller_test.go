@@ -79,7 +79,7 @@ func (s *controllerSuite) TestZones(c *gc.C) {
 
 func (s *controllerSuite) TestMachines(c *gc.C) {
 	controller := s.getController(c)
-	machines, err := controller.Machines(MachinesParams{})
+	machines, err := controller.Machines(MachinesArgs{})
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(machines, gc.HasLen, 3)
 }

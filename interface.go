@@ -28,7 +28,7 @@ type Controller interface {
 	Zones() ([]Zone, error)
 
 	// Machines returns a list of machines that match the params.
-	Machines(MachinesParams) ([]Machine, error)
+	Machines(MachinesArgs) ([]Machine, error)
 }
 
 // Zone represents a physical zone that a Machine is in. The meaning of a
@@ -56,6 +56,6 @@ type Machine interface {
 	Status() string
 }
 
-type MachinesParams struct {
+type MachinesArgs struct {
 	SystemIds []string
 }
