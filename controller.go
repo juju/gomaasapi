@@ -22,6 +22,11 @@ var (
 	// least as they will be tried in order.
 	supportedAPIVersions = []string{"2.0"}
 
+	// Each of the api versions that change the request or response structure
+	// for any given call should have a value defined for easy definition of
+	// the deserialization functions.
+	twoDotOh = version.Number{Major: 2, Minor: 0}
+
 	// Current request number. Informational only for logging.
 	requestNumber int64
 )
@@ -80,7 +85,24 @@ func (c *controller) Capabilities() set.Strings {
 	return c.capabilities
 }
 
-func (c *controller) get(path string) ([]byte, error) {
+// Zones implements Controller.
+func (c *controller) Zones() ([]Zone, error) {
+	source, err := c.get("zones")
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	zones, err := readZones(c.apiVersion, source)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	var result []Zone
+	for _, z := range zones {
+		result = append(result, z)
+	}
+	return result, nil
+}
+
+func (c *controller) get(path string) (interface{}, error) {
 	path = EnsureTrailingSlash(path)
 	requestID := nextrequestID()
 	logger.Tracef("request %x: GET %s%s", requestID, c.client.APIURL, path)
@@ -90,7 +112,13 @@ func (c *controller) get(path string) ([]byte, error) {
 		return nil, errors.Trace(err)
 	}
 	logger.Tracef("response %x: %s", requestID, string(bytes))
-	return bytes, nil
+
+	var parsed interface{}
+	err = json.Unmarshal(bytes, &parsed)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	return parsed, nil
 }
 
 func nextrequestID() int64 {
@@ -98,13 +126,7 @@ func nextrequestID() int64 {
 }
 
 func (c *controller) readAPIVersion(apiVersion version.Number) (set.Strings, version.Number, error) {
-	bytes, err := c.get("version")
-	if err != nil {
-		return nil, apiVersion, errors.Trace(err)
-	}
-
-	var parsed interface{}
-	err = json.Unmarshal(bytes, &parsed)
+	parsed, err := c.get("version")
 	if err != nil {
 		return nil, apiVersion, errors.Trace(err)
 	}

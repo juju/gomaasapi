@@ -23,4 +23,16 @@ type Controller interface {
 	// Capabilities returns a set of capabilities as defined by the string
 	// constants.
 	Capabilities() set.Strings
+
+	// Zones lists all the zones known to the MAAS controller.
+	Zones() ([]Zone, error)
+}
+
+// Zone represents a physical zone that a Machine is in. The meaning of a
+// physical zone is up to you: it could identify e.g. a server rack, a network,
+// or a data centre. Users can then allocate nodes from specific physical zones,
+// to suit their redundancy or performance requirements.
+type Zone interface {
+	Name() string
+	Description() string
 }
