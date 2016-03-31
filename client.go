@@ -44,6 +44,14 @@ type ServerError struct {
 	BodyMessage string
 }
 
+// GetServerError returns the ServerError from the cause of the error if it is a
+// ServerError, and also returns the bool to indicate if it was a ServerError or
+// not.
+func GetServerError(err error) (ServerError, bool) {
+	svrErr, ok := errors.Cause(err).(ServerError)
+	return svrErr, ok
+}
+
 // readAndClose reads and closes the given ReadCloser.
 //
 // Trying to read from a nil simply returns nil, no error.
@@ -76,7 +84,7 @@ func (client Client) dispatchRequest(request *http.Request) ([]byte, error) {
 		// If this is a 503 response with a non-void "Retry-After" header: wait
 		// as instructed and retry the request.
 		if err != nil {
-			serverError, ok := err.(ServerError)
+			serverError, ok := errors.Cause(err).(ServerError)
 			if ok && serverError.StatusCode == http.StatusServiceUnavailable {
 				retry_time_int, errConv := strconv.Atoi(serverError.Header.Get(RetryAfterHeaderName))
 				if errConv == nil {
