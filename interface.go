@@ -24,6 +24,9 @@ type Controller interface {
 	// constants.
 	Capabilities() set.Strings
 
+	// Fabrics returns the list of Fabrics defined in the MAAS controller.
+	Fabrics() ([]Fabric, error)
+
 	// Zones lists all the zones known to the MAAS controller.
 	Zones() ([]Zone, error)
 
@@ -39,10 +42,9 @@ type Controller interface {
 // VLAN 100, while a separate fabric in San Francisco may contain a VLAN 100,
 // whose attached subnets are completely different and unrelated.
 type Fabric interface {
-	Id() int
+	ID() int
 	Name() string
-
-	// TODO: find the attribute type of the class_name.
+	ClassType() string
 
 	VLANs() []VLAN
 }
@@ -66,7 +68,7 @@ type Fabric interface {
 // object in the fabric will be associated to by default (unless otherwise
 // specified).
 type VLAN interface {
-	Id() int
+	ID() int
 	Name() string
 	Fabric() string
 

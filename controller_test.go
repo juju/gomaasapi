@@ -37,6 +37,7 @@ func (s *controllerSuite) SetUpTest(c *gc.C) {
 
 	server := NewSimpleServer()
 	server.AddResponse("/api/2.0/version/", http.StatusOK, versionResponse)
+	server.AddResponse("/api/2.0/fabrics/", http.StatusOK, fabricResponse)
 	server.AddResponse("/api/2.0/zones/", http.StatusOK, zoneResponse)
 	server.AddResponse("/api/2.0/machines/", http.StatusOK, machinesResponse)
 	server.Start()
@@ -68,6 +69,13 @@ func (s *controllerSuite) TestNewController(c *gc.C) {
 	capabilities := controller.Capabilities()
 	c.Assert(capabilities.Difference(expectedCapabilities), gc.HasLen, 0)
 	c.Assert(expectedCapabilities.Difference(capabilities), gc.HasLen, 0)
+}
+
+func (s *controllerSuite) TestFabrics(c *gc.C) {
+	controller := s.getController(c)
+	fabrics, err := controller.Fabrics()
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(fabrics, gc.HasLen, 2)
 }
 
 func (s *controllerSuite) TestZones(c *gc.C) {

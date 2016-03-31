@@ -86,6 +86,23 @@ func (c *controller) Capabilities() set.Strings {
 }
 
 // Zones implements Controller.
+func (c *controller) Fabrics() ([]Fabric, error) {
+	source, err := c.get("fabrics")
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	fabrics, err := readFabrics(c.apiVersion, source)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	var result []Fabric
+	for _, f := range fabrics {
+		result = append(result, f)
+	}
+	return result, nil
+}
+
+// Zones implements Controller.
 func (c *controller) Zones() ([]Zone, error) {
 	source, err := c.get("zones")
 	if err != nil {

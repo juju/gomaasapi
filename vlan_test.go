@@ -23,7 +23,7 @@ func (*vlanSuite) TestreadVLANs(c *gc.C) {
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(vlans, gc.HasLen, 1)
 	vlan := vlans[0]
-	c.Assert(vlan.Id(), gc.Equals, 1)
+	c.Assert(vlan.ID(), gc.Equals, 1)
 	c.Assert(vlan.Name(), gc.Equals, "untagged")
 	c.Assert(vlan.Fabric(), gc.Equals, "fabric-0")
 	c.Assert(vlan.VID(), gc.Equals, 2)

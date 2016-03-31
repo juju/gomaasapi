@@ -28,7 +28,7 @@ type vlan struct {
 }
 
 // Id implements VLAN.
-func (v *vlan) Id() int {
+func (v *vlan) ID() int {
 	return v.id
 }
 
