@@ -37,6 +37,8 @@ type Controller interface {
 
 	// Machines returns a list of machines that match the params.
 	Machines(MachinesArgs) ([]Machine, error)
+
+	AllocateMachine(AllocateMachineArgs) (Machine, error)
 }
 
 // Fabric represents a set of interconnected VLANs that are capable of mutual
@@ -109,7 +111,7 @@ type BootResource interface {
 
 // Machine represents a physical machine.
 type Machine interface {
-	SystemId() string
+	SystemID() string
 	Hostname() string
 	FQDN() string
 
@@ -117,7 +119,7 @@ type Machine interface {
 	DistroSeries() string
 	Architecture() string
 	Memory() int
-	CpuCount() int
+	CPUCount() int
 
 	IPAddresses() []string
 	PowerState() string
@@ -132,6 +134,7 @@ type Machine interface {
 	Zone() Zone
 }
 
+// MachinesArgs is a argument struct for selecting Machines.
 type MachinesArgs struct {
 	SystemIds []string
 }

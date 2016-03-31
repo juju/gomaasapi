@@ -30,6 +30,30 @@ func (*urlParamsSuite) TestNewMaybeAddWithValue(c *gc.C) {
 	c.Assert(params.Values.Encode(), gc.Equals, "foo=bar")
 }
 
+func (*urlParamsSuite) TestNewMaybeAddIntZero(c *gc.C) {
+	params := gomaasapi.NewURLParams()
+	params.MaybeAddInt("foo", 0)
+	c.Assert(params.Values.Encode(), gc.Equals, "")
+}
+
+func (*urlParamsSuite) TestNewMaybeAddIntWithValue(c *gc.C) {
+	params := gomaasapi.NewURLParams()
+	params.MaybeAddInt("foo", 42)
+	c.Assert(params.Values.Encode(), gc.Equals, "foo=42")
+}
+
+func (*urlParamsSuite) TestNewMaybeAddBoolFalse(c *gc.C) {
+	params := gomaasapi.NewURLParams()
+	params.MaybeAddBool("foo", false)
+	c.Assert(params.Values.Encode(), gc.Equals, "")
+}
+
+func (*urlParamsSuite) TestNewMaybeAddBoolTrue(c *gc.C) {
+	params := gomaasapi.NewURLParams()
+	params.MaybeAddBool("foo", true)
+	c.Assert(params.Values.Encode(), gc.Equals, "foo=true")
+}
+
 func (*urlParamsSuite) TestNewMaybeAddManyNil(c *gc.C) {
 	params := gomaasapi.NewURLParams()
 	params.MaybeAddMany("foo", nil)

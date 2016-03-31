@@ -3,7 +3,10 @@
 
 package gomaasapi
 
-import "net/url"
+import (
+	"fmt"
+	"net/url"
+)
 
 // URLParams wraps url.Values to easily add values, but skipping empty ones.
 type URLParams struct {
@@ -19,6 +22,20 @@ func NewURLParams() *URLParams {
 func (p *URLParams) MaybeAdd(name, value string) {
 	if value != "" {
 		p.Values.Add(name, value)
+	}
+}
+
+// MaybeAddInt adds the (name, value) pair iff value is not zero.
+func (p *URLParams) MaybeAddInt(name string, value int) {
+	if value != 0 {
+		p.Values.Add(name, fmt.Sprint(value))
+	}
+}
+
+// MaybeAddBool adds the (name, value) pair iff value is true.
+func (p *URLParams) MaybeAddBool(name string, value bool) {
+	if value {
+		p.Values.Add(name, fmt.Sprint(value))
 	}
 }
 

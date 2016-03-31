@@ -171,6 +171,88 @@ func (c *controller) Machines(params MachinesArgs) ([]Machine, error) {
 	return result, nil
 }
 
+// AllocateMachineArgs is an argument struct for passing args into Machine.Allocate.
+type AllocateMachineArgs struct {
+	Hostname     string
+	Architecture string
+	MinCpuCount  int
+	// MinMemory represented in MB.
+	MinMemory int
+	Tags      []string
+	NotTags   []string
+	// Networks - list of networks (defined in MAAS) to which the machine must be
+	// attached. A network can be identified by the name assigned to it in MAAS;
+	// or by an ip: prefix followed by any IP address that falls within the
+	// network; or a vlan: prefix followed by a numeric VLAN tag, e.g. vlan:23
+	// for VLAN number 23. Valid VLAN tags must be in the range of 1 to 4094
+	// inclusive.
+	Networks    []string
+	NotNetworks []string
+	Zone        string
+	NotInZone   []string
+	AgentName   string
+	Comment     string
+	DryRun      bool
+}
+
+// AllocateMachine implements Controller.
+//
+// Returns an error that satisfies errors.IsBadRequest if the requested
+// constraints cannot be met.
+func (c *controller) AllocateMachine(args AllocateMachineArgs) (Machine, error) {
+	params := NewURLParams()
+	params.MaybeAdd("name", args.Hostname)
+	params.MaybeAdd("arch", args.Architecture)
+	params.MaybeAddInt("cpu_count", args.MinCpuCount)
+	params.MaybeAddInt("mem", args.MinMemory)
+	params.MaybeAddMany("tags", args.Tags)
+	params.MaybeAddMany("not_tags", args.NotTags)
+	params.MaybeAddMany("networks", args.Networks)
+	params.MaybeAddMany("not_networks", args.NotNetworks)
+	params.MaybeAdd("zone", args.Zone)
+	params.MaybeAddMany("not_in_zone", args.NotInZone)
+	params.MaybeAdd("agent_name", args.AgentName)
+	params.MaybeAdd("comment", args.Comment)
+	params.MaybeAddBool("dry_run", args.DryRun)
+	result, err := c.post("machines", "allocate", params.Values)
+	if err != nil {
+		// A 409 Status code is "No Matching Machines"
+		if svrErr, ok := errors.Cause(err).(ServerError); ok {
+			if svrErr.StatusCode == 409 {
+				return nil, errors.Wrap(err, errors.BadRequestf(svrErr.BodyMessage))
+			}
+		}
+		// Translate http errors.
+		return nil, errors.Trace(err)
+	}
+
+	machine, err := readMachine(c.apiVersion, result)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	return machine, nil
+}
+
+func (c *controller) post(path, op string, params url.Values) (interface{}, error) {
+	path = EnsureTrailingSlash(path)
+	requestID := nextrequestID()
+	logger.Tracef("request %x: POST %s%s?op=%s, params=%s", requestID, c.client.APIURL, path, op, params.Encode())
+	bytes, err := c.client.Post(&url.URL{Path: path}, op, params, nil)
+	if err != nil {
+		logger.Tracef("response %x: error: %q", requestID, err.Error())
+		logger.Tracef("error detail: %#v", err)
+		return nil, errors.Trace(err)
+	}
+	logger.Tracef("response %x: %s", requestID, string(bytes))
+
+	var parsed interface{}
+	err = json.Unmarshal(bytes, &parsed)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	return parsed, nil
+}
+
 func (c *controller) get(path string) (interface{}, error) {
 	path = EnsureTrailingSlash(path)
 	requestID := nextrequestID()
@@ -178,6 +260,7 @@ func (c *controller) get(path string) (interface{}, error) {
 	bytes, err := c.client.Get(&url.URL{Path: path}, "", nil)
 	if err != nil {
 		logger.Tracef("response %x: error: %q", requestID, err.Error())
+		logger.Tracef("error detail: %#v", err)
 		return nil, errors.Trace(err)
 	}
 	logger.Tracef("response %x: %s", requestID, string(bytes))
