@@ -85,7 +85,24 @@ func (c *controller) Capabilities() set.Strings {
 	return c.capabilities
 }
 
-// Zones implements Controller.
+// BootResources implements Controller.
+func (c *controller) BootResources() ([]BootResource, error) {
+	source, err := c.get("boot-resources")
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	resources, err := readBootResources(c.apiVersion, source)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	var result []BootResource
+	for _, r := range resources {
+		result = append(result, r)
+	}
+	return result, nil
+}
+
+// Fabrics implements Controller.
 func (c *controller) Fabrics() ([]Fabric, error) {
 	source, err := c.get("fabrics")
 	if err != nil {

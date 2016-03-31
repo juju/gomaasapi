@@ -24,6 +24,8 @@ type Controller interface {
 	// constants.
 	Capabilities() set.Strings
 
+	BootResources() ([]BootResource, error)
+
 	// Fabrics returns the list of Fabrics defined in the MAAS controller.
 	Fabrics() ([]Fabric, error)
 
@@ -90,6 +92,16 @@ type VLAN interface {
 type Zone interface {
 	Name() string
 	Description() string
+}
+
+// BootResource is the bomb... find something to say here.
+type BootResource interface {
+	ID() int
+	Name() string
+	Type() string
+	Architecture() string
+	SubArchitectures() set.Strings
+	KernelFlavor() string
 }
 
 // Machine represents a physical machine.
