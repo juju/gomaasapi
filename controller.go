@@ -119,6 +119,23 @@ func (c *controller) Fabrics() ([]Fabric, error) {
 	return result, nil
 }
 
+// Spaces implements Controller.
+func (c *controller) Spaces() ([]Space, error) {
+	source, err := c.get("spaces")
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	spaces, err := readSpaces(c.apiVersion, source)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	var result []Space
+	for _, space := range spaces {
+		result = append(result, space)
+	}
+	return result, nil
+}
+
 // Zones implements Controller.
 func (c *controller) Zones() ([]Zone, error) {
 	source, err := c.get("zones")

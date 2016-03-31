@@ -29,6 +29,9 @@ type Controller interface {
 	// Fabrics returns the list of Fabrics defined in the MAAS controller.
 	Fabrics() ([]Fabric, error)
 
+	// Spaces returns the list of Spaces defined in the MAAS controller.
+	Spaces() ([]Space, error)
+
 	// Zones lists all the zones known to the MAAS controller.
 	Zones() ([]Zone, error)
 

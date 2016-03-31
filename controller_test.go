@@ -39,6 +39,7 @@ func (s *controllerSuite) SetUpTest(c *gc.C) {
 	server.AddResponse("/api/2.0/boot-resources/", http.StatusOK, bootResourcesResponse)
 	server.AddResponse("/api/2.0/fabrics/", http.StatusOK, fabricResponse)
 	server.AddResponse("/api/2.0/machines/", http.StatusOK, machinesResponse)
+	server.AddResponse("/api/2.0/spaces/", http.StatusOK, spacesResponse)
 	server.AddResponse("/api/2.0/version/", http.StatusOK, versionResponse)
 	server.AddResponse("/api/2.0/zones/", http.StatusOK, zoneResponse)
 	server.Start()
@@ -84,6 +85,13 @@ func (s *controllerSuite) TestFabrics(c *gc.C) {
 	fabrics, err := controller.Fabrics()
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(fabrics, gc.HasLen, 2)
+}
+
+func (s *controllerSuite) TestSpaces(c *gc.C) {
+	controller := s.getController(c)
+	spaces, err := controller.Spaces()
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(spaces, gc.HasLen, 1)
 }
 
 func (s *controllerSuite) TestZones(c *gc.C) {
