@@ -12,8 +12,8 @@ func getVLANsEndpoint(version string) string {
 	return fmt.Sprintf("/api/%s/vlans/", version)
 }
 
-// VLAN is the MAAS API VLAN representation
-type VLAN struct {
+// TestVLAN is the MAAS API VLAN representation
+type TestVLAN struct {
 	Name   string `json:"name"`
 	Fabric string `json:"fabric"`
 	VID    uint   `json:"vid"`

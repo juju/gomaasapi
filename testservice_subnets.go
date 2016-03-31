@@ -53,7 +53,7 @@ type Subnet struct {
 	DNSServers []string `json:"dns_servers"`
 	Name       string   `json:"name"`
 	Space      string   `json:"space"`
-	VLAN       VLAN     `json:"vlan"`
+	VLAN       TestVLAN `json:"vlan"`
 	GatewayIP  string   `json:"gateway_ip"`
 	CIDR       string   `json:"cidr"`
 

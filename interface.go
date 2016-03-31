@@ -31,6 +31,56 @@ type Controller interface {
 	Machines(MachinesArgs) ([]Machine, error)
 }
 
+// Fabric represents a set of interconnected VLANs that are capable of mutual
+// communication. A fabric can be thought of as a logical grouping in which
+// VLANs can be considered unique.
+//
+// For example, a distributed network may have a fabric in London containing
+// VLAN 100, while a separate fabric in San Francisco may contain a VLAN 100,
+// whose attached subnets are completely different and unrelated.
+type Fabric interface {
+	Id() int
+	Name() string
+
+	// TODO: find the attribute type of the class_name.
+
+	VLANs() []VLAN
+}
+
+// VLAN represents an instance of a Virtual LAN. VLANs are a common way to
+// create logically separate networks using the same physical infrastructure.
+//
+// Managed switches can assign VLANs to each port in either a “tagged” or an
+// “untagged” manner. A VLAN is said to be “untagged” on a particular port when
+// it is the default VLAN for that port, and requires no special configuration
+// in order to access.
+//
+// “Tagged” VLANs (traditionally used by network administrators in order to
+// aggregate multiple networks over inter-switch “trunk” lines) can also be used
+// with nodes in MAAS. That is, if a switch port is configured such that
+// “tagged” VLAN frames can be sent and received by a MAAS node, that MAAS node
+// can be configured to automatically bring up VLAN interfaces, so that the
+// deployed node can make use of them.
+//
+// A “Default VLAN” is created for every Fabric, to which every new VLAN-aware
+// object in the fabric will be associated to by default (unless otherwise
+// specified).
+type VLAN interface {
+	Id() int
+	Name() string
+	Fabric() string
+
+	// VID is the VLAN ID. eth0.10 -> VID = 10.
+	VID() int
+	// MTU (maximum transmission unit) is the largest size packet or frame,
+	// specified in octets (eight-bit bytes), that can be sent.
+	MTU() int
+	DHCP() bool
+
+	PrimaryRack() string
+	SecondaryRack() string
+}
+
 // Zone represents a physical zone that a Machine is in. The meaning of a
 // physical zone is up to you: it could identify e.g. a server rack, a network,
 // or a data centre. Users can then allocate nodes from specific physical zones,
