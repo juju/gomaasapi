@@ -132,3 +132,22 @@ type Machine interface {
 type MachinesArgs struct {
 	SystemIds []string
 }
+
+// Space is a name for a collection of Subnets.
+type Space interface {
+	ID() int
+	Name() string
+	Subnets() []Subnet
+}
+
+// Subnet refers to an IP range on a VLAN.
+type Subnet interface {
+	ID() int
+	Name() string
+	Space() string
+	VLAN() VLAN
+
+	Gateway() string
+	CIDR() string
+	// DNS Servers, rdns_mode
+}

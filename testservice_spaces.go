@@ -16,12 +16,12 @@ func getSpacesEndpoint(version string) string {
 	return fmt.Sprintf("/api/%s/spaces/", version)
 }
 
-// Space is the MAAS API space representation
-type Space struct {
-	Name        string   `json:"name"`
-	Subnets     []Subnet `json:"subnets"`
-	ResourceURI string   `json:"resource_uri"`
-	ID          uint     `json:"id"`
+// TestSpace is the MAAS API space representation
+type TestSpace struct {
+	Name        string       `json:"name"`
+	Subnets     []TestSubnet `json:"subnets"`
+	ResourceURI string       `json:"resource_uri"`
+	ID          uint         `json:"id"`
 }
 
 // spacesHandler handles requests for '/api/<version>/spaces/'.
@@ -63,7 +63,7 @@ func spacesHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
 		}
 
 		if r.URL.Path == spacesURL {
-			var spaces []*Space
+			var spaces []*TestSpace
 			// Iterating by id rather than a dictionary iteration
 			// preserves the order of the spaces in the result.
 			for i := uint(1); i < server.nextSpace; i++ {
@@ -106,9 +106,9 @@ func decodePostedSpace(spaceJSON io.Reader) CreateSpace {
 }
 
 // NewSpace creates a space in the test server
-func (server *TestServer) NewSpace(spaceJSON io.Reader) *Space {
+func (server *TestServer) NewSpace(spaceJSON io.Reader) *TestSpace {
 	postedSpace := decodePostedSpace(spaceJSON)
-	newSpace := &Space{Name: postedSpace.Name}
+	newSpace := &TestSpace{Name: postedSpace.Name}
 	newSpace.ID = server.nextSpace
 	newSpace.ResourceURI = fmt.Sprintf("/api/%s/spaces/%d/", server.version, int(server.nextSpace))
 	server.spaces[server.nextSpace] = newSpace
@@ -120,8 +120,8 @@ func (server *TestServer) NewSpace(spaceJSON io.Reader) *Space {
 
 // setSubnetsOnSpace fetches the subnets for the specified space and adds them
 // to it.
-func (server *TestServer) setSubnetsOnSpace(space *Space) {
-	subnets := []Subnet{}
+func (server *TestServer) setSubnetsOnSpace(space *TestSpace) {
+	subnets := []TestSubnet{}
 	for i := uint(1); i < server.nextSubnet; i++ {
 		subnet, ok := server.subnets[i]
 		if ok && subnet.Space == space.Name {

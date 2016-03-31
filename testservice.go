@@ -97,13 +97,13 @@ type TestServer struct {
 	// devices is a map of device UUIDs to devices.
 	devices map[string]*device
 
-	subnets        map[uint]Subnet
+	subnets        map[uint]TestSubnet
 	subnetNameToID map[string]uint
 	nextSubnet     uint
-	spaces         map[uint]*Space
+	spaces         map[uint]*TestSpace
 	spaceNameToID  map[string]uint
 	nextSpace      uint
-	vlans          map[int]VLAN
+	vlans          map[int]TestVLAN
 	nextVLAN       int
 }
 
@@ -228,13 +228,13 @@ func (server *TestServer) Clear() {
 	server.zones = make(map[string]JSONObject)
 	server.versionJSON = `{"capabilities": ["networks-management","static-ipaddresses","devices-management","network-deployment-ubuntu"]}`
 	server.devices = make(map[string]*device)
-	server.subnets = make(map[uint]Subnet)
+	server.subnets = make(map[uint]TestSubnet)
 	server.subnetNameToID = make(map[string]uint)
 	server.nextSubnet = 1
-	server.spaces = make(map[uint]*Space)
+	server.spaces = make(map[uint]*TestSpace)
 	server.spaceNameToID = make(map[string]uint)
 	server.nextSpace = 1
-	server.vlans = make(map[int]VLAN)
+	server.vlans = make(map[int]TestVLAN)
 	server.nextVLAN = 1
 }
 

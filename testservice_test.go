@@ -643,7 +643,7 @@ func (suite *TestServerSuite) TestSpacesSubnetsEmptyNotNil(c *C) {
 	c.Check(err, IsNil)
 	c.Assert(resp.StatusCode, Equals, http.StatusOK)
 
-	var spaces []Space
+	var spaces []TestSpace
 	decoder := json.NewDecoder(resp.Body)
 	err = decoder.Decode(&spaces)
 	c.Assert(err, IsNil)
@@ -671,7 +671,7 @@ func (suite *TestServerSuite) TestSpaces(c *C) {
 	c.Check(err, IsNil)
 	c.Assert(resp.StatusCode, Equals, http.StatusOK)
 
-	var spaces []Space
+	var spaces []TestSpace
 	decoder := json.NewDecoder(resp.Body)
 	err = decoder.Decode(&spaces)
 	c.Assert(err, IsNil)
@@ -679,10 +679,10 @@ func (suite *TestServerSuite) TestSpaces(c *C) {
 	getURI := func(id int) string {
 		return fmt.Sprintf("/api/%s/spaces/%d/", suite.server.version, id)
 	}
-	expectedSpaces := []Space{
-		{Name: "foo", ID: 1, Subnets: []Subnet{*sub1, *sub2, *sub3}, ResourceURI: getURI(1)},
-		{Name: "bar", ID: 2, Subnets: []Subnet{*sub4, *sub5}, ResourceURI: getURI(2)},
-		{Name: "bam", ID: 3, Subnets: []Subnet{}, ResourceURI: getURI(3)},
+	expectedSpaces := []TestSpace{
+		{Name: "foo", ID: 1, Subnets: []TestSubnet{*sub1, *sub2, *sub3}, ResourceURI: getURI(1)},
+		{Name: "bar", ID: 2, Subnets: []TestSubnet{*sub4, *sub5}, ResourceURI: getURI(2)},
+		{Name: "bam", ID: 3, Subnets: []TestSubnet{}, ResourceURI: getURI(3)},
 	}
 	c.Assert(spaces, DeepEquals, expectedSpaces)
 }
@@ -735,13 +735,13 @@ func (suite *TestServerSuite) subnetsURL() string {
 	return suite.server.Server.URL + getSubnetsEndpoint(suite.server.version)
 }
 
-func (suite *TestServerSuite) getSubnets(c *C) []Subnet {
+func (suite *TestServerSuite) getSubnets(c *C) []TestSubnet {
 	resp, err := http.Get(suite.subnetsURL())
 
 	c.Check(err, IsNil)
 	c.Check(resp.StatusCode, Equals, http.StatusOK)
 
-	var subnets []Subnet
+	var subnets []TestSubnet
 	decoder := json.NewDecoder(resp.Body)
 	err = decoder.Decode(&subnets)
 	c.Check(err, IsNil)
