@@ -48,12 +48,12 @@ type CreateSubnet struct {
 	ID uint `json:"id"`
 }
 
-// Subnet is the MAAS API subnet representation
-type Subnet struct {
+// TestSubnet is the MAAS API subnet representation
+type TestSubnet struct {
 	DNSServers []string `json:"dns_servers"`
 	Name       string   `json:"name"`
 	Space      string   `json:"space"`
-	VLAN       VLAN     `json:"vlan"`
+	VLAN       TestVLAN `json:"vlan"`
 	GatewayIP  string   `json:"gateway_ip"`
 	CIDR       string   `json:"cidr"`
 
@@ -115,7 +115,7 @@ func subnetsHandler(server *TestServer, w http.ResponseWriter, r *http.Request) 
 		}
 
 		if r.URL.Path == subnetsURL {
-			var subnets []Subnet
+			var subnets []TestSubnet
 			for i := uint(1); i < server.nextSubnet; i++ {
 				s, ok := server.subnets[i]
 				if ok {
@@ -181,7 +181,7 @@ func (ranges *AddressRangeList) Append(startIP, endIP IP) {
 	ranges.ar = append(ranges.ar, i)
 }
 
-func appendRangesToIPList(subnet Subnet, ipAddresses *[]IP) {
+func appendRangesToIPList(subnet TestSubnet, ipAddresses *[]IP) {
 	for _, r := range subnet.FixedAddressRanges {
 		for v := r.startUint; v <= r.endUint; v++ {
 			ip := IPFromInt64(v)
@@ -191,7 +191,7 @@ func appendRangesToIPList(subnet Subnet, ipAddresses *[]IP) {
 	}
 }
 
-func (server *TestServer) subnetUnreservedIPRanges(subnet Subnet) []AddressRange {
+func (server *TestServer) subnetUnreservedIPRanges(subnet TestSubnet) []AddressRange {
 	// Make a sorted copy of subnet.InUseIPAddresses
 	ipAddresses := make([]IP, len(subnet.InUseIPAddresses))
 	copy(ipAddresses, subnet.InUseIPAddresses)
@@ -241,7 +241,7 @@ func (server *TestServer) subnetUnreservedIPRanges(subnet Subnet) []AddressRange
 	return ranges.ar
 }
 
-func (server *TestServer) subnetReservedIPRanges(subnet Subnet) []AddressRange {
+func (server *TestServer) subnetReservedIPRanges(subnet TestSubnet) []AddressRange {
 	var ranges AddressRangeList
 	var startIP, thisIP IP
 
@@ -292,7 +292,7 @@ type SubnetStats struct {
 	Ranges           []AddressRange `json:"ranges"`
 }
 
-func (server *TestServer) subnetStatistics(subnet Subnet, includeRanges bool) SubnetStats {
+func (server *TestServer) subnetStatistics(subnet TestSubnet, includeRanges bool) SubnetStats {
 	var stats SubnetStats
 	_, ipNet, err := net.ParseCIDR(subnet.CIDR)
 	checkError(err)
@@ -331,7 +331,7 @@ func decodePostedSubnet(subnetJSON io.Reader) CreateSubnet {
 }
 
 // UpdateSubnet creates a subnet in the test server
-func (server *TestServer) UpdateSubnet(subnetJSON io.Reader) Subnet {
+func (server *TestServer) UpdateSubnet(subnetJSON io.Reader) TestSubnet {
 	postedSubnet := decodePostedSubnet(subnetJSON)
 	updatedSubnet := subnetFromCreateSubnet(postedSubnet)
 	server.subnets[updatedSubnet.ID] = updatedSubnet
@@ -339,7 +339,7 @@ func (server *TestServer) UpdateSubnet(subnetJSON io.Reader) Subnet {
 }
 
 // NewSubnet creates a subnet in the test server
-func (server *TestServer) NewSubnet(subnetJSON io.Reader) *Subnet {
+func (server *TestServer) NewSubnet(subnetJSON io.Reader) *TestSubnet {
 	postedSubnet := decodePostedSubnet(subnetJSON)
 	newSubnet := subnetFromCreateSubnet(postedSubnet)
 	newSubnet.ID = server.nextSubnet
@@ -364,9 +364,9 @@ type Node struct {
 
 // NetworkLink represents a MAAS network link
 type NetworkLink struct {
-	ID     uint    `json:"id"`
-	Mode   string  `json:"mode"`
-	Subnet *Subnet `json:"subnet"`
+	ID     uint        `json:"id"`
+	Mode   string      `json:"mode"`
+	Subnet *TestSubnet `json:"subnet"`
 }
 
 // SetNodeNetworkLink records that the given node + interface are in subnet
@@ -383,8 +383,8 @@ func (server *TestServer) SetNodeNetworkLink(SystemID string, nodeNetworkInterfa
 }
 
 // subnetFromCreateSubnet creates a subnet in the test server
-func subnetFromCreateSubnet(postedSubnet CreateSubnet) Subnet {
-	var newSubnet Subnet
+func subnetFromCreateSubnet(postedSubnet CreateSubnet) TestSubnet {
+	var newSubnet TestSubnet
 	newSubnet.DNSServers = postedSubnet.DNSServers
 	newSubnet.Name = postedSubnet.Name
 	newSubnet.Space = postedSubnet.Space

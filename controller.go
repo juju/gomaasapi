@@ -85,6 +85,57 @@ func (c *controller) Capabilities() set.Strings {
 	return c.capabilities
 }
 
+// BootResources implements Controller.
+func (c *controller) BootResources() ([]BootResource, error) {
+	source, err := c.get("boot-resources")
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	resources, err := readBootResources(c.apiVersion, source)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	var result []BootResource
+	for _, r := range resources {
+		result = append(result, r)
+	}
+	return result, nil
+}
+
+// Fabrics implements Controller.
+func (c *controller) Fabrics() ([]Fabric, error) {
+	source, err := c.get("fabrics")
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	fabrics, err := readFabrics(c.apiVersion, source)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	var result []Fabric
+	for _, f := range fabrics {
+		result = append(result, f)
+	}
+	return result, nil
+}
+
+// Spaces implements Controller.
+func (c *controller) Spaces() ([]Space, error) {
+	source, err := c.get("spaces")
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	spaces, err := readSpaces(c.apiVersion, source)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	var result []Space
+	for _, space := range spaces {
+		result = append(result, space)
+	}
+	return result, nil
+}
+
 // Zones implements Controller.
 func (c *controller) Zones() ([]Zone, error) {
 	source, err := c.get("zones")
