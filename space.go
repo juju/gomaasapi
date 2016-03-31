@@ -15,33 +15,27 @@ type space struct {
 
 	resourceURI string
 
-	id        int
-	name      string
-	classType string
+	id   int
+	name string
 
-	vlans []*vlan
+	subnets []*subnet
 }
 
 // Id implements Space.
-func (f *space) ID() int {
-	return f.id
+func (s *space) ID() int {
+	return s.id
 }
 
 // Name implements Space.
-func (f *space) Name() string {
-	return f.name
+func (s *space) Name() string {
+	return s.name
 }
 
-// Name implements Space.
-func (f *space) ClassType() string {
-	return f.classType
-}
-
-// VLANs implements Space.
-func (f *space) VLANs() []VLAN {
-	var result []VLAN
-	for _, v := range f.vlans {
-		result = append(result, v)
+// Subnets implements Space.
+func (s *space) Subnets() []Subnet {
+	var result []Subnet
+	for _, subnet := range s.subnets {
+		result = append(result, subnet)
 	}
 	return result
 }
@@ -95,8 +89,7 @@ func space_2_0(source map[string]interface{}) (*space, error) {
 		"resource_uri": schema.String(),
 		"id":           schema.ForceInt(),
 		"name":         schema.String(),
-		"class_type":   schema.OneOf(schema.Nil(""), schema.String()),
-		"vlans":        schema.List(schema.StringMap(schema.Any())),
+		"subnets":      schema.List(schema.StringMap(schema.Any())),
 	}
 	checker := schema.FieldMap(fields, nil) // no defaults
 	coerced, err := checker.Coerce(source, nil)
@@ -107,22 +100,16 @@ func space_2_0(source map[string]interface{}) (*space, error) {
 	// From here we know that the map returned from the schema coercion
 	// contains fields of the right type.
 
-	vlans, err := readVLANList(valid["vlans"].([]interface{}), vlan_2_0)
+	subnets, err := readSubnetList(valid["subnets"].([]interface{}), subnet_2_0)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
-
-	// Since the class_type is optional, we use the two part cast assignment. If
-	// the cast fails, then we get the default value we care about, which is the
-	// empty string.
-	classType, _ := valid["class_type"].(string)
 
 	result := &space{
 		resourceURI: valid["resource_uri"].(string),
 		id:          valid["id"].(int),
 		name:        valid["name"].(string),
-		classType:   classType,
-		vlans:       vlans,
+		subnets:     subnets,
 	}
 	return result, nil
 }
