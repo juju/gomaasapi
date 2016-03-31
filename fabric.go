@@ -22,7 +22,7 @@ type fabric struct {
 	vlans []*vlan
 }
 
-// Id implements Fabric.
+// ID implements Fabric.
 func (f *fabric) ID() int {
 	return f.id
 }
@@ -32,7 +32,7 @@ func (f *fabric) Name() string {
 	return f.name
 }
 
-// Name implements Fabric.
+// ClassType implements Fabric.
 func (f *fabric) ClassType() string {
 	return f.classType
 }

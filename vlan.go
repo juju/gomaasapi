@@ -27,7 +27,7 @@ type vlan struct {
 	secondaryRack string
 }
 
-// Id implements VLAN.
+// ID implements VLAN.
 func (v *vlan) ID() int {
 	return v.id
 }
