@@ -15,6 +15,7 @@ var _ = gc.Suite(&machineSuite{})
 
 func (*machineSuite) TestReadMachinesBadSchema(c *gc.C) {
 	_, err := readMachines(twoDotOh, "wat?")
+	c.Check(err, jc.Satisfies, IsDeserializationError)
 	c.Assert(err.Error(), gc.Equals, `machine base schema check failed: expected list, got string("wat?")`)
 
 	_, err = readMachines(twoDotOh, []map[string]interface{}{
@@ -22,6 +23,7 @@ func (*machineSuite) TestReadMachinesBadSchema(c *gc.C) {
 			"wat": "?",
 		},
 	})
+	c.Check(err, jc.Satisfies, IsDeserializationError)
 	c.Assert(err, gc.ErrorMatches, `machine 0: machine 2.0 schema check failed: .*`)
 }
 
@@ -49,6 +51,7 @@ func (*machineSuite) TestReadMachines(c *gc.C) {
 
 func (*machineSuite) TestLowVersion(c *gc.C) {
 	_, err := readMachines(version.MustParse("1.9.0"), parseJSON(c, machinesResponse))
+	c.Assert(err, jc.Satisfies, IsUnsupportedVersionError)
 	c.Assert(err.Error(), gc.Equals, `no machine read func for version 1.9.0`)
 }
 
@@ -58,9 +61,9 @@ func (*machineSuite) TestHighVersion(c *gc.C) {
 	c.Assert(machines, gc.HasLen, 3)
 }
 
-var machinesResponse = `
-[
-    {
+const (
+	machineResponse = `
+	{
         "netboot": false,
         "system_id": "4y3ha3",
         "ip_addresses": [
@@ -305,7 +308,9 @@ var machinesResponse = `
             "ttl": null,
             "authoritative": true
         }
-    },
+    }
+`
+	machinesResponse = "[" + machineResponse + `,
     {
         "netboot": true,
         "system_id": "4y3ha4",
@@ -792,3 +797,4 @@ var machinesResponse = `
     }
 ]
 `
+)

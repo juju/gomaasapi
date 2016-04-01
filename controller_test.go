@@ -36,12 +36,12 @@ func (s *controllerSuite) SetUpTest(c *gc.C) {
 	s.CleanupSuite.SetUpTest(c)
 
 	server := NewSimpleServer()
-	server.AddResponse("/api/2.0/boot-resources/", http.StatusOK, bootResourcesResponse)
-	server.AddResponse("/api/2.0/fabrics/", http.StatusOK, fabricResponse)
-	server.AddResponse("/api/2.0/machines/", http.StatusOK, machinesResponse)
-	server.AddResponse("/api/2.0/spaces/", http.StatusOK, spacesResponse)
-	server.AddResponse("/api/2.0/version/", http.StatusOK, versionResponse)
-	server.AddResponse("/api/2.0/zones/", http.StatusOK, zoneResponse)
+	server.AddGetResponse("/api/2.0/boot-resources/", http.StatusOK, bootResourcesResponse)
+	server.AddGetResponse("/api/2.0/fabrics/", http.StatusOK, fabricResponse)
+	server.AddGetResponse("/api/2.0/machines/", http.StatusOK, machinesResponse)
+	server.AddGetResponse("/api/2.0/spaces/", http.StatusOK, spacesResponse)
+	server.AddGetResponse("/api/2.0/version/", http.StatusOK, versionResponse)
+	server.AddGetResponse("/api/2.0/zones/", http.StatusOK, zoneResponse)
 	server.Start()
 	s.AddCleanup(func(*gc.C) { server.Close() })
 	s.server = server
@@ -106,6 +106,14 @@ func (s *controllerSuite) TestMachines(c *gc.C) {
 	machines, err := controller.Machines(MachinesArgs{})
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(machines, gc.HasLen, 3)
+}
+
+func (s *controllerSuite) TestAllocateMachine(c *gc.C) {
+	s.server.AddPostResponse("/api/2.0/machines/?op=allocate", http.StatusOK, machineResponse)
+	controller := s.getController(c)
+	machine, err := controller.AllocateMachine(AllocateMachineArgs{})
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(machine.SystemID(), gc.Equals, "4y3ha3")
 }
 
 var versionResponse = `{"version": "unknown", "subversion": "", "capabilities": ["networks-management", "static-ipaddresses", "ipv6-deployment-ubuntu", "devices-management", "storage-deployment-ubuntu", "network-deployment-ubuntu"]}`

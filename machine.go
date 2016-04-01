@@ -108,7 +108,7 @@ func readMachine(controllerVersion version.Number, source interface{}) (*machine
 	checker := schema.StringMap(schema.Any())
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
-		return nil, errors.Annotatef(err, "machine base schema check failed")
+		return nil, WrapWithDeserializationError(err, "machine base schema check failed")
 	}
 	valid := coerced.(map[string]interface{})
 	return readFunc(valid)
@@ -123,7 +123,7 @@ func readMachines(controllerVersion version.Number, source interface{}) ([]*mach
 	checker := schema.List(schema.StringMap(schema.Any()))
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
-		return nil, errors.Annotatef(err, "machine base schema check failed")
+		return nil, WrapWithDeserializationError(err, "machine base schema check failed")
 	}
 	valid := coerced.([]interface{})
 	return readMachineList(valid, readFunc)
@@ -137,7 +137,7 @@ func getMachineDeserializationFunc(controllerVersion version.Number) (machineDes
 		}
 	}
 	if deserialisationVersion == version.Zero {
-		return nil, errors.Errorf("no machine read func for version %s", controllerVersion)
+		return nil, NewUnsupportedVersionError("no machine read func for version %s", controllerVersion)
 	}
 	return machineDeserializationFuncs[deserialisationVersion], nil
 }
@@ -147,7 +147,7 @@ func readMachineList(sourceList []interface{}, readFunc machineDeserializationFu
 	for i, value := range sourceList {
 		source, ok := value.(map[string]interface{})
 		if !ok {
-			return nil, errors.Errorf("unexpected value for machine %d, %T", i, value)
+			return nil, NewDeserializationError("unexpected value for machine %d, %T", i, value)
 		}
 		machine, err := readFunc(source)
 		if err != nil {
@@ -188,7 +188,7 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 	checker := schema.FieldMap(fields, nil) // no defaults
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
-		return nil, errors.Annotatef(err, "machine 2.0 schema check failed")
+		return nil, WrapWithDeserializationError(err, "machine 2.0 schema check failed")
 	}
 	valid := coerced.(map[string]interface{})
 	// From here we know that the map returned from the schema coercion
