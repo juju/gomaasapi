@@ -60,7 +60,7 @@ func readBootResources(controllerVersion version.Number, source interface{}) ([]
 	checker := schema.List(schema.StringMap(schema.Any()))
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
-		return nil, errors.Annotatef(err, "boot resource base schema check failed")
+		return nil, WrapWithDeserializationError(err, "boot resource base schema check failed")
 	}
 	valid := coerced.([]interface{})
 
@@ -71,7 +71,7 @@ func readBootResources(controllerVersion version.Number, source interface{}) ([]
 		}
 	}
 	if deserialisationVersion == version.Zero {
-		return nil, errors.Errorf("no boot resource read func for version %s", controllerVersion)
+		return nil, NewUnsupportedVersionError("no boot resource read func for version %s", controllerVersion)
 	}
 	readFunc := bootResourceDeserializationFuncs[deserialisationVersion]
 	return readBootResourceList(valid, readFunc)
@@ -83,7 +83,7 @@ func readBootResourceList(sourceList []interface{}, readFunc bootResourceDeseria
 	for i, value := range sourceList {
 		source, ok := value.(map[string]interface{})
 		if !ok {
-			return nil, errors.Errorf("unexpected value for boot resource %d, %T", i, value)
+			return nil, NewDeserializationError("unexpected value for boot resource %d, %T", i, value)
 		}
 		bootResource, err := readFunc(source)
 		if err != nil {
@@ -113,7 +113,7 @@ func bootResource_2_0(source map[string]interface{}) (*bootResource, error) {
 	checker := schema.FieldMap(fields, nil) // no defaults
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
-		return nil, errors.Annotatef(err, "boot resource 2.0 schema check failed")
+		return nil, WrapWithDeserializationError(err, "boot resource 2.0 schema check failed")
 	}
 	valid := coerced.(map[string]interface{})
 	// From here we know that the map returned from the schema coercion

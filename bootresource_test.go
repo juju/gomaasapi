@@ -16,6 +16,7 @@ var _ = gc.Suite(&bootResourceSuite{})
 
 func (*bootResourceSuite) TestReadBootResourcesBadSchema(c *gc.C) {
 	_, err := readBootResources(twoDotOh, "wat?")
+	c.Check(err, jc.Satisfies, IsDeserializationError)
 	c.Assert(err.Error(), gc.Equals, `boot resource base schema check failed: expected list, got string("wat?")`)
 }
 
@@ -36,7 +37,7 @@ func (*bootResourceSuite) TestReadBootResources(c *gc.C) {
 
 func (*bootResourceSuite) TestLowVersion(c *gc.C) {
 	_, err := readBootResources(version.MustParse("1.9.0"), parseJSON(c, bootResourcesResponse))
-	c.Assert(err.Error(), gc.Equals, `no boot resource read func for version 1.9.0`)
+	c.Assert(err, jc.Satisfies, IsUnsupportedVersionError)
 }
 
 func (*bootResourceSuite) TestHighVersion(c *gc.C) {

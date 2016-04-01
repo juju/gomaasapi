@@ -40,11 +40,12 @@ type ControllerArgs struct {
 
 // NewController creates an authenticated client to the MAAS API, and checks
 // the capabilities of the server.
+//
+// If the APIKey is not valid, a NotValid error is returned.
 func NewController(args ControllerArgs) (Controller, error) {
 	// For now we don't need to test multiple versions. It is expected that at
 	// some time in the future, we will try the most up to date version and then
 	// work our way backwards.
-	var outerErr error
 	for _, apiVersion := range supportedAPIVersions {
 		major, minor, err := version.ParseMajorMinor(apiVersion)
 		// We should not get an error here. See the test.
@@ -53,8 +54,13 @@ func NewController(args ControllerArgs) (Controller, error) {
 		}
 		client, err := NewAuthenticatedClient(args.BaseURL, args.APIKey, apiVersion)
 		if err != nil {
-			outerErr = err
-			continue
+			// If the credentials aren't valid, return now.
+			if errors.IsNotValid(err) {
+				return nil, errors.Trace(err)
+			}
+			// Any other error attempting to create the authenticated client
+			// is an unexpeded error and return now.
+			return nil, NewUnexpectedError(err)
 		}
 		controllerVersion := version.Number{
 			Major: major,
@@ -64,14 +70,13 @@ func NewController(args ControllerArgs) (Controller, error) {
 		// The controllerVersion returned from the function will include any patch version.
 		controller.capabilities, controller.apiVersion, err = controller.readAPIVersion(controllerVersion)
 		if err != nil {
-			logger.Debugf("read version failed: %v", err)
-			outerErr = err
+			logger.Debugf("read version failed: %#v", err)
 			continue
 		}
 		return controller, nil
 	}
 
-	return nil, errors.Wrap(outerErr, errors.New("unable to create authenticated client"))
+	return nil, NewUnsupportedVersionError("controller at %s does not support any of %s", args.BaseURL, supportedAPIVersions)
 }
 
 type controller struct {
@@ -89,7 +94,7 @@ func (c *controller) Capabilities() set.Strings {
 func (c *controller) BootResources() ([]BootResource, error) {
 	source, err := c.get("boot-resources")
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, NewUnexpectedError(err)
 	}
 	resources, err := readBootResources(c.apiVersion, source)
 	if err != nil {
@@ -106,7 +111,7 @@ func (c *controller) BootResources() ([]BootResource, error) {
 func (c *controller) Fabrics() ([]Fabric, error) {
 	source, err := c.get("fabrics")
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, NewUnexpectedError(err)
 	}
 	fabrics, err := readFabrics(c.apiVersion, source)
 	if err != nil {
@@ -123,7 +128,7 @@ func (c *controller) Fabrics() ([]Fabric, error) {
 func (c *controller) Spaces() ([]Space, error) {
 	source, err := c.get("spaces")
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, NewUnexpectedError(err)
 	}
 	spaces, err := readSpaces(c.apiVersion, source)
 	if err != nil {
@@ -140,7 +145,7 @@ func (c *controller) Spaces() ([]Space, error) {
 func (c *controller) Zones() ([]Zone, error) {
 	source, err := c.get("zones")
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, NewUnexpectedError(err)
 	}
 	zones, err := readZones(c.apiVersion, source)
 	if err != nil {
@@ -158,7 +163,7 @@ func (c *controller) Machines(params MachinesArgs) ([]Machine, error) {
 	// ignore params for now
 	source, err := c.get("machines")
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, NewUnexpectedError(err)
 	}
 	machines, err := readMachines(c.apiVersion, source)
 	if err != nil {
@@ -175,7 +180,7 @@ func (c *controller) Machines(params MachinesArgs) ([]Machine, error) {
 type AllocateMachineArgs struct {
 	Hostname     string
 	Architecture string
-	MinCpuCount  int
+	MinCPUCount  int
 	// MinMemory represented in MB.
 	MinMemory int
 	Tags      []string
@@ -197,13 +202,13 @@ type AllocateMachineArgs struct {
 
 // AllocateMachine implements Controller.
 //
-// Returns an error that satisfies errors.IsBadRequest if the requested
+// Returns an error that satisfies IsNoMatchError if the requested
 // constraints cannot be met.
 func (c *controller) AllocateMachine(args AllocateMachineArgs) (Machine, error) {
 	params := NewURLParams()
 	params.MaybeAdd("name", args.Hostname)
 	params.MaybeAdd("arch", args.Architecture)
-	params.MaybeAddInt("cpu_count", args.MinCpuCount)
+	params.MaybeAddInt("cpu_count", args.MinCPUCount)
 	params.MaybeAddInt("mem", args.MinMemory)
 	params.MaybeAddMany("tags", args.Tags)
 	params.MaybeAddMany("not_tags", args.NotTags)
@@ -219,11 +224,11 @@ func (c *controller) AllocateMachine(args AllocateMachineArgs) (Machine, error) 
 		// A 409 Status code is "No Matching Machines"
 		if svrErr, ok := errors.Cause(err).(ServerError); ok {
 			if svrErr.StatusCode == 409 {
-				return nil, errors.Wrap(err, errors.BadRequestf(svrErr.BodyMessage))
+				return nil, errors.Wrap(err, NewNoMatchError(svrErr.BodyMessage))
 			}
 		}
 		// Translate http errors.
-		return nil, errors.Trace(err)
+		return nil, NewUnexpectedError(err)
 	}
 
 	machine, err := readMachine(c.apiVersion, result)
@@ -290,7 +295,7 @@ func (c *controller) readAPIVersion(apiVersion version.Number) (set.Strings, ver
 	checker := schema.FieldMap(fields, nil) // no defaults
 	coerced, err := checker.Coerce(parsed, nil)
 	if err != nil {
-		return nil, apiVersion, errors.Trace(err)
+		return nil, apiVersion, WrapWithDeserializationError(err, "version response")
 	}
 	// For now, we don't append any subversion, but as it becomes used, we
 	// should parse and check.
