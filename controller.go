@@ -5,6 +5,7 @@ package gomaasapi
 
 import (
 	"encoding/json"
+	"net/http"
 	"net/url"
 	"sync/atomic"
 
@@ -223,7 +224,7 @@ func (c *controller) AllocateMachine(args AllocateMachineArgs) (Machine, error) 
 	if err != nil {
 		// A 409 Status code is "No Matching Machines"
 		if svrErr, ok := errors.Cause(err).(ServerError); ok {
-			if svrErr.StatusCode == 409 {
+			if svrErr.StatusCode == http.StatusConflict {
 				return nil, errors.Wrap(err, NewNoMatchError(svrErr.BodyMessage))
 			}
 		}
