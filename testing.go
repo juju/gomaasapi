@@ -116,6 +116,14 @@ func (s *SimpleTestServer) AddPostResponse(path string, status int, body string)
 	s.postResponses[path] = append(s.postResponses[path], simpleResponse{status: status, body: body})
 }
 
+func (s *SimpleTestServer) LastRequest() *http.Request {
+	pos := len(s.requests) - 1
+	if pos < 0 {
+		return nil
+	}
+	return s.requests[pos]
+}
+
 func (s *SimpleTestServer) handler(writer http.ResponseWriter, request *http.Request) {
 	method := request.Method
 	var responses map[string][]simpleResponse
@@ -124,17 +132,21 @@ func (s *SimpleTestServer) handler(writer http.ResponseWriter, request *http.Req
 	case "GET":
 		responses = s.getResponses
 		responseIndex = s.getResponseIndex
+		_, err := readAndClose(request.Body)
+		if err != nil {
+			panic(err) // it is a test, panic should be fine
+		}
 	case "POST":
 		responses = s.postResponses
 		responseIndex = s.postResponseIndex
+		err := request.ParseForm()
+		if err != nil {
+			panic(err)
+		}
 	default:
 		panic("unsupported method " + method)
 	}
 	s.requests = append(s.requests, request)
-	_, err := readAndClose(request.Body)
-	if err != nil {
-		panic(err) // it is a test, panic should be fine
-	}
 	uri := request.URL.String()
 	testResponses, found := responses[uri]
 	if !found {
