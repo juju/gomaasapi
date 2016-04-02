@@ -39,6 +39,7 @@ type Controller interface {
 	Machines(MachinesArgs) ([]Machine, error)
 
 	AllocateMachine(AllocateMachineArgs) (Machine, error)
+	ReleaseMachines(ReleaseMachinesArgs) error
 }
 
 // Fabric represents a set of interconnected VLANs that are capable of mutual

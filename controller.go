@@ -239,6 +239,44 @@ func (c *controller) AllocateMachine(args AllocateMachineArgs) (Machine, error) 
 	return machine, nil
 }
 
+// ReleaseMachinesArgs is an argument struct for passing the machine system IDs
+// and an optional comment into the ReleaseMachines method.
+type ReleaseMachinesArgs struct {
+	SystemIDs []string
+	Comment   string
+}
+
+// ReleaseMachines implements Controller.
+//
+// Release multiple machines at once. Returns
+//  - BadRequestError if any of the machines cannot be found
+//  - PermissionError if the user does not have permission to release any of the machines
+//  - CannotCompleteError if any of the machines could not be released due to their current state
+func (c *controller) ReleaseMachines(args ReleaseMachinesArgs) error {
+	params := NewURLParams()
+	params.MaybeAddMany("machines", args.SystemIDs)
+	params.MaybeAdd("comment", args.Comment)
+	_, err := c.post("machines", "release", params.Values)
+	if err != nil {
+		// A 409 Status code is "No Matching Machines"
+		if svrErr, ok := errors.Cause(err).(ServerError); ok {
+			if svrErr.StatusCode == http.StatusBadRequest {
+				return errors.Wrap(err, NewBadRequestError(svrErr.BodyMessage))
+			}
+			if svrErr.StatusCode == http.StatusForbidden {
+				return errors.Wrap(err, NewPermissionError(svrErr.BodyMessage))
+			}
+			if svrErr.StatusCode == http.StatusConflict {
+				return errors.Wrap(err, NewCannotCompleteError(svrErr.BodyMessage))
+			}
+		}
+		// Translate http errors.
+		return NewUnexpectedError(err)
+	}
+
+	return nil
+}
+
 func (c *controller) post(path, op string, params url.Values) (interface{}, error) {
 	path = EnsureTrailingSlash(path)
 	requestID := nextrequestID()

@@ -157,4 +157,59 @@ func (s *controllerSuite) TestAllocateMachineUnexpected(c *gc.C) {
 	c.Assert(err, jc.Satisfies, IsUnexpectedError)
 }
 
+func (s *controllerSuite) TestReleaseMachines(c *gc.C) {
+	s.server.AddPostResponse("/api/2.0/machines/?op=release", http.StatusOK, "[]")
+	controller := s.getController(c)
+	err := controller.ReleaseMachines(ReleaseMachinesArgs{
+		SystemIDs: []string{"this", "that"},
+		Comment:   "all good",
+	})
+	c.Assert(err, jc.ErrorIsNil)
+
+	request := s.server.LastRequest()
+	// There should be one entry in the form values for each of the args.
+	c.Assert(request.PostForm["machines"], jc.SameContents, []string{"this", "that"})
+	c.Assert(request.PostForm.Get("comment"), gc.Equals, "all good")
+}
+
+func (s *controllerSuite) TestReleaseMachinesBadRequest(c *gc.C) {
+	s.server.AddPostResponse("/api/2.0/machines/?op=release", http.StatusBadRequest, "unknown machines")
+	controller := s.getController(c)
+	err := controller.ReleaseMachines(ReleaseMachinesArgs{
+		SystemIDs: []string{"this", "that"},
+	})
+	c.Assert(err, jc.Satisfies, IsBadRequestError)
+	c.Assert(err.Error(), gc.Equals, "unknown machines")
+}
+
+func (s *controllerSuite) TestReleaseMachinesForbidden(c *gc.C) {
+	s.server.AddPostResponse("/api/2.0/machines/?op=release", http.StatusForbidden, "bzzt denied")
+	controller := s.getController(c)
+	err := controller.ReleaseMachines(ReleaseMachinesArgs{
+		SystemIDs: []string{"this", "that"},
+	})
+	c.Assert(err, jc.Satisfies, IsPermissionError)
+	c.Assert(err.Error(), gc.Equals, "bzzt denied")
+}
+
+func (s *controllerSuite) TestReleaseMachinesConflict(c *gc.C) {
+	s.server.AddPostResponse("/api/2.0/machines/?op=release", http.StatusConflict, "machine busy")
+	controller := s.getController(c)
+	err := controller.ReleaseMachines(ReleaseMachinesArgs{
+		SystemIDs: []string{"this", "that"},
+	})
+	c.Assert(err, jc.Satisfies, IsCannotCompleteError)
+	c.Assert(err.Error(), gc.Equals, "machine busy")
+}
+
+func (s *controllerSuite) TestReleaseMachinesUnexpected(c *gc.C) {
+	s.server.AddPostResponse("/api/2.0/machines/?op=release", http.StatusBadGateway, "wat")
+	controller := s.getController(c)
+	err := controller.ReleaseMachines(ReleaseMachinesArgs{
+		SystemIDs: []string{"this", "that"},
+	})
+	c.Assert(err, jc.Satisfies, IsUnexpectedError)
+	c.Assert(err.Error(), gc.Equals, "unexpected: ServerError: 502 Bad Gateway (wat)")
+}
+
 var versionResponse = `{"version": "unknown", "subversion": "", "capabilities": ["networks-management", "static-ipaddresses", "ipv6-deployment-ubuntu", "devices-management", "storage-deployment-ubuntu", "network-deployment-ubuntu"]}`
