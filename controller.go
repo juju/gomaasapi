@@ -172,6 +172,7 @@ func (c *controller) Machines(params MachinesArgs) ([]Machine, error) {
 	}
 	var result []Machine
 	for _, m := range machines {
+		m.controller = c
 		result = append(result, m)
 	}
 	return result, nil
@@ -236,6 +237,7 @@ func (c *controller) AllocateMachine(args AllocateMachineArgs) (Machine, error) 
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
+	machine.controller = c
 	return machine, nil
 }
 

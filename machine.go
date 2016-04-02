@@ -4,14 +4,17 @@
 package gomaasapi
 
 import (
+	"encoding/base64"
+	"net/http"
+
 	"github.com/juju/errors"
 	"github.com/juju/schema"
 	"github.com/juju/version"
 )
 
 type machine struct {
-	// Add the controller in when we need to do things with the machine.
-	// controller Controller
+	controller *controller
+
 	resourceURI string
 
 	systemID string
@@ -97,6 +100,46 @@ func (m *machine) StatusName() string {
 // StatusMessage implements Machine.
 func (m *machine) StatusMessage() string {
 	return m.statusMessage
+}
+
+// StartArgs is an argument struct for passing parameters to the Machine.Start
+// method.
+type StartArgs struct {
+	UserData     []byte
+	DistroSeries string
+	Kernel       string
+	Comment      string
+}
+
+// Start implements Machine.
+func (m *machine) Start(args StartArgs) error {
+	var encodedUserData string
+	if args.UserData != nil {
+		encodedUserData = base64.StdEncoding.EncodeToString(args.UserData)
+	}
+	params := NewURLParams()
+	params.MaybeAdd("user_data", encodedUserData)
+	params.MaybeAdd("distro_series", args.DistroSeries)
+	params.MaybeAdd("hwe_kernel", args.Kernel)
+	params.MaybeAdd("comment", args.Comment)
+	_, err := m.controller.post(m.resourceURI, "deploy", params.Values)
+	if err != nil {
+		if svrErr, ok := errors.Cause(err).(ServerError); ok {
+			if svrErr.StatusCode == http.StatusNotFound {
+				return errors.Wrap(err, NewBadRequestError(svrErr.BodyMessage))
+			}
+			if svrErr.StatusCode == http.StatusForbidden {
+				return errors.Wrap(err, NewPermissionError(svrErr.BodyMessage))
+			}
+			if svrErr.StatusCode == http.StatusServiceUnavailable {
+				return errors.Wrap(err, NewCannotCompleteError(svrErr.BodyMessage))
+			}
+		}
+		// Translate http errors.
+		return NewUnexpectedError(err)
+	}
+
+	return nil
 }
 
 func readMachine(controllerVersion version.Number, source interface{}) (*machine, error) {

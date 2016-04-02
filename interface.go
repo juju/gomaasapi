@@ -133,6 +133,8 @@ type Machine interface {
 	StatusMessage() string
 
 	Zone() Zone
+
+	Start(StartArgs) error
 }
 
 // MachinesArgs is a argument struct for selecting Machines.
