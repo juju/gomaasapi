@@ -39,6 +39,7 @@ func (s *controllerSuite) SetUpTest(c *gc.C) {
 	server.AddGetResponse("/api/2.0/boot-resources/", http.StatusOK, bootResourcesResponse)
 	server.AddGetResponse("/api/2.0/fabrics/", http.StatusOK, fabricResponse)
 	server.AddGetResponse("/api/2.0/machines/", http.StatusOK, machinesResponse)
+	server.AddGetResponse("/api/2.0/machines/?hostname=untasted-markita", http.StatusOK, "["+machineResponse+"]")
 	server.AddGetResponse("/api/2.0/spaces/", http.StatusOK, spacesResponse)
 	server.AddGetResponse("/api/2.0/version/", http.StatusOK, versionResponse)
 	server.AddGetResponse("/api/2.0/zones/", http.StatusOK, zoneResponse)
@@ -106,6 +107,34 @@ func (s *controllerSuite) TestMachines(c *gc.C) {
 	machines, err := controller.Machines(MachinesArgs{})
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(machines, gc.HasLen, 3)
+}
+
+func (s *controllerSuite) TestMachinesFilter(c *gc.C) {
+	controller := s.getController(c)
+	machines, err := controller.Machines(MachinesArgs{
+		Hostnames: []string{"untasted-markita"},
+	})
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(machines, gc.HasLen, 1)
+	c.Assert(machines[0].Hostname(), gc.Equals, "untasted-markita")
+}
+
+func (s *controllerSuite) TestMachinesArgs(c *gc.C) {
+	controller := s.getController(c)
+	// This will fail with a 404 due to the test server not having something  at
+	// that address, but we don't care, all we want to do is capture the request
+	// and make sure that all the values were set.
+	controller.Machines(MachinesArgs{
+		Hostnames:    []string{"untasted-markita"},
+		MACAddresses: []string{"something"},
+		SystemIds:    []string{"something-else"},
+		Domain:       "magic",
+		Zone:         "foo",
+		AgentName:    "agent 42",
+	})
+	request := s.server.LastRequest()
+	// There should be one entry in the form values for each of the args.
+	c.Assert(request.URL.Query(), gc.HasLen, 6)
 }
 
 func (s *controllerSuite) TestAllocateMachine(c *gc.C) {

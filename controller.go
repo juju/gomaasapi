@@ -159,10 +159,27 @@ func (c *controller) Zones() ([]Zone, error) {
 	return result, nil
 }
 
+// MachinesArgs is a argument struct for selecting Machines.
+// Only machines that match the specified criteria are returned.
+type MachinesArgs struct {
+	Hostnames    []string
+	MACAddresses []string
+	SystemIds    []string
+	Domain       string
+	Zone         string
+	AgentName    string
+}
+
 // Machines implements Controller.
-func (c *controller) Machines(params MachinesArgs) ([]Machine, error) {
-	// ignore params for now
-	source, err := c.get("machines")
+func (c *controller) Machines(args MachinesArgs) ([]Machine, error) {
+	params := NewURLParams()
+	params.MaybeAddMany("hostname", args.Hostnames)
+	params.MaybeAddMany("mac_address", args.MACAddresses)
+	params.MaybeAddMany("id", args.SystemIds)
+	params.MaybeAdd("domain", args.Domain)
+	params.MaybeAdd("zone", args.Zone)
+	params.MaybeAdd("agent_name", args.AgentName)
+	source, err := c.getQuery("machines", params.Values)
 	if err != nil {
 		return nil, NewUnexpectedError(err)
 	}
@@ -299,11 +316,25 @@ func (c *controller) post(path, op string, params url.Values) (interface{}, erro
 	return parsed, nil
 }
 
+func (c *controller) getQuery(path string, params url.Values) (interface{}, error) {
+	return c._get(path, params)
+}
+
 func (c *controller) get(path string) (interface{}, error) {
+	return c._get(path, nil)
+}
+
+func (c *controller) _get(path string, params url.Values) (interface{}, error) {
 	path = EnsureTrailingSlash(path)
 	requestID := nextrequestID()
-	logger.Tracef("request %x: GET %s%s", requestID, c.client.APIURL, path)
-	bytes, err := c.client.Get(&url.URL{Path: path}, "", nil)
+	if logger.IsTraceEnabled() {
+		var query string
+		if params != nil {
+			query = "?" + params.Encode()
+		}
+		logger.Tracef("request %x: GET %s%s%s", requestID, c.client.APIURL, path, query)
+	}
+	bytes, err := c.client.Get(&url.URL{Path: path}, "", params)
 	if err != nil {
 		logger.Tracef("response %x: error: %q", requestID, err.Error())
 		logger.Tracef("error detail: %#v", err)
