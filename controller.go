@@ -260,13 +260,12 @@ func (c *controller) ReleaseMachines(args ReleaseMachinesArgs) error {
 	if err != nil {
 		// A 409 Status code is "No Matching Machines"
 		if svrErr, ok := errors.Cause(err).(ServerError); ok {
-			if svrErr.StatusCode == http.StatusBadRequest {
+			switch svrErr.StatusCode {
+			case http.StatusBadRequest:
 				return errors.Wrap(err, NewBadRequestError(svrErr.BodyMessage))
-			}
-			if svrErr.StatusCode == http.StatusForbidden {
+			case http.StatusForbidden:
 				return errors.Wrap(err, NewPermissionError(svrErr.BodyMessage))
-			}
-			if svrErr.StatusCode == http.StatusConflict {
+			case http.StatusConflict:
 				return errors.Wrap(err, NewCannotCompleteError(svrErr.BodyMessage))
 			}
 		}
