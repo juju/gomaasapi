@@ -258,7 +258,7 @@ func (c *controller) AllocateMachine(args AllocateMachineArgs) (Machine, error) 
 
 func (c *controller) post(path, op string, params url.Values) (interface{}, error) {
 	path = EnsureTrailingSlash(path)
-	requestID := nextrequestID()
+	requestID := nextRequestID()
 	logger.Tracef("request %x: POST %s%s?op=%s, params=%s", requestID, c.client.APIURL, path, op, params.Encode())
 	bytes, err := c.client.Post(&url.URL{Path: path}, op, params, nil)
 	if err != nil {
@@ -286,7 +286,7 @@ func (c *controller) get(path string) (interface{}, error) {
 
 func (c *controller) _get(path string, params url.Values) (interface{}, error) {
 	path = EnsureTrailingSlash(path)
-	requestID := nextrequestID()
+	requestID := nextRequestID()
 	if logger.IsTraceEnabled() {
 		var query string
 		if params != nil {
@@ -310,7 +310,7 @@ func (c *controller) _get(path string, params url.Values) (interface{}, error) {
 	return parsed, nil
 }
 
-func nextrequestID() int64 {
+func nextRequestID() int64 {
 	return atomic.AddInt64(&requestNumber, 1)
 }
 
