@@ -37,6 +37,23 @@ type machine struct {
 	zone *zone
 }
 
+func (m *machine) updateFrom(other *machine) {
+	m.resourceURI = other.resourceURI
+	m.systemID = other.systemID
+	m.hostname = other.hostname
+	m.fqdn = other.fqdn
+	m.operatingSystem = other.operatingSystem
+	m.distroSeries = other.distroSeries
+	m.architecture = other.architecture
+	m.memory = other.memory
+	m.cpuCount = other.cpuCount
+	m.ipAddresses = other.ipAddresses
+	m.powerState = other.powerState
+	m.statusName = other.statusName
+	m.statusMessage = other.statusMessage
+	m.zone = other.zone
+}
+
 // SystemID implements Machine.
 func (m *machine) SystemID() string {
 	return m.systemID
@@ -122,10 +139,13 @@ func (m *machine) Start(args StartArgs) error {
 	params.MaybeAdd("distro_series", args.DistroSeries)
 	params.MaybeAdd("hwe_kernel", args.Kernel)
 	params.MaybeAdd("comment", args.Comment)
-	_, err := m.controller.post(m.resourceURI, "deploy", params.Values)
+	result, err := m.controller.post(m.resourceURI, "deploy", params.Values)
 	if err != nil {
 		if svrErr, ok := errors.Cause(err).(ServerError); ok {
 			if svrErr.StatusCode == http.StatusNotFound {
+				return errors.Wrap(err, NewBadRequestError(svrErr.BodyMessage))
+			}
+			if svrErr.StatusCode == http.StatusConflict {
 				return errors.Wrap(err, NewBadRequestError(svrErr.BodyMessage))
 			}
 			if svrErr.StatusCode == http.StatusForbidden {
@@ -139,6 +159,11 @@ func (m *machine) Start(args StartArgs) error {
 		return NewUnexpectedError(err)
 	}
 
+	machine, err := readMachine(m.controller.apiVersion, result)
+	if err != nil {
+		return errors.Trace(err)
+	}
+	m.updateFrom(machine)
 	return nil
 }
 
