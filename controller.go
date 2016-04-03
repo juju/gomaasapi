@@ -277,7 +277,6 @@ func (c *controller) ReleaseMachines(args ReleaseMachinesArgs) error {
 	params.MaybeAdd("comment", args.Comment)
 	_, err := c.post("machines", "release", params.Values)
 	if err != nil {
-		// A 409 Status code is "No Matching Machines"
 		if svrErr, ok := errors.Cause(err).(ServerError); ok {
 			switch svrErr.StatusCode {
 			case http.StatusBadRequest:
@@ -288,7 +287,6 @@ func (c *controller) ReleaseMachines(args ReleaseMachinesArgs) error {
 				return errors.Wrap(err, NewCannotCompleteError(svrErr.BodyMessage))
 			}
 		}
-		// Translate http errors.
 		return NewUnexpectedError(err)
 	}
 

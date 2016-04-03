@@ -142,20 +142,15 @@ func (m *machine) Start(args StartArgs) error {
 	result, err := m.controller.post(m.resourceURI, "deploy", params.Values)
 	if err != nil {
 		if svrErr, ok := errors.Cause(err).(ServerError); ok {
-			if svrErr.StatusCode == http.StatusNotFound {
+			switch svrErr.StatusCode {
+			case http.StatusNotFound, http.StatusConflict:
 				return errors.Wrap(err, NewBadRequestError(svrErr.BodyMessage))
-			}
-			if svrErr.StatusCode == http.StatusConflict {
-				return errors.Wrap(err, NewBadRequestError(svrErr.BodyMessage))
-			}
-			if svrErr.StatusCode == http.StatusForbidden {
+			case http.StatusForbidden:
 				return errors.Wrap(err, NewPermissionError(svrErr.BodyMessage))
-			}
-			if svrErr.StatusCode == http.StatusServiceUnavailable {
+			case http.StatusServiceUnavailable:
 				return errors.Wrap(err, NewCannotCompleteError(svrErr.BodyMessage))
 			}
 		}
-		// Translate http errors.
 		return NewUnexpectedError(err)
 	}
 
