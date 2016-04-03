@@ -60,7 +60,7 @@ func NewController(args ControllerArgs) (Controller, error) {
 				return nil, errors.Trace(err)
 			}
 			// Any other error attempting to create the authenticated client
-			// is an unexpeded error and return now.
+			// is an unexpected error and return now.
 			return nil, NewUnexpectedError(err)
 		}
 		controllerVersion := version.Number{
