@@ -52,3 +52,24 @@ func (*errorTypesSuite) TestWrapWithDeserializationError(c *gc.C) {
 	stack := errors.ErrorStack(err)
 	c.Assert(strings.Split(stack, "\n"), gc.HasLen, 2)
 }
+
+func (*errorTypesSuite) TestBadRequestError(c *gc.C) {
+	err := NewBadRequestError("omg")
+	c.Assert(err, gc.NotNil)
+	c.Assert(err, jc.Satisfies, IsBadRequestError)
+	c.Assert(err.Error(), gc.Equals, "omg")
+}
+
+func (*errorTypesSuite) TestPermissionError(c *gc.C) {
+	err := NewPermissionError("naughty")
+	c.Assert(err, gc.NotNil)
+	c.Assert(err, jc.Satisfies, IsPermissionError)
+	c.Assert(err.Error(), gc.Equals, "naughty")
+}
+
+func (*errorTypesSuite) TestCannotCompleteError(c *gc.C) {
+	err := NewCannotCompleteError("server says no")
+	c.Assert(err, gc.NotNil)
+	c.Assert(err, jc.Satisfies, IsCannotCompleteError)
+	c.Assert(err.Error(), gc.Equals, "server says no")
+}

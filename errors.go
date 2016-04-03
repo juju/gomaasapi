@@ -95,3 +95,60 @@ func IsDeserializationError(err error) bool {
 	_, ok := errors.Cause(err).(*DeserializationError)
 	return ok
 }
+
+// BadRequestError is returned when the requested action cannot be performed
+// due to bad or incorrect parameters passed to the server.
+type BadRequestError struct {
+	errors.Err
+}
+
+// NewBadRequestError constructs a new BadRequestError and sets the location.
+func NewBadRequestError(message string) error {
+	err := &BadRequestError{Err: errors.NewErr(message)}
+	err.SetLocation(1)
+	return err
+}
+
+// IsBadRequestError returns true if err is a NoMatchError.
+func IsBadRequestError(err error) bool {
+	_, ok := errors.Cause(err).(*BadRequestError)
+	return ok
+}
+
+// PermissionError is returned when the user does not have permission to do the
+// requested action.
+type PermissionError struct {
+	errors.Err
+}
+
+// NewPermissionError constructs a new PermissionError and sets the location.
+func NewPermissionError(message string) error {
+	err := &PermissionError{Err: errors.NewErr(message)}
+	err.SetLocation(1)
+	return err
+}
+
+// IsPermissionError returns true if err is a NoMatchError.
+func IsPermissionError(err error) bool {
+	_, ok := errors.Cause(err).(*PermissionError)
+	return ok
+}
+
+// CannotCompleteError is returned when the requested action is unable to
+// complete for some server side reason.
+type CannotCompleteError struct {
+	errors.Err
+}
+
+// NewCannotCompleteError constructs a new CannotCompleteError and sets the location.
+func NewCannotCompleteError(message string) error {
+	err := &CannotCompleteError{Err: errors.NewErr(message)}
+	err.SetLocation(1)
+	return err
+}
+
+// IsCannotCompleteError returns true if err is a NoMatchError.
+func IsCannotCompleteError(err error) bool {
+	_, ok := errors.Cause(err).(*CannotCompleteError)
+	return ok
+}
