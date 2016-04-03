@@ -164,7 +164,7 @@ func (c *controller) Zones() ([]Zone, error) {
 type MachinesArgs struct {
 	Hostnames    []string
 	MACAddresses []string
-	SystemIds    []string
+	SystemIDs    []string
 	Domain       string
 	Zone         string
 	AgentName    string
@@ -175,7 +175,7 @@ func (c *controller) Machines(args MachinesArgs) ([]Machine, error) {
 	params := NewURLParams()
 	params.MaybeAddMany("hostname", args.Hostnames)
 	params.MaybeAddMany("mac_address", args.MACAddresses)
-	params.MaybeAddMany("id", args.SystemIds)
+	params.MaybeAddMany("id", args.SystemIDs)
 	params.MaybeAdd("domain", args.Domain)
 	params.MaybeAdd("zone", args.Zone)
 	params.MaybeAdd("agent_name", args.AgentName)
