@@ -134,11 +134,6 @@ type Machine interface {
 	Zone() Zone
 }
 
-// MachinesArgs is a argument struct for selecting Machines.
-type MachinesArgs struct {
-	SystemIds []string
-}
-
 // Space is a name for a collection of Subnets.
 type Space interface {
 	ID() int
