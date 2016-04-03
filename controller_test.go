@@ -127,7 +127,7 @@ func (s *controllerSuite) TestMachinesArgs(c *gc.C) {
 	controller.Machines(MachinesArgs{
 		Hostnames:    []string{"untasted-markita"},
 		MACAddresses: []string{"something"},
-		SystemIds:    []string{"something-else"},
+		SystemIDs:    []string{"something-else"},
 		Domain:       "magic",
 		Zone:         "foo",
 		AgentName:    "agent 42",

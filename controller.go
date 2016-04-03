@@ -60,7 +60,7 @@ func NewController(args ControllerArgs) (Controller, error) {
 				return nil, errors.Trace(err)
 			}
 			// Any other error attempting to create the authenticated client
-			// is an unexpeded error and return now.
+			// is an unexpected error and return now.
 			return nil, NewUnexpectedError(err)
 		}
 		controllerVersion := version.Number{
@@ -164,7 +164,7 @@ func (c *controller) Zones() ([]Zone, error) {
 type MachinesArgs struct {
 	Hostnames    []string
 	MACAddresses []string
-	SystemIds    []string
+	SystemIDs    []string
 	Domain       string
 	Zone         string
 	AgentName    string
@@ -175,7 +175,7 @@ func (c *controller) Machines(args MachinesArgs) ([]Machine, error) {
 	params := NewURLParams()
 	params.MaybeAddMany("hostname", args.Hostnames)
 	params.MaybeAddMany("mac_address", args.MACAddresses)
-	params.MaybeAddMany("id", args.SystemIds)
+	params.MaybeAddMany("id", args.SystemIDs)
 	params.MaybeAdd("domain", args.Domain)
 	params.MaybeAdd("zone", args.Zone)
 	params.MaybeAdd("agent_name", args.AgentName)
@@ -279,13 +279,12 @@ func (c *controller) ReleaseMachines(args ReleaseMachinesArgs) error {
 	if err != nil {
 		// A 409 Status code is "No Matching Machines"
 		if svrErr, ok := errors.Cause(err).(ServerError); ok {
-			if svrErr.StatusCode == http.StatusBadRequest {
+			switch svrErr.StatusCode {
+			case http.StatusBadRequest:
 				return errors.Wrap(err, NewBadRequestError(svrErr.BodyMessage))
-			}
-			if svrErr.StatusCode == http.StatusForbidden {
+			case http.StatusForbidden:
 				return errors.Wrap(err, NewPermissionError(svrErr.BodyMessage))
-			}
-			if svrErr.StatusCode == http.StatusConflict {
+			case http.StatusConflict:
 				return errors.Wrap(err, NewCannotCompleteError(svrErr.BodyMessage))
 			}
 		}
@@ -298,7 +297,7 @@ func (c *controller) ReleaseMachines(args ReleaseMachinesArgs) error {
 
 func (c *controller) post(path, op string, params url.Values) (interface{}, error) {
 	path = EnsureTrailingSlash(path)
-	requestID := nextrequestID()
+	requestID := nextRequestID()
 	logger.Tracef("request %x: POST %s%s?op=%s, params=%s", requestID, c.client.APIURL, path, op, params.Encode())
 	bytes, err := c.client.Post(&url.URL{Path: path}, op, params, nil)
 	if err != nil {
@@ -326,7 +325,7 @@ func (c *controller) get(path string) (interface{}, error) {
 
 func (c *controller) _get(path string, params url.Values) (interface{}, error) {
 	path = EnsureTrailingSlash(path)
-	requestID := nextrequestID()
+	requestID := nextRequestID()
 	if logger.IsTraceEnabled() {
 		var query string
 		if params != nil {
@@ -350,7 +349,7 @@ func (c *controller) _get(path string, params url.Values) (interface{}, error) {
 	return parsed, nil
 }
 
-func nextrequestID() int64 {
+func nextRequestID() int64 {
 	return atomic.AddInt64(&requestNumber, 1)
 }
 
