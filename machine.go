@@ -34,8 +34,8 @@ type machine struct {
 	zone *zone
 }
 
-// SystemId implements Machine.
-func (m *machine) SystemId() string {
+// SystemID implements Machine.
+func (m *machine) SystemID() string {
 	return m.systemID
 }
 
@@ -59,8 +59,8 @@ func (m *machine) Memory() int {
 	return m.memory
 }
 
-// CpuCount implements Machine.
-func (m *machine) CpuCount() int {
+// CPUCount implements Machine.
+func (m *machine) CPUCount() int {
 	return m.cpuCount
 }
 
@@ -99,14 +99,37 @@ func (m *machine) StatusMessage() string {
 	return m.statusMessage
 }
 
+func readMachine(controllerVersion version.Number, source interface{}) (*machine, error) {
+	readFunc, err := getMachineDeserializationFunc(controllerVersion)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+
+	checker := schema.StringMap(schema.Any())
+	coerced, err := checker.Coerce(source, nil)
+	if err != nil {
+		return nil, WrapWithDeserializationError(err, "machine base schema check failed")
+	}
+	valid := coerced.(map[string]interface{})
+	return readFunc(valid)
+}
+
 func readMachines(controllerVersion version.Number, source interface{}) ([]*machine, error) {
+	readFunc, err := getMachineDeserializationFunc(controllerVersion)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+
 	checker := schema.List(schema.StringMap(schema.Any()))
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
-		return nil, errors.Annotatef(err, "machine base schema check failed")
+		return nil, WrapWithDeserializationError(err, "machine base schema check failed")
 	}
 	valid := coerced.([]interface{})
+	return readMachineList(valid, readFunc)
+}
 
+func getMachineDeserializationFunc(controllerVersion version.Number) (machineDeserializationFunc, error) {
 	var deserialisationVersion version.Number
 	for v := range machineDeserializationFuncs {
 		if v.Compare(deserialisationVersion) > 0 && v.Compare(controllerVersion) <= 0 {
@@ -114,10 +137,9 @@ func readMachines(controllerVersion version.Number, source interface{}) ([]*mach
 		}
 	}
 	if deserialisationVersion == version.Zero {
-		return nil, errors.Errorf("no machine read func for version %s", controllerVersion)
+		return nil, NewUnsupportedVersionError("no machine read func for version %s", controllerVersion)
 	}
-	readFunc := machineDeserializationFuncs[deserialisationVersion]
-	return readMachineList(valid, readFunc)
+	return machineDeserializationFuncs[deserialisationVersion], nil
 }
 
 func readMachineList(sourceList []interface{}, readFunc machineDeserializationFunc) ([]*machine, error) {
@@ -125,7 +147,7 @@ func readMachineList(sourceList []interface{}, readFunc machineDeserializationFu
 	for i, value := range sourceList {
 		source, ok := value.(map[string]interface{})
 		if !ok {
-			return nil, errors.Errorf("unexpected value for machine %d, %T", i, value)
+			return nil, NewDeserializationError("unexpected value for machine %d, %T", i, value)
 		}
 		machine, err := readFunc(source)
 		if err != nil {
@@ -166,7 +188,7 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 	checker := schema.FieldMap(fields, nil) // no defaults
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
-		return nil, errors.Annotatef(err, "machine 2.0 schema check failed")
+		return nil, WrapWithDeserializationError(err, "machine 2.0 schema check failed")
 	}
 	valid := coerced.(map[string]interface{})
 	// From here we know that the map returned from the schema coercion

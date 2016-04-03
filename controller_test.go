@@ -36,12 +36,12 @@ func (s *controllerSuite) SetUpTest(c *gc.C) {
 	s.CleanupSuite.SetUpTest(c)
 
 	server := NewSimpleServer()
-	server.AddResponse("/api/2.0/boot-resources/", http.StatusOK, bootResourcesResponse)
-	server.AddResponse("/api/2.0/fabrics/", http.StatusOK, fabricResponse)
-	server.AddResponse("/api/2.0/machines/", http.StatusOK, machinesResponse)
-	server.AddResponse("/api/2.0/spaces/", http.StatusOK, spacesResponse)
-	server.AddResponse("/api/2.0/version/", http.StatusOK, versionResponse)
-	server.AddResponse("/api/2.0/zones/", http.StatusOK, zoneResponse)
+	server.AddGetResponse("/api/2.0/boot-resources/", http.StatusOK, bootResourcesResponse)
+	server.AddGetResponse("/api/2.0/fabrics/", http.StatusOK, fabricResponse)
+	server.AddGetResponse("/api/2.0/machines/", http.StatusOK, machinesResponse)
+	server.AddGetResponse("/api/2.0/spaces/", http.StatusOK, spacesResponse)
+	server.AddGetResponse("/api/2.0/version/", http.StatusOK, versionResponse)
+	server.AddGetResponse("/api/2.0/zones/", http.StatusOK, zoneResponse)
 	server.Start()
 	s.AddCleanup(func(*gc.C) { server.Close() })
 	s.server = server
@@ -106,6 +106,55 @@ func (s *controllerSuite) TestMachines(c *gc.C) {
 	machines, err := controller.Machines(MachinesArgs{})
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(machines, gc.HasLen, 3)
+}
+
+func (s *controllerSuite) TestAllocateMachine(c *gc.C) {
+	s.server.AddPostResponse("/api/2.0/machines/?op=allocate", http.StatusOK, machineResponse)
+	controller := s.getController(c)
+	machine, err := controller.AllocateMachine(AllocateMachineArgs{})
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(machine.SystemID(), gc.Equals, "4y3ha3")
+}
+
+func (s *controllerSuite) TestAllocateMachineArgs(c *gc.C) {
+	s.server.AddPostResponse("/api/2.0/machines/?op=allocate", http.StatusOK, machineResponse)
+	controller := s.getController(c)
+	// Create an arg structure that sets all the values.
+	args := AllocateMachineArgs{
+		Hostname:     "foobar",
+		Architecture: "amd64",
+		MinCPUCount:  42,
+		MinMemory:    20000,
+		Tags:         []string{"good"},
+		NotTags:      []string{"bad"},
+		Networks:     []string{"fast"},
+		NotNetworks:  []string{"slow"},
+		Zone:         "magic",
+		NotInZone:    []string{"not-magic"},
+		AgentName:    "agent 42",
+		Comment:      "testing",
+		DryRun:       true,
+	}
+	_, err := controller.AllocateMachine(args)
+	c.Assert(err, jc.ErrorIsNil)
+
+	request := s.server.LastRequest()
+	// There should be one entry in the form values for each of the args.
+	c.Assert(request.PostForm, gc.HasLen, 13)
+}
+
+func (s *controllerSuite) TestAllocateMachineNoMatch(c *gc.C) {
+	s.server.AddPostResponse("/api/2.0/machines/?op=allocate", http.StatusConflict, "boo")
+	controller := s.getController(c)
+	_, err := controller.AllocateMachine(AllocateMachineArgs{})
+	c.Assert(err, jc.Satisfies, IsNoMatchError)
+}
+
+func (s *controllerSuite) TestAllocateMachineUnexpected(c *gc.C) {
+	s.server.AddPostResponse("/api/2.0/machines/?op=allocate", http.StatusBadRequest, "boo")
+	controller := s.getController(c)
+	_, err := controller.AllocateMachine(AllocateMachineArgs{})
+	c.Assert(err, jc.Satisfies, IsUnexpectedError)
 }
 
 var versionResponse = `{"version": "unknown", "subversion": "", "capabilities": ["networks-management", "static-ipaddresses", "ipv6-deployment-ubuntu", "devices-management", "storage-deployment-ubuntu", "network-deployment-ubuntu"]}`

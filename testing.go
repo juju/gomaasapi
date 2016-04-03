@@ -89,37 +89,73 @@ type simpleResponse struct {
 type SimpleTestServer struct {
 	*httptest.Server
 
-	responses     map[string][]simpleResponse
-	responseIndex map[string]int
+	getResponses      map[string][]simpleResponse
+	getResponseIndex  map[string]int
+	postResponses     map[string][]simpleResponse
+	postResponseIndex map[string]int
+
+	requests []*http.Request
 }
 
 func NewSimpleServer() *SimpleTestServer {
 	server := &SimpleTestServer{
-		responses:     make(map[string][]simpleResponse),
-		responseIndex: make(map[string]int),
+		getResponses:      make(map[string][]simpleResponse),
+		getResponseIndex:  make(map[string]int),
+		postResponses:     make(map[string][]simpleResponse),
+		postResponseIndex: make(map[string]int),
 	}
 	server.Server = httptest.NewUnstartedServer(http.HandlerFunc(server.handler))
 	return server
 }
 
-func (s *SimpleTestServer) AddResponse(path string, status int, body string) {
-	s.responses[path] = append(s.responses[path], simpleResponse{status: status, body: body})
+func (s *SimpleTestServer) AddGetResponse(path string, status int, body string) {
+	s.getResponses[path] = append(s.getResponses[path], simpleResponse{status: status, body: body})
+}
+
+func (s *SimpleTestServer) AddPostResponse(path string, status int, body string) {
+	s.postResponses[path] = append(s.postResponses[path], simpleResponse{status: status, body: body})
+}
+
+func (s *SimpleTestServer) LastRequest() *http.Request {
+	pos := len(s.requests) - 1
+	if pos < 0 {
+		return nil
+	}
+	return s.requests[pos]
 }
 
 func (s *SimpleTestServer) handler(writer http.ResponseWriter, request *http.Request) {
-	_, err := readAndClose(request.Body)
-	if err != nil {
-		panic(err) // it is a test, panic should be fine
+	method := request.Method
+	var responses map[string][]simpleResponse
+	var responseIndex map[string]int
+	switch method {
+	case "GET":
+		responses = s.getResponses
+		responseIndex = s.getResponseIndex
+		_, err := readAndClose(request.Body)
+		if err != nil {
+			panic(err) // it is a test, panic should be fine
+		}
+	case "POST":
+		responses = s.postResponses
+		responseIndex = s.postResponseIndex
+		err := request.ParseForm()
+		if err != nil {
+			panic(err)
+		}
+	default:
+		panic("unsupported method " + method)
 	}
+	s.requests = append(s.requests, request)
 	uri := request.URL.String()
-	responses, found := s.responses[uri]
+	testResponses, found := responses[uri]
 	if !found {
 		errorMsg := fmt.Sprintf("Error 404: page not found ('%v').", uri)
 		http.Error(writer, errorMsg, http.StatusNotFound)
 	} else {
-		index := s.responseIndex[uri]
-		response := responses[index]
-		s.responseIndex[uri] = index + 1
+		index := responseIndex[uri]
+		response := testResponses[index]
+		responseIndex[uri] = index + 1
 
 		writer.WriteHeader(response.status)
 		fmt.Fprint(writer, response.body)

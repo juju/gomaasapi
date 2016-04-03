@@ -18,6 +18,7 @@ import (
 	"strconv"
 	"strings"
 
+	jc "github.com/juju/testing/checkers"
 	. "gopkg.in/check.v1"
 	"gopkg.in/mgo.v2/bson"
 )
@@ -1248,7 +1249,7 @@ func (suite *TestMAASObjectSuite) TestNodesReleaseUnknown(c *C) {
 
 	// if there are any unknown nodes, none are released.
 	_, err := nodesObj.CallPost("release", params)
-	c.Assert(err, ErrorMatches, `gomaasapi: got error back from server: 400 Bad Request \(Unknown node\(s\): what.\)`)
+	c.Assert(err, ErrorMatches, `.* 400 Bad Request \(Unknown node\(s\): what.\)`)
 	c.Assert(suite.TestMAASObject.TestServer.OwnedNodes()["mysystemid"], Equals, true)
 }
 
@@ -1308,7 +1309,9 @@ func (suite *TestMAASObjectSuite) TestAcquireNodeGrabsAvailableNode(c *C) {
 func (suite *TestMAASObjectSuite) TestAcquireNodeNeedsANode(c *C) {
 	nodesObj := suite.TestMAASObject.GetSubObject("nodes/")
 	_, err := nodesObj.CallPost("acquire", nil)
-	c.Check(err.(ServerError).StatusCode, Equals, http.StatusConflict)
+	svrError, ok := GetServerError(err)
+	c.Assert(ok, jc.IsTrue)
+	c.Assert(svrError.StatusCode, Equals, http.StatusConflict)
 }
 
 func (suite *TestMAASObjectSuite) TestAcquireNodeIgnoresOwnedNodes(c *C) {
@@ -1320,7 +1323,9 @@ func (suite *TestMAASObjectSuite) TestAcquireNodeIgnoresOwnedNodes(c *C) {
 	c.Assert(err, IsNil)
 
 	_, err = nodesObj.CallPost("acquire", nil)
-	c.Check(err.(ServerError).StatusCode, Equals, http.StatusConflict)
+	svrError, ok := GetServerError(err)
+	c.Assert(ok, jc.IsTrue)
+	c.Check(svrError.StatusCode, Equals, http.StatusConflict)
 }
 
 func (suite *TestMAASObjectSuite) TestReleaseNodeReleasesAcquiredNode(c *C) {
@@ -1847,7 +1852,9 @@ func (suite *TestMAASObjectSuite) TestAcquireNodeZone(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(id, Equals, "n0")
 	id, _, err = acquire("z0")
-	c.Assert(err.(ServerError).StatusCode, Equals, http.StatusConflict)
+	svrError, ok := GetServerError(err)
+	c.Assert(ok, jc.IsTrue)
+	c.Assert(svrError.StatusCode, Equals, http.StatusConflict)
 
 	id, zone, err := acquire("")
 	c.Assert(err, IsNil)
