@@ -6,6 +6,7 @@ package gomaasapi
 import (
 	"net/http"
 
+	"github.com/juju/errors"
 	"github.com/juju/testing"
 	jc "github.com/juju/testing/checkers"
 	"github.com/juju/utils/set"
@@ -42,6 +43,7 @@ func (s *controllerSuite) SetUpTest(c *gc.C) {
 	server.AddGetResponse("/api/2.0/machines/", http.StatusOK, machinesResponse)
 	server.AddGetResponse("/api/2.0/machines/?hostname=untasted-markita", http.StatusOK, "["+machineResponse+"]")
 	server.AddGetResponse("/api/2.0/spaces/", http.StatusOK, spacesResponse)
+	server.AddGetResponse("/api/2.0/users/?op=whoami", http.StatusOK, `"captain awesome"`)
 	server.AddGetResponse("/api/2.0/version/", http.StatusOK, versionResponse)
 	server.AddGetResponse("/api/2.0/zones/", http.StatusOK, zoneResponse)
 	server.Start()
@@ -73,6 +75,54 @@ func (s *controllerSuite) TestNewController(c *gc.C) {
 	capabilities := controller.Capabilities()
 	c.Assert(capabilities.Difference(expectedCapabilities), gc.HasLen, 0)
 	c.Assert(expectedCapabilities.Difference(capabilities), gc.HasLen, 0)
+}
+
+func (s *controllerSuite) TestNewControllerBadAPIKeyFormat(c *gc.C) {
+	server := NewSimpleServer()
+	server.Start()
+	defer server.Close()
+	_, err := NewController(ControllerArgs{
+		BaseURL: server.URL,
+		APIKey:  "invalid",
+	})
+	c.Assert(err, jc.Satisfies, errors.IsNotValid)
+}
+
+func (s *controllerSuite) TestNewControllerNoSupport(c *gc.C) {
+	server := NewSimpleServer()
+	server.Start()
+	defer server.Close()
+	_, err := NewController(ControllerArgs{
+		BaseURL: server.URL,
+		APIKey:  "fake:as:key",
+	})
+	c.Assert(err, jc.Satisfies, IsUnsupportedVersionError)
+}
+
+func (s *controllerSuite) TestNewControllerBadCreds(c *gc.C) {
+	server := NewSimpleServer()
+	server.AddGetResponse("/api/2.0/users/?op=whoami", http.StatusUnauthorized, "naughty")
+	server.AddGetResponse("/api/2.0/version/", http.StatusOK, versionResponse)
+	server.Start()
+	defer server.Close()
+	_, err := NewController(ControllerArgs{
+		BaseURL: server.URL,
+		APIKey:  "fake:as:key",
+	})
+	c.Assert(err, jc.Satisfies, IsPermissionError)
+}
+
+func (s *controllerSuite) TestNewControllerUnexpected(c *gc.C) {
+	server := NewSimpleServer()
+	server.AddGetResponse("/api/2.0/users/?op=whoami", http.StatusConflict, "naughty")
+	server.AddGetResponse("/api/2.0/version/", http.StatusOK, versionResponse)
+	server.Start()
+	defer server.Close()
+	_, err := NewController(ControllerArgs{
+		BaseURL: server.URL,
+		APIKey:  "fake:as:key",
+	})
+	c.Assert(err, jc.Satisfies, IsUnexpectedError)
 }
 
 func (s *controllerSuite) TestBootResources(c *gc.C) {

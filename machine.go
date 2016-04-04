@@ -4,14 +4,17 @@
 package gomaasapi
 
 import (
+	"encoding/base64"
+	"net/http"
+
 	"github.com/juju/errors"
 	"github.com/juju/schema"
 	"github.com/juju/version"
 )
 
 type machine struct {
-	// Add the controller in when we need to do things with the machine.
-	// controller Controller
+	controller *controller
+
 	resourceURI string
 
 	systemID string
@@ -32,6 +35,23 @@ type machine struct {
 	statusMessage string
 
 	zone *zone
+}
+
+func (m *machine) updateFrom(other *machine) {
+	m.resourceURI = other.resourceURI
+	m.systemID = other.systemID
+	m.hostname = other.hostname
+	m.fqdn = other.fqdn
+	m.operatingSystem = other.operatingSystem
+	m.distroSeries = other.distroSeries
+	m.architecture = other.architecture
+	m.memory = other.memory
+	m.cpuCount = other.cpuCount
+	m.ipAddresses = other.ipAddresses
+	m.powerState = other.powerState
+	m.statusName = other.statusName
+	m.statusMessage = other.statusMessage
+	m.zone = other.zone
 }
 
 // SystemID implements Machine.
@@ -97,6 +117,49 @@ func (m *machine) StatusName() string {
 // StatusMessage implements Machine.
 func (m *machine) StatusMessage() string {
 	return m.statusMessage
+}
+
+// StartArgs is an argument struct for passing parameters to the Machine.Start
+// method.
+type StartArgs struct {
+	UserData     []byte
+	DistroSeries string
+	Kernel       string
+	Comment      string
+}
+
+// Start implements Machine.
+func (m *machine) Start(args StartArgs) error {
+	var encodedUserData string
+	if args.UserData != nil {
+		encodedUserData = base64.StdEncoding.EncodeToString(args.UserData)
+	}
+	params := NewURLParams()
+	params.MaybeAdd("user_data", encodedUserData)
+	params.MaybeAdd("distro_series", args.DistroSeries)
+	params.MaybeAdd("hwe_kernel", args.Kernel)
+	params.MaybeAdd("comment", args.Comment)
+	result, err := m.controller.post(m.resourceURI, "deploy", params.Values)
+	if err != nil {
+		if svrErr, ok := errors.Cause(err).(ServerError); ok {
+			switch svrErr.StatusCode {
+			case http.StatusNotFound, http.StatusConflict:
+				return errors.Wrap(err, NewBadRequestError(svrErr.BodyMessage))
+			case http.StatusForbidden:
+				return errors.Wrap(err, NewPermissionError(svrErr.BodyMessage))
+			case http.StatusServiceUnavailable:
+				return errors.Wrap(err, NewCannotCompleteError(svrErr.BodyMessage))
+			}
+		}
+		return NewUnexpectedError(err)
+	}
+
+	machine, err := readMachine(m.controller.apiVersion, result)
+	if err != nil {
+		return errors.Trace(err)
+	}
+	m.updateFrom(machine)
+	return nil
 }
 
 func readMachine(controllerVersion version.Number, source interface{}) (*machine, error) {

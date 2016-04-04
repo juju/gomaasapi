@@ -153,6 +153,8 @@ type Machine interface {
 	StatusMessage() string
 
 	Zone() Zone
+
+	Start(StartArgs) error
 }
 
 // Space is a name for a collection of Subnets.
