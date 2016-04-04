@@ -70,25 +70,13 @@ func (*machineSuite) TestHighVersion(c *gc.C) {
 // Since the start method uses controller pieces, we get the machine from
 // the controller.
 func (s *machineSuite) startSetup(c *gc.C) (*SimpleTestServer, *machine) {
-	server := NewSimpleServer()
+	server, controller := createTestServerController(c, s)
 	// Just have machines return one machine
 	server.AddGetResponse("/api/2.0/machines/", http.StatusOK, "["+machineResponse+"]")
-	server.AddGetResponse("/api/2.0/users/?op=whoami", http.StatusOK, `"captain awesome"`)
-	server.AddGetResponse("/api/2.0/version/", http.StatusOK, versionResponse)
-	server.Start()
-	s.AddCleanup(func(*gc.C) { server.Close() })
-
-	controller, err := NewController(ControllerArgs{
-		BaseURL: server.URL,
-		APIKey:  "fake:as:key",
-	})
-	c.Assert(err, jc.ErrorIsNil)
-
 	machines, err := controller.Machines(MachinesArgs{})
 	c.Assert(err, jc.ErrorIsNil)
 	c.Check(machines, gc.HasLen, 1)
 	machine := machines[0].(*machine)
-
 	return server, machine
 }
 

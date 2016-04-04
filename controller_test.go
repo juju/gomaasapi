@@ -373,6 +373,7 @@ type cleanup interface {
 // valid controller.
 func createTestServerController(c *gc.C, suite cleanup) (*SimpleTestServer, Controller) {
 	server := NewSimpleServer()
+	server.AddGetResponse("/api/2.0/users/?op=whoami", http.StatusOK, `"captain awesome"`)
 	server.AddGetResponse("/api/2.0/version/", http.StatusOK, versionResponse)
 	server.Start()
 	suite.AddCleanup(func(*gc.C) { server.Close() })
