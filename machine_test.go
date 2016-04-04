@@ -4,12 +4,18 @@
 package gomaasapi
 
 import (
+	"encoding/base64"
+	"net/http"
+
+	"github.com/juju/testing"
 	jc "github.com/juju/testing/checkers"
 	"github.com/juju/version"
 	gc "gopkg.in/check.v1"
 )
 
-type machineSuite struct{}
+type machineSuite struct {
+	testing.CleanupSuite
+}
 
 var _ = gc.Suite(&machineSuite{})
 
@@ -59,6 +65,99 @@ func (*machineSuite) TestHighVersion(c *gc.C) {
 	machines, err := readMachines(version.MustParse("2.1.9"), parseJSON(c, machinesResponse))
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(machines, gc.HasLen, 3)
+}
+
+// Since the start method uses controller pieces, we get the machine from
+// the controller.
+func (s *machineSuite) startSetup(c *gc.C) (*SimpleTestServer, *machine) {
+	server := NewSimpleServer()
+	// Just have machines return one machine
+	server.AddGetResponse("/api/2.0/machines/", http.StatusOK, "["+machineResponse+"]")
+	server.AddGetResponse("/api/2.0/users/?op=whoami", http.StatusOK, `"captain awesome"`)
+	server.AddGetResponse("/api/2.0/version/", http.StatusOK, versionResponse)
+	server.Start()
+	s.AddCleanup(func(*gc.C) { server.Close() })
+
+	controller, err := NewController(ControllerArgs{
+		BaseURL: server.URL,
+		APIKey:  "fake:as:key",
+	})
+	c.Assert(err, jc.ErrorIsNil)
+
+	machines, err := controller.Machines(MachinesArgs{})
+	c.Assert(err, jc.ErrorIsNil)
+	c.Check(machines, gc.HasLen, 1)
+	machine := machines[0].(*machine)
+
+	return server, machine
+}
+
+func (s *machineSuite) TestStart(c *gc.C) {
+	server, machine := s.startSetup(c)
+	response := updateJSONMap(c, machineResponse, map[string]interface{}{
+		"status_name":    "Deploying",
+		"status_message": "for testing",
+	})
+	server.AddPostResponse(machine.resourceURI+"?op=deploy", http.StatusOK, response)
+
+	err := machine.Start(StartArgs{
+		UserData:     []byte("userdata"),
+		DistroSeries: "trusty",
+		Kernel:       "kernel",
+		Comment:      "a comment",
+	})
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(machine.StatusName(), gc.Equals, "Deploying")
+	c.Assert(machine.StatusMessage(), gc.Equals, "for testing")
+
+	request := server.LastRequest()
+	// There should be one entry in the form values for each of the args.
+	c.Assert(request.PostForm, gc.HasLen, 4)
+	// The userdata should be base64 encoded.
+	userdata := request.PostForm.Get("user_data")
+	value, err := base64.StdEncoding.DecodeString(userdata)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(string(value), gc.Equals, "userdata")
+}
+
+func (s *machineSuite) TestStartMachineNotFound(c *gc.C) {
+	server, machine := s.startSetup(c)
+	server.AddPostResponse(machine.resourceURI+"?op=deploy", http.StatusNotFound, "can't find machine")
+	err := machine.Start(StartArgs{})
+	c.Assert(err, jc.Satisfies, IsBadRequestError)
+	c.Assert(err.Error(), gc.Equals, "can't find machine")
+}
+
+func (s *machineSuite) TestStartMachineConflict(c *gc.C) {
+	server, machine := s.startSetup(c)
+	server.AddPostResponse(machine.resourceURI+"?op=deploy", http.StatusConflict, "machine not allocated")
+	err := machine.Start(StartArgs{})
+	c.Assert(err, jc.Satisfies, IsBadRequestError)
+	c.Assert(err.Error(), gc.Equals, "machine not allocated")
+}
+
+func (s *machineSuite) TestStartMachineForbidden(c *gc.C) {
+	server, machine := s.startSetup(c)
+	server.AddPostResponse(machine.resourceURI+"?op=deploy", http.StatusForbidden, "machine not yours")
+	err := machine.Start(StartArgs{})
+	c.Assert(err, jc.Satisfies, IsPermissionError)
+	c.Assert(err.Error(), gc.Equals, "machine not yours")
+}
+
+func (s *machineSuite) TestStartMachineServiceUnavailable(c *gc.C) {
+	server, machine := s.startSetup(c)
+	server.AddPostResponse(machine.resourceURI+"?op=deploy", http.StatusServiceUnavailable, "no ip addresses available")
+	err := machine.Start(StartArgs{})
+	c.Assert(err, jc.Satisfies, IsCannotCompleteError)
+	c.Assert(err.Error(), gc.Equals, "no ip addresses available")
+}
+
+func (s *machineSuite) TestStartMachineUnknown(c *gc.C) {
+	server, machine := s.startSetup(c)
+	server.AddPostResponse(machine.resourceURI+"?op=deploy", http.StatusMethodNotAllowed, "wat?")
+	err := machine.Start(StartArgs{})
+	c.Assert(err, jc.Satisfies, IsUnexpectedError)
+	c.Assert(err.Error(), gc.Equals, "unexpected: ServerError: 405 Method Not Allowed (wat?)")
 }
 
 const (
