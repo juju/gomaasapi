@@ -107,6 +107,32 @@ func (s *controllerSuite) TestDevicessArgs(c *gc.C) {
 	c.Assert(request.URL.Query(), gc.HasLen, 6)
 }
 
+func (s *controllerSuite) TestCreateDevice(c *gc.C) {
+	s.server.AddPostResponse("/api/2.0/devices/?op=create", http.StatusOK, deviceResponse)
+	controller := s.getController(c)
+	device, err := controller.CreateDevice(CreateDeviceArgs{})
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(device.SystemID(), gc.Equals, "4y3ha8")
+}
+
+func (s *controllerSuite) TestCreateDeviceArgs(c *gc.C) {
+	s.server.AddPostResponse("/api/2.0/devices/?op=create", http.StatusOK, deviceResponse)
+	controller := s.getController(c)
+	// Create an arg structure that sets all the values.
+	args := CreateDeviceArgs{
+		Hostname:     "foobar",
+		MACAddresses: []string{"an-address"},
+		Domain:       "a domain",
+		Parent:       "parent",
+	}
+	_, err := controller.CreateDevice(args)
+	c.Assert(err, jc.ErrorIsNil)
+
+	request := s.server.LastRequest()
+	// There should be one entry in the form values for each of the args.
+	c.Assert(request.PostForm, gc.HasLen, 4)
+}
+
 func (s *controllerSuite) TestFabrics(c *gc.C) {
 	controller := s.getController(c)
 	fabrics, err := controller.Fabrics()
