@@ -126,6 +126,8 @@ type Device interface {
 	Zone() Zone
 
 	// Parent, Owner, MAC Addresses if needed
+
+	Delete() error
 }
 
 // Machine represents a physical machine.

@@ -189,6 +189,7 @@ func (c *controller) Devices(args DevicesArgs) ([]Device, error) {
 	}
 	var result []Device
 	for _, d := range devices {
+		d.controller = c
 		result = append(result, d)
 	}
 	return result, nil
@@ -228,6 +229,7 @@ func (c *controller) CreateDevice(args CreateDeviceArgs) (Device, error) {
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
+	device.controller = c
 	return device, nil
 }
 
@@ -383,6 +385,20 @@ func (c *controller) post(path, op string, params url.Values) (interface{}, erro
 		return nil, errors.Trace(err)
 	}
 	return parsed, nil
+}
+
+func (c *controller) delete(path string) error {
+	path = EnsureTrailingSlash(path)
+	requestID := nextRequestID()
+	logger.Tracef("request %x: DELTE %s%s", requestID, c.client.APIURL, path)
+	err := c.client.Delete(&url.URL{Path: path})
+	if err != nil {
+		logger.Tracef("response %x: error: %q", requestID, err.Error())
+		logger.Tracef("error detail: %#v", err)
+		return errors.Trace(err)
+	}
+	logger.Tracef("response %x: complete", requestID)
+	return nil
 }
 
 func (c *controller) getQuery(path string, params url.Values) (interface{}, error) {

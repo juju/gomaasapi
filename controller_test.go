@@ -313,3 +313,24 @@ func (s *controllerSuite) TestReleaseMachinesUnexpected(c *gc.C) {
 }
 
 var versionResponse = `{"version": "unknown", "subversion": "", "capabilities": ["networks-management", "static-ipaddresses", "ipv6-deployment-ubuntu", "devices-management", "storage-deployment-ubuntu", "network-deployment-ubuntu"]}`
+
+type cleanup interface {
+	AddCleanup(testing.CleanupFunc)
+}
+
+// createTestServerController creates a controller backed on to a test server
+// that has sufficient knowledge of versions and users to be able to create a
+// valid controller.
+func createTestServerController(c *gc.C, suite cleanup) (*SimpleTestServer, Controller) {
+	server := NewSimpleServer()
+	server.AddGetResponse("/api/2.0/version/", http.StatusOK, versionResponse)
+	server.Start()
+	suite.AddCleanup(func(*gc.C) { server.Close() })
+
+	controller, err := NewController(ControllerArgs{
+		BaseURL: server.URL,
+		APIKey:  "fake:as:key",
+	})
+	c.Assert(err, jc.ErrorIsNil)
+	return server, controller
+}

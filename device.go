@@ -4,12 +4,16 @@
 package gomaasapi
 
 import (
+	"net/http"
+
 	"github.com/juju/errors"
 	"github.com/juju/schema"
 	"github.com/juju/version"
 )
 
 type device struct {
+	controller *controller
+
 	resourceURI string
 
 	systemID string
@@ -43,6 +47,23 @@ func (d *device) IPAddresses() []string {
 // Zone implements Device.
 func (d *device) Zone() Zone {
 	return d.zone
+}
+
+// Delete implements Device.
+func (d *device) Delete() error {
+	err := d.controller.delete(d.resourceURI)
+	if err != nil {
+		if svrErr, ok := errors.Cause(err).(ServerError); ok {
+			switch svrErr.StatusCode {
+			case http.StatusNotFound:
+				return errors.Wrap(err, NewNoMatchError(svrErr.BodyMessage))
+			case http.StatusForbidden:
+				return errors.Wrap(err, NewPermissionError(svrErr.BodyMessage))
+			}
+		}
+		return NewUnexpectedError(err)
+	}
+	return nil
 }
 
 func readDevice(controllerVersion version.Number, source interface{}) (*device, error) {
