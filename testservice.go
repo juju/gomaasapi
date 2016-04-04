@@ -95,7 +95,7 @@ type TestServer struct {
 	versionJSON string
 
 	// devices is a map of device UUIDs to devices.
-	devices map[string]*device
+	devices map[string]*testDevice
 
 	subnets        map[uint]TestSubnet
 	subnetNameToID map[string]uint
@@ -107,7 +107,7 @@ type TestServer struct {
 	nextVLAN       int
 }
 
-type device struct {
+type testDevice struct {
 	IPAddresses []string
 	SystemId    string
 	MACAddress  string
@@ -227,7 +227,7 @@ func (server *TestServer) Clear() {
 	server.nodegroupsInterfaces = make(map[string][]JSONObject)
 	server.zones = make(map[string]JSONObject)
 	server.versionJSON = `{"capabilities": ["networks-management","static-ipaddresses","devices-management","network-deployment-ubuntu"]}`
-	server.devices = make(map[string]*device)
+	server.devices = make(map[string]*testDevice)
 	server.subnets = make(map[uint]TestSubnet)
 	server.subnetNameToID = make(map[string]uint)
 	server.nextSubnet = 1
@@ -655,7 +655,7 @@ func devicesTopLevelHandler(server *TestServer, w http.ResponseWriter, r *http.R
 	}
 }
 
-func macMatches(device *device, macs []string, hasMac bool) bool {
+func macMatches(device *testDevice, macs []string, hasMac bool) bool {
 	if !hasMac {
 		return true
 	}
@@ -714,7 +714,7 @@ const (
 }`
 )
 
-func renderDevice(device *device) string {
+func renderDevice(device *testDevice) string {
 	t := template.New("Device template")
 	t = t.Funcs(templateFuncs)
 	t, err := t.Parse(deviceTemplate)
@@ -756,7 +756,7 @@ func newDeviceHandler(server *TestServer, w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	device := &device{
+	device := &testDevice{
 		MACAddress: mac,
 		APIVersion: server.version,
 		Parent:     parent,

@@ -110,6 +110,20 @@ type BootResource interface {
 	KernelFlavor() string
 }
 
+// Device represents some form of device in MAAS.
+type Device interface {
+	// TODO: add domain
+	SystemID() string
+	Hostname() string
+	FQDN() string
+
+	IPAddresses() []string
+
+	Zone() Zone
+
+	// Parent, Owner, MAC Addresses if needed
+}
+
 // Machine represents a physical machine.
 type Machine interface {
 	SystemID() string
