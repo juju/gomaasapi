@@ -40,6 +40,9 @@ type Controller interface {
 
 	AllocateMachine(AllocateMachineArgs) (Machine, error)
 	ReleaseMachines(ReleaseMachinesArgs) error
+
+	// Devices returns a list of devices that match the params.
+	Devices(DevicesArgs) ([]Device, error)
 }
 
 // Fabric represents a set of interconnected VLANs that are capable of mutual

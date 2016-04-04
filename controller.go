@@ -159,6 +159,41 @@ func (c *controller) Zones() ([]Zone, error) {
 	return result, nil
 }
 
+// DevicesArgs is a argument struct for selecting Devices.
+// Only devices that match the specified criteria are returned.
+type DevicesArgs struct {
+	Hostname     string
+	MACAddresses []string
+	SystemIDs    []string
+	Domain       string
+	Zone         string
+	AgentName    string
+}
+
+// Devices implements Controller.
+func (c *controller) Devices(args DevicesArgs) ([]Device, error) {
+	params := NewURLParams()
+	params.MaybeAdd("hostname", args.Hostname)
+	params.MaybeAddMany("mac_address", args.MACAddresses)
+	params.MaybeAddMany("id", args.SystemIDs)
+	params.MaybeAdd("domain", args.Domain)
+	params.MaybeAdd("zone", args.Zone)
+	params.MaybeAdd("agent_name", args.AgentName)
+	source, err := c.getQuery("devices", params.Values)
+	if err != nil {
+		return nil, NewUnexpectedError(err)
+	}
+	devices, err := readDevices(c.apiVersion, source)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	var result []Device
+	for _, d := range devices {
+		result = append(result, d)
+	}
+	return result, nil
+}
+
 // MachinesArgs is a argument struct for selecting Machines.
 // Only machines that match the specified criteria are returned.
 type MachinesArgs struct {
