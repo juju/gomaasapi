@@ -73,6 +73,7 @@ func (s *machineSuite) startSetup(c *gc.C) (*SimpleTestServer, *machine) {
 	server := NewSimpleServer()
 	// Just have machines return one machine
 	server.AddGetResponse("/api/2.0/machines/", http.StatusOK, "["+machineResponse+"]")
+	server.AddGetResponse("/api/2.0/users/?op=whoami", http.StatusOK, `"captain awesome"`)
 	server.AddGetResponse("/api/2.0/version/", http.StatusOK, versionResponse)
 	server.Start()
 	s.AddCleanup(func(*gc.C) { server.Close() })
