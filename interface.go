@@ -40,6 +40,9 @@ type Controller interface {
 
 	AllocateMachine(AllocateMachineArgs) (Machine, error)
 	ReleaseMachines(ReleaseMachinesArgs) error
+
+	// Devices returns a list of devices that match the params.
+	Devices(DevicesArgs) ([]Device, error)
 }
 
 // Fabric represents a set of interconnected VLANs that are capable of mutual
@@ -108,6 +111,20 @@ type BootResource interface {
 	Architecture() string
 	SubArchitectures() set.Strings
 	KernelFlavor() string
+}
+
+// Device represents some form of device in MAAS.
+type Device interface {
+	// TODO: add domain
+	SystemID() string
+	Hostname() string
+	FQDN() string
+
+	IPAddresses() []string
+
+	Zone() Zone
+
+	// Parent, Owner, MAC Addresses if needed
 }
 
 // Machine represents a physical machine.

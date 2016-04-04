@@ -38,6 +38,7 @@ func (s *controllerSuite) SetUpTest(c *gc.C) {
 
 	server := NewSimpleServer()
 	server.AddGetResponse("/api/2.0/boot-resources/", http.StatusOK, bootResourcesResponse)
+	server.AddGetResponse("/api/2.0/devices/", http.StatusOK, devicesResponse)
 	server.AddGetResponse("/api/2.0/fabrics/", http.StatusOK, fabricResponse)
 	server.AddGetResponse("/api/2.0/machines/", http.StatusOK, machinesResponse)
 	server.AddGetResponse("/api/2.0/machines/?hostname=untasted-markita", http.StatusOK, "["+machineResponse+"]")
@@ -129,6 +130,31 @@ func (s *controllerSuite) TestBootResources(c *gc.C) {
 	resources, err := controller.BootResources()
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(resources, gc.HasLen, 5)
+}
+
+func (s *controllerSuite) TestDevices(c *gc.C) {
+	controller := s.getController(c)
+	devices, err := controller.Devices(DevicesArgs{})
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(devices, gc.HasLen, 1)
+}
+
+func (s *controllerSuite) TestDevicesArgs(c *gc.C) {
+	controller := s.getController(c)
+	// This will fail with a 404 due to the test server not having something  at
+	// that address, but we don't care, all we want to do is capture the request
+	// and make sure that all the values were set.
+	controller.Devices(DevicesArgs{
+		Hostname:     "untasted-markita",
+		MACAddresses: []string{"something"},
+		SystemIDs:    []string{"something-else"},
+		Domain:       "magic",
+		Zone:         "foo",
+		AgentName:    "agent 42",
+	})
+	request := s.server.LastRequest()
+	// There should be one entry in the form values for each of the args.
+	c.Assert(request.URL.Query(), gc.HasLen, 6)
 }
 
 func (s *controllerSuite) TestFabrics(c *gc.C) {
