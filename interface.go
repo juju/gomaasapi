@@ -43,6 +43,7 @@ type Controller interface {
 
 	// Devices returns a list of devices that match the params.
 	Devices(DevicesArgs) ([]Device, error)
+	CreateDevice(CreateDeviceArgs) (Device, error)
 }
 
 // Fabric represents a set of interconnected VLANs that are capable of mutual

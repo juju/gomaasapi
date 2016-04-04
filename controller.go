@@ -194,6 +194,39 @@ func (c *controller) Devices(args DevicesArgs) ([]Device, error) {
 	return result, nil
 }
 
+// CreateDeviceArgs is a argument struct for passing information into CreateDevice.
+type CreateDeviceArgs struct {
+	Hostname     string
+	MACAddresses []string
+	Domain       string
+	Parent       string
+}
+
+// Devices implements Controller.
+func (c *controller) CreateDevice(args CreateDeviceArgs) (Device, error) {
+	params := NewURLParams()
+	params.MaybeAdd("hostname", args.Hostname)
+	params.MaybeAdd("domain", args.Domain)
+	params.MaybeAddMany("mac_addresses", args.MACAddresses)
+	params.MaybeAdd("parent", args.Parent)
+	result, err := c.post("devices", "create", params.Values)
+	if err != nil {
+		if svrErr, ok := errors.Cause(err).(ServerError); ok {
+			if svrErr.StatusCode == http.StatusConflict {
+				return nil, errors.Wrap(err, NewNoMatchError(svrErr.BodyMessage))
+			}
+		}
+		// Translate http errors.
+		return nil, NewUnexpectedError(err)
+	}
+
+	device, err := readDevice(c.apiVersion, result)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	return device, nil
+}
+
 // MachinesArgs is a argument struct for selecting Machines.
 // Only machines that match the specified criteria are returned.
 type MachinesArgs struct {
