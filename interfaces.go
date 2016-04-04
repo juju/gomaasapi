@@ -175,3 +175,10 @@ type Subnet interface {
 	CIDR() string
 	// DNS Servers, rdns_mode
 }
+
+// A link represents a network link between an Interface and a Subnet.
+type Link interface {
+	ID() int
+	Mode() string
+	Subnet() Subnet
+}
