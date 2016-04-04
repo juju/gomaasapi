@@ -43,6 +43,7 @@ type ControllerArgs struct {
 // the capabilities of the server.
 //
 // If the APIKey is not valid, a NotValid error is returned.
+// If the credentials are incorrect, a PermissionError is returned.
 func NewController(args ControllerArgs) (Controller, error) {
 	// For now we don't need to test multiple versions. It is expected that at
 	// some time in the future, we will try the most up to date version and then
@@ -73,6 +74,10 @@ func NewController(args ControllerArgs) (Controller, error) {
 		if err != nil {
 			logger.Debugf("read version failed: %#v", err)
 			continue
+		}
+
+		if err := controller.checkCreds(); err != nil {
+			return nil, errors.Trace(err)
 		}
 		return controller, nil
 	}
@@ -293,6 +298,18 @@ func (c *controller) ReleaseMachines(args ReleaseMachinesArgs) error {
 	return nil
 }
 
+func (c *controller) checkCreds() error {
+	if _, err := c.getOp("users", "whoami"); err != nil {
+		if svrErr, ok := errors.Cause(err).(ServerError); ok {
+			if svrErr.StatusCode == http.StatusUnauthorized {
+				return errors.Wrap(err, NewPermissionError(svrErr.BodyMessage))
+			}
+		}
+		return NewUnexpectedError(err)
+	}
+	return nil
+}
+
 func (c *controller) post(path, op string, params url.Values) (interface{}, error) {
 	path = EnsureTrailingSlash(path)
 	requestID := nextRequestID()
@@ -314,14 +331,18 @@ func (c *controller) post(path, op string, params url.Values) (interface{}, erro
 }
 
 func (c *controller) getQuery(path string, params url.Values) (interface{}, error) {
-	return c._get(path, params)
+	return c._get(path, "", params)
 }
 
 func (c *controller) get(path string) (interface{}, error) {
-	return c._get(path, nil)
+	return c._get(path, "", nil)
 }
 
-func (c *controller) _get(path string, params url.Values) (interface{}, error) {
+func (c *controller) getOp(path, op string) (interface{}, error) {
+	return c._get(path, op, nil)
+}
+
+func (c *controller) _get(path, op string, params url.Values) (interface{}, error) {
 	path = EnsureTrailingSlash(path)
 	requestID := nextRequestID()
 	if logger.IsTraceEnabled() {
@@ -331,7 +352,7 @@ func (c *controller) _get(path string, params url.Values) (interface{}, error) {
 		}
 		logger.Tracef("request %x: GET %s%s%s", requestID, c.client.APIURL, path, query)
 	}
-	bytes, err := c.client.Get(&url.URL{Path: path}, "", params)
+	bytes, err := c.client.Get(&url.URL{Path: path}, op, params)
 	if err != nil {
 		logger.Tracef("response %x: error: %q", requestID, err.Error())
 		logger.Tracef("error detail: %#v", err)
