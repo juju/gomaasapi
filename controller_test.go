@@ -110,9 +110,28 @@ func (s *controllerSuite) TestDevicessArgs(c *gc.C) {
 func (s *controllerSuite) TestCreateDevice(c *gc.C) {
 	s.server.AddPostResponse("/api/2.0/devices/?op=create", http.StatusOK, deviceResponse)
 	controller := s.getController(c)
-	device, err := controller.CreateDevice(CreateDeviceArgs{})
+	device, err := controller.CreateDevice(CreateDeviceArgs{
+		MACAddresses: []string{"a-mac-address"},
+	})
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(device.SystemID(), gc.Equals, "4y3ha8")
+}
+
+func (s *controllerSuite) TestCreateDeviceMissingAddress(c *gc.C) {
+	controller := s.getController(c)
+	_, err := controller.CreateDevice(CreateDeviceArgs{})
+	c.Assert(err, jc.Satisfies, IsBadRequestError)
+	c.Assert(err.Error(), gc.Equals, "at least one MAC address must be specified")
+}
+
+func (s *controllerSuite) TestCreateDeviceBadRequest(c *gc.C) {
+	s.server.AddPostResponse("/api/2.0/devices/?op=create", http.StatusBadRequest, "some error")
+	controller := s.getController(c)
+	_, err := controller.CreateDevice(CreateDeviceArgs{
+		MACAddresses: []string{"a-mac-address"},
+	})
+	c.Assert(err, jc.Satisfies, IsBadRequestError)
+	c.Assert(err.Error(), gc.Equals, "some error")
 }
 
 func (s *controllerSuite) TestCreateDeviceArgs(c *gc.C) {

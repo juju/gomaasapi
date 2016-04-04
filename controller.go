@@ -204,6 +204,10 @@ type CreateDeviceArgs struct {
 
 // Devices implements Controller.
 func (c *controller) CreateDevice(args CreateDeviceArgs) (Device, error) {
+	// There must be at least one mac address.
+	if len(args.MACAddresses) == 0 {
+		return nil, NewBadRequestError("at least one MAC address must be specified")
+	}
 	params := NewURLParams()
 	params.MaybeAdd("hostname", args.Hostname)
 	params.MaybeAdd("domain", args.Domain)
@@ -212,8 +216,8 @@ func (c *controller) CreateDevice(args CreateDeviceArgs) (Device, error) {
 	result, err := c.post("devices", "create", params.Values)
 	if err != nil {
 		if svrErr, ok := errors.Cause(err).(ServerError); ok {
-			if svrErr.StatusCode == http.StatusConflict {
-				return nil, errors.Wrap(err, NewNoMatchError(svrErr.BodyMessage))
+			if svrErr.StatusCode == http.StatusBadRequest {
+				return nil, errors.Wrap(err, NewBadRequestError(svrErr.BodyMessage))
 			}
 		}
 		// Translate http errors.
