@@ -53,6 +53,13 @@ func (*machineSuite) TestReadMachines(c *gc.C) {
 	c.Check(machine.Architecture(), gc.Equals, "amd64/generic")
 	c.Check(machine.StatusName(), gc.Equals, "Deployed")
 	c.Check(machine.StatusMessage(), gc.Equals, "From 'Deploying' to 'Deployed'")
+
+	bootInterface := machine.BootInterface()
+	c.Assert(bootInterface, gc.NotNil)
+	c.Check(bootInterface.Name(), gc.Equals, "eth0")
+
+	interfaceSet := machine.InterfaceSet()
+	c.Assert(interfaceSet, gc.HasLen, 1)
 }
 
 func (*machineSuite) TestLowVersion(c *gc.C) {

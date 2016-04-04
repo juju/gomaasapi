@@ -152,6 +152,9 @@ type Machine interface {
 	StatusName() string
 	StatusMessage() string
 
+	BootInterface() Interface
+	InterfaceSet() []Interface
+
 	Zone() Zone
 
 	Start(StartArgs) error
@@ -176,7 +179,25 @@ type Subnet interface {
 	// DNS Servers, rdns_mode
 }
 
-// A link represents a network link between an Interface and a Subnet.
+// Interface represents a physical or virtual network interface on a Machine.
+type Interface interface {
+	ID() int
+	Name() string
+	Type() string
+	Enabled() bool
+
+	VLAN() VLAN
+	Links() []Link
+
+	MACAddress() string
+	EffectiveMTU() int
+	Params() string
+
+	// Need to work out types for children, discovered, parents
+	// Tags?
+}
+
+// Link represents a network link between an Interface and a Subnet.
 type Link interface {
 	ID() int
 	Mode() string
