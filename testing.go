@@ -89,20 +89,24 @@ type simpleResponse struct {
 type SimpleTestServer struct {
 	*httptest.Server
 
-	getResponses      map[string][]simpleResponse
-	getResponseIndex  map[string]int
-	postResponses     map[string][]simpleResponse
-	postResponseIndex map[string]int
+	getResponses        map[string][]simpleResponse
+	getResponseIndex    map[string]int
+	postResponses       map[string][]simpleResponse
+	postResponseIndex   map[string]int
+	deleteResponses     map[string][]simpleResponse
+	deleteResponseIndex map[string]int
 
 	requests []*http.Request
 }
 
 func NewSimpleServer() *SimpleTestServer {
 	server := &SimpleTestServer{
-		getResponses:      make(map[string][]simpleResponse),
-		getResponseIndex:  make(map[string]int),
-		postResponses:     make(map[string][]simpleResponse),
-		postResponseIndex: make(map[string]int),
+		getResponses:        make(map[string][]simpleResponse),
+		getResponseIndex:    make(map[string]int),
+		postResponses:       make(map[string][]simpleResponse),
+		postResponseIndex:   make(map[string]int),
+		deleteResponses:     make(map[string][]simpleResponse),
+		deleteResponseIndex: make(map[string]int),
 	}
 	server.Server = httptest.NewUnstartedServer(http.HandlerFunc(server.handler))
 	return server
@@ -114,6 +118,10 @@ func (s *SimpleTestServer) AddGetResponse(path string, status int, body string) 
 
 func (s *SimpleTestServer) AddPostResponse(path string, status int, body string) {
 	s.postResponses[path] = append(s.postResponses[path], simpleResponse{status: status, body: body})
+}
+
+func (s *SimpleTestServer) AddDeleteResponse(path string, status int, body string) {
+	s.deleteResponses[path] = append(s.deleteResponses[path], simpleResponse{status: status, body: body})
 }
 
 func (s *SimpleTestServer) LastRequest() *http.Request {
@@ -140,6 +148,13 @@ func (s *SimpleTestServer) handler(writer http.ResponseWriter, request *http.Req
 		responses = s.postResponses
 		responseIndex = s.postResponseIndex
 		err := request.ParseForm()
+		if err != nil {
+			panic(err)
+		}
+	case "DELETE":
+		responses = s.deleteResponses
+		responseIndex = s.deleteResponseIndex
+		_, err := readAndClose(request.Body)
 		if err != nil {
 			panic(err)
 		}

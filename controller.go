@@ -194,9 +194,48 @@ func (c *controller) Devices(args DevicesArgs) ([]Device, error) {
 	}
 	var result []Device
 	for _, d := range devices {
+		d.controller = c
 		result = append(result, d)
 	}
 	return result, nil
+}
+
+// CreateDeviceArgs is a argument struct for passing information into CreateDevice.
+type CreateDeviceArgs struct {
+	Hostname     string
+	MACAddresses []string
+	Domain       string
+	Parent       string
+}
+
+// Devices implements Controller.
+func (c *controller) CreateDevice(args CreateDeviceArgs) (Device, error) {
+	// There must be at least one mac address.
+	if len(args.MACAddresses) == 0 {
+		return nil, NewBadRequestError("at least one MAC address must be specified")
+	}
+	params := NewURLParams()
+	params.MaybeAdd("hostname", args.Hostname)
+	params.MaybeAdd("domain", args.Domain)
+	params.MaybeAddMany("mac_addresses", args.MACAddresses)
+	params.MaybeAdd("parent", args.Parent)
+	result, err := c.post("devices", "create", params.Values)
+	if err != nil {
+		if svrErr, ok := errors.Cause(err).(ServerError); ok {
+			if svrErr.StatusCode == http.StatusBadRequest {
+				return nil, errors.Wrap(err, NewBadRequestError(svrErr.BodyMessage))
+			}
+		}
+		// Translate http errors.
+		return nil, NewUnexpectedError(err)
+	}
+
+	device, err := readDevice(c.apiVersion, result)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	device.controller = c
+	return device, nil
 }
 
 // MachinesArgs is a argument struct for selecting Machines.
@@ -363,6 +402,20 @@ func (c *controller) post(path, op string, params url.Values) (interface{}, erro
 		return nil, errors.Trace(err)
 	}
 	return parsed, nil
+}
+
+func (c *controller) delete(path string) error {
+	path = EnsureTrailingSlash(path)
+	requestID := nextRequestID()
+	logger.Tracef("request %x: DELETE %s%s", requestID, c.client.APIURL, path)
+	err := c.client.Delete(&url.URL{Path: path})
+	if err != nil {
+		logger.Tracef("response %x: error: %q", requestID, err.Error())
+		logger.Tracef("error detail: %#v", err)
+		return errors.Trace(err)
+	}
+	logger.Tracef("response %x: complete", requestID)
+	return nil
 }
 
 func (c *controller) getQuery(path string, params url.Values) (interface{}, error) {

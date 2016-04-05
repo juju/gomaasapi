@@ -4,12 +4,16 @@
 package gomaasapi
 
 import (
+	"net/http"
+
 	"github.com/juju/errors"
 	"github.com/juju/schema"
 	"github.com/juju/version"
 )
 
 type device struct {
+	controller *controller
+
 	resourceURI string
 
 	systemID string
@@ -45,14 +49,54 @@ func (d *device) Zone() Zone {
 	return d.zone
 }
 
+// Delete implements Device.
+func (d *device) Delete() error {
+	err := d.controller.delete(d.resourceURI)
+	if err != nil {
+		if svrErr, ok := errors.Cause(err).(ServerError); ok {
+			switch svrErr.StatusCode {
+			case http.StatusNotFound:
+				return errors.Wrap(err, NewNoMatchError(svrErr.BodyMessage))
+			case http.StatusForbidden:
+				return errors.Wrap(err, NewPermissionError(svrErr.BodyMessage))
+			}
+		}
+		return NewUnexpectedError(err)
+	}
+	return nil
+}
+
+func readDevice(controllerVersion version.Number, source interface{}) (*device, error) {
+	readFunc, err := getDeviceDeserializationFunc(controllerVersion)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+
+	checker := schema.StringMap(schema.Any())
+	coerced, err := checker.Coerce(source, nil)
+	if err != nil {
+		return nil, WrapWithDeserializationError(err, "device base schema check failed")
+	}
+	valid := coerced.(map[string]interface{})
+	return readFunc(valid)
+}
+
 func readDevices(controllerVersion version.Number, source interface{}) ([]*device, error) {
+	readFunc, err := getDeviceDeserializationFunc(controllerVersion)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+
 	checker := schema.List(schema.StringMap(schema.Any()))
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
 		return nil, WrapWithDeserializationError(err, "device base schema check failed")
 	}
 	valid := coerced.([]interface{})
+	return readDeviceList(valid, readFunc)
+}
 
+func getDeviceDeserializationFunc(controllerVersion version.Number) (deviceDeserializationFunc, error) {
 	var deserialisationVersion version.Number
 	for v := range deviceDeserializationFuncs {
 		if v.Compare(deserialisationVersion) > 0 && v.Compare(controllerVersion) <= 0 {
@@ -62,8 +106,7 @@ func readDevices(controllerVersion version.Number, source interface{}) ([]*devic
 	if deserialisationVersion == version.Zero {
 		return nil, NewUnsupportedVersionError("no device read func for version %s", controllerVersion)
 	}
-	readFunc := deviceDeserializationFuncs[deserialisationVersion]
-	return readDeviceList(valid, readFunc)
+	return deviceDeserializationFuncs[deserialisationVersion], nil
 }
 
 // readDeviceList expects the values of the sourceList to be string maps.

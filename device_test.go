@@ -4,12 +4,17 @@
 package gomaasapi
 
 import (
+	"net/http"
+
+	"github.com/juju/testing"
 	jc "github.com/juju/testing/checkers"
 	"github.com/juju/version"
 	gc "gopkg.in/check.v1"
 )
 
-type deviceSuite struct{}
+type deviceSuite struct {
+	testing.CleanupSuite
+}
 
 var _ = gc.Suite(&deviceSuite{})
 
@@ -43,6 +48,45 @@ func (*deviceSuite) TestHighVersion(c *gc.C) {
 	devices, err := readDevices(version.MustParse("2.1.9"), parseJSON(c, devicesResponse))
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(devices, gc.HasLen, 1)
+}
+
+func (s *deviceSuite) setupDelete(c *gc.C) (*SimpleTestServer, *device) {
+	server, controller := createTestServerController(c, s)
+	server.AddGetResponse("/api/2.0/devices/", http.StatusOK, devicesResponse)
+
+	devices, err := controller.Devices(DevicesArgs{})
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(devices, gc.HasLen, 1)
+	return server, devices[0].(*device)
+}
+
+func (s *deviceSuite) TestDelete(c *gc.C) {
+	server, device := s.setupDelete(c)
+	// Successful delete is 204 - StatusNoContent
+	server.AddDeleteResponse(device.resourceURI, http.StatusNoContent, "")
+	err := device.Delete()
+	c.Assert(err, jc.ErrorIsNil)
+}
+
+func (s *deviceSuite) TestDelete404(c *gc.C) {
+	_, device := s.setupDelete(c)
+	// No path, so 404
+	err := device.Delete()
+	c.Assert(err, jc.Satisfies, IsNoMatchError)
+}
+
+func (s *deviceSuite) TestDeleteForbidden(c *gc.C) {
+	server, device := s.setupDelete(c)
+	server.AddDeleteResponse(device.resourceURI, http.StatusForbidden, "")
+	err := device.Delete()
+	c.Assert(err, jc.Satisfies, IsPermissionError)
+}
+
+func (s *deviceSuite) TestDeleteUnknown(c *gc.C) {
+	server, device := s.setupDelete(c)
+	server.AddDeleteResponse(device.resourceURI, http.StatusConflict, "")
+	err := device.Delete()
+	c.Assert(err, jc.Satisfies, IsUnexpectedError)
 }
 
 const (
