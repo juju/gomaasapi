@@ -3,175 +3,191 @@
 
 package gomaasapi
 
-import "github.com/juju/utils/set"
-
-const (
-	// Capability constants.
-	NetworksManagement      = "networks-management"
-	StaticIPAddresses       = "static-ipaddresses"
-	IPv6DeploymentUbuntu    = "ipv6-deployment-ubuntu"
-	DevicesManagement       = "devices-management"
-	StorageDeploymentUbuntu = "storage-deployment-ubuntu"
-	NetworkDeploymentUbuntu = "network-deployment-ubuntu"
+import (
+	"github.com/juju/errors"
+	"github.com/juju/schema"
+	"github.com/juju/version"
 )
 
-// Controller represents an API connection to a MAAS Controller. Since the API
-// is restful, there is no long held connection to the API server, but instead
-// HTTP calls are made and JSON response structures parsed.
-type Controller interface {
+// Can't use interface as a type, so add an underscore. Yay.
+type interface_ struct {
+	resourceURI string
 
-	// Capabilities returns a set of capabilities as defined by the string
-	// constants.
-	Capabilities() set.Strings
+	id      int
+	name    string
+	type_   string
+	enabled bool
 
-	BootResources() ([]BootResource, error)
+	vlan  *vlan
+	links []*link
 
-	// Fabrics returns the list of Fabrics defined in the MAAS controller.
-	Fabrics() ([]Fabric, error)
-
-	// Spaces returns the list of Spaces defined in the MAAS controller.
-	Spaces() ([]Space, error)
-
-	// Zones lists all the zones known to the MAAS controller.
-	Zones() ([]Zone, error)
-
-	// Machines returns a list of machines that match the params.
-	Machines(MachinesArgs) ([]Machine, error)
-
-	AllocateMachine(AllocateMachineArgs) (Machine, error)
-	ReleaseMachines(ReleaseMachinesArgs) error
-
-	// Devices returns a list of devices that match the params.
-	Devices(DevicesArgs) ([]Device, error)
-	CreateDevice(CreateDeviceArgs) (Device, error)
+	macAddress   string
+	effectiveMTU int
+	params       string
 }
 
-// Fabric represents a set of interconnected VLANs that are capable of mutual
-// communication. A fabric can be thought of as a logical grouping in which
-// VLANs can be considered unique.
-//
-// For example, a distributed network may have a fabric in London containing
-// VLAN 100, while a separate fabric in San Francisco may contain a VLAN 100,
-// whose attached subnets are completely different and unrelated.
-type Fabric interface {
-	ID() int
-	Name() string
-	ClassType() string
-
-	VLANs() []VLAN
+// ID implements Interface.
+func (i *interface_) ID() int {
+	return i.id
 }
 
-// VLAN represents an instance of a Virtual LAN. VLANs are a common way to
-// create logically separate networks using the same physical infrastructure.
-//
-// Managed switches can assign VLANs to each port in either a “tagged” or an
-// “untagged” manner. A VLAN is said to be “untagged” on a particular port when
-// it is the default VLAN for that port, and requires no special configuration
-// in order to access.
-//
-// “Tagged” VLANs (traditionally used by network administrators in order to
-// aggregate multiple networks over inter-switch “trunk” lines) can also be used
-// with nodes in MAAS. That is, if a switch port is configured such that
-// “tagged” VLAN frames can be sent and received by a MAAS node, that MAAS node
-// can be configured to automatically bring up VLAN interfaces, so that the
-// deployed node can make use of them.
-//
-// A “Default VLAN” is created for every Fabric, to which every new VLAN-aware
-// object in the fabric will be associated to by default (unless otherwise
-// specified).
-type VLAN interface {
-	ID() int
-	Name() string
-	Fabric() string
-
-	// VID is the VLAN ID. eth0.10 -> VID = 10.
-	VID() int
-	// MTU (maximum transmission unit) is the largest size packet or frame,
-	// specified in octets (eight-bit bytes), that can be sent.
-	MTU() int
-	DHCP() bool
-
-	PrimaryRack() string
-	SecondaryRack() string
+// Name implements Interface.
+func (i *interface_) Name() string {
+	return i.name
 }
 
-// Zone represents a physical zone that a Machine is in. The meaning of a
-// physical zone is up to you: it could identify e.g. a server rack, a network,
-// or a data centre. Users can then allocate nodes from specific physical zones,
-// to suit their redundancy or performance requirements.
-type Zone interface {
-	Name() string
-	Description() string
+// Type implements Interface.
+func (i *interface_) Type() string {
+	return i.type_
 }
 
-// BootResource is the bomb... find something to say here.
-type BootResource interface {
-	ID() int
-	Name() string
-	Type() string
-	Architecture() string
-	SubArchitectures() set.Strings
-	KernelFlavor() string
+// Enabled implements Interface.
+func (i *interface_) Enabled() bool {
+	return i.enabled
 }
 
-// Device represents some form of device in MAAS.
-type Device interface {
-	// TODO: add domain
-	SystemID() string
-	Hostname() string
-	FQDN() string
-
-	IPAddresses() []string
-
-	Zone() Zone
-
-	// Parent, Owner, MAC Addresses if needed
-
-	Delete() error
+// VLAN implements Interface.
+func (i *interface_) VLAN() VLAN {
+	return i.vlan
 }
 
-// Machine represents a physical machine.
-type Machine interface {
-	SystemID() string
-	Hostname() string
-	FQDN() string
-
-	OperatingSystem() string
-	DistroSeries() string
-	Architecture() string
-	Memory() int
-	CPUCount() int
-
-	IPAddresses() []string
-	PowerState() string
-
-	// Consider bundling the status values into a single struct.
-	// but need to check for consistent representation if exposed on other
-	// entities.
-
-	StatusName() string
-	StatusMessage() string
-
-	Zone() Zone
-
-	Start(StartArgs) error
+// Links implements Interface.
+func (i *interface_) Links() []Link {
+	result := make([]Link, len(i.links))
+	for i, link := range i.links {
+		result[i] = link
+	}
+	return result
 }
 
-// Space is a name for a collection of Subnets.
-type Space interface {
-	ID() int
-	Name() string
-	Subnets() []Subnet
+// MACAddress implements Interface.
+func (i *interface_) MACAddress() string {
+	return i.macAddress
 }
 
-// Subnet refers to an IP range on a VLAN.
-type Subnet interface {
-	ID() int
-	Name() string
-	Space() string
-	VLAN() VLAN
+// EffectiveMTU implements Interface.
+func (i *interface_) EffectiveMTU() int {
+	return i.effectiveMTU
+}
 
-	Gateway() string
-	CIDR() string
-	// DNS Servers, rdns_mode
+// Params implements Interface.
+func (i *interface_) Params() string {
+	return i.params
+}
+
+func readInterface(controllerVersion version.Number, source interface{}) (*interface_, error) {
+	readFunc, err := getInterfaceDeserializationFunc(controllerVersion)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+
+	checker := schema.StringMap(schema.Any())
+	coerced, err := checker.Coerce(source, nil)
+	if err != nil {
+		return nil, WrapWithDeserializationError(err, "interface base schema check failed")
+	}
+	valid := coerced.(map[string]interface{})
+	return readFunc(valid)
+}
+
+func readInterfaces(controllerVersion version.Number, source interface{}) ([]*interface_, error) {
+	readFunc, err := getInterfaceDeserializationFunc(controllerVersion)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+
+	checker := schema.List(schema.StringMap(schema.Any()))
+	coerced, err := checker.Coerce(source, nil)
+	if err != nil {
+		return nil, WrapWithDeserializationError(err, "interface base schema check failed")
+	}
+	valid := coerced.([]interface{})
+	return readInterfaceList(valid, readFunc)
+}
+
+func getInterfaceDeserializationFunc(controllerVersion version.Number) (interfaceDeserializationFunc, error) {
+	var deserialisationVersion version.Number
+	for v := range interfaceDeserializationFuncs {
+		if v.Compare(deserialisationVersion) > 0 && v.Compare(controllerVersion) <= 0 {
+			deserialisationVersion = v
+		}
+	}
+	if deserialisationVersion == version.Zero {
+		return nil, NewUnsupportedVersionError("no interface read func for version %s", controllerVersion)
+	}
+	return interfaceDeserializationFuncs[deserialisationVersion], nil
+}
+
+func readInterfaceList(sourceList []interface{}, readFunc interfaceDeserializationFunc) ([]*interface_, error) {
+	result := make([]*interface_, 0, len(sourceList))
+	for i, value := range sourceList {
+		source, ok := value.(map[string]interface{})
+		if !ok {
+			return nil, NewDeserializationError("unexpected value for interface %d, %T", i, value)
+		}
+		read, err := readFunc(source)
+		if err != nil {
+			return nil, errors.Annotatef(err, "interface %d", i)
+		}
+		result = append(result, read)
+	}
+	return result, nil
+}
+
+type interfaceDeserializationFunc func(map[string]interface{}) (*interface_, error)
+
+var interfaceDeserializationFuncs = map[version.Number]interfaceDeserializationFunc{
+	twoDotOh: interface_2_0,
+}
+
+func interface_2_0(source map[string]interface{}) (*interface_, error) {
+	fields := schema.Fields{
+		"resource_uri": schema.String(),
+
+		"id":      schema.ForceInt(),
+		"name":    schema.String(),
+		"type":    schema.String(),
+		"enabled": schema.Bool(),
+
+		"vlan":  schema.StringMap(schema.Any()),
+		"links": schema.List(schema.StringMap(schema.Any())),
+
+		"mac_address":   schema.String(),
+		"effective_mtu": schema.ForceInt(),
+		"params":        schema.String(),
+	}
+	checker := schema.FieldMap(fields, nil) // no defaults
+	coerced, err := checker.Coerce(source, nil)
+	if err != nil {
+		return nil, WrapWithDeserializationError(err, "interface 2.0 schema check failed")
+	}
+	valid := coerced.(map[string]interface{})
+	// From here we know that the map returned from the schema coercion
+	// contains fields of the right type.
+
+	vlan, err := vlan_2_0(valid["vlan"].(map[string]interface{}))
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	links, err := readLinkList(valid["links"].([]interface{}), link_2_0)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+
+	result := &interface_{
+		resourceURI: valid["resource_uri"].(string),
+
+		id:      valid["id"].(int),
+		name:    valid["name"].(string),
+		type_:   valid["type"].(string),
+		enabled: valid["enabled"].(bool),
+
+		vlan:  vlan,
+		links: links,
+
+		macAddress:   valid["mac_address"].(string),
+		effectiveMTU: valid["effective_mtu"].(int),
+		params:       valid["params"].(string),
+	}
+	return result, nil
 }

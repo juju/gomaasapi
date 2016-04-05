@@ -34,7 +34,9 @@ type machine struct {
 	statusName    string
 	statusMessage string
 
-	zone *zone
+	bootInterface *interface_
+	interfaceSet  []*interface_
+	zone          *zone
 }
 
 func (m *machine) updateFrom(other *machine) {
@@ -92,6 +94,20 @@ func (m *machine) PowerState() string {
 // Zone implements Machine.
 func (m *machine) Zone() Zone {
 	return m.zone
+}
+
+// BootInterface implements Machine.
+func (m *machine) BootInterface() Interface {
+	return m.bootInterface
+}
+
+// InterfaceSet implements Machine.
+func (m *machine) InterfaceSet() []Interface {
+	result := make([]Interface, len(m.interfaceSet))
+	for i, v := range m.interfaceSet {
+		result[i] = v
+	}
+	return result
 }
 
 // OperatingSystem implements Machine.
@@ -246,6 +262,9 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 		"status_name":    schema.String(),
 		"status_message": schema.String(),
 
+		"boot_interface": schema.StringMap(schema.Any()),
+		"interface_set":  schema.List(schema.StringMap(schema.Any())),
+
 		"zone": schema.StringMap(schema.Any()),
 	}
 	checker := schema.FieldMap(fields, nil) // no defaults
@@ -257,6 +276,14 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 	// From here we know that the map returned from the schema coercion
 	// contains fields of the right type.
 
+	bootInterface, err := interface_2_0(valid["boot_interface"].(map[string]interface{}))
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	interfaceSet, err := readInterfaceList(valid["interface_set"].([]interface{}), interface_2_0)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
 	zone, err := zone_2_0(valid["zone"].(map[string]interface{}))
 	if err != nil {
 		return nil, errors.Trace(err)
@@ -280,7 +307,9 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 		statusName:    valid["status_name"].(string),
 		statusMessage: valid["status_message"].(string),
 
-		zone: zone,
+		bootInterface: bootInterface,
+		interfaceSet:  interfaceSet,
+		zone:          zone,
 	}
 
 	return result, nil
