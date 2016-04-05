@@ -44,6 +44,24 @@ type Controller interface {
 	// Devices returns a list of devices that match the params.
 	Devices(DevicesArgs) ([]Device, error)
 	CreateDevice(CreateDeviceArgs) (Device, error)
+
+	// Files returns all the files that match the params.
+	Files(FilesArgs) ([]File, error)
+
+	// AddFile adds or replaces the content of the specified filename.
+	// If or when the MAAS api is able to return metadata about a single
+	// file without sending the content of the file, we can return a File
+	// instance here too.
+	AddFile(AddFileArgs) error
+}
+
+// File represents a file stored in the MAAS controller.
+type File interface {
+	Filename() string
+	AnonymousURL() string
+
+	Delete() error
+	ReadAll() ([]byte, error)
 }
 
 // Fabric represents a set of interconnected VLANs that are capable of mutual

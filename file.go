@@ -1,0 +1,135 @@
+// Copyright 2016 Canonical Ltd.
+// Licensed under the LGPLv3, see LICENCE file for details.
+
+package gomaasapi
+
+import (
+	"net/http"
+	"net/url"
+
+	"github.com/juju/errors"
+	"github.com/juju/schema"
+	"github.com/juju/version"
+)
+
+type file struct {
+	controller *controller
+
+	resourceURI  string
+	filename     string
+	anonymousURI string
+}
+
+// Filename implements File.
+func (f *file) Filename() string {
+	return f.filename
+}
+
+// AnonymousURL implements File.
+func (f *file) AnonymousURL() string {
+	url := f.controller.client.GetURL(&url.URL{Path: f.anonymousURI})
+	return url.String()
+}
+
+// Delete implements File.
+func (f *file) Delete() error {
+	err := f.controller.delete(f.resourceURI)
+	if err != nil {
+		if svrErr, ok := errors.Cause(err).(ServerError); ok {
+			switch svrErr.StatusCode {
+			case http.StatusNotFound:
+				return errors.Wrap(err, NewNoMatchError(svrErr.BodyMessage))
+			case http.StatusForbidden:
+				return errors.Wrap(err, NewPermissionError(svrErr.BodyMessage))
+			}
+		}
+		return NewUnexpectedError(err)
+	}
+	return nil
+}
+
+// ReadAll implements File.
+func (f *file) ReadAll() ([]byte, error) {
+	args := make(url.Values)
+	args.Add("filename", f.filename)
+	bytes, err := f.controller._getRaw("files", "get", args)
+	if err != nil {
+		if svrErr, ok := errors.Cause(err).(ServerError); ok {
+			switch svrErr.StatusCode {
+			case http.StatusNotFound:
+				return nil, errors.Wrap(err, NewNoMatchError(svrErr.BodyMessage))
+			case http.StatusForbidden:
+				return nil, errors.Wrap(err, NewPermissionError(svrErr.BodyMessage))
+			}
+		}
+		return nil, NewUnexpectedError(err)
+	}
+	return bytes, nil
+}
+
+func readFiles(controllerVersion version.Number, source interface{}) ([]*file, error) {
+	checker := schema.List(schema.StringMap(schema.Any()))
+	coerced, err := checker.Coerce(source, nil)
+	if err != nil {
+		return nil, WrapWithDeserializationError(err, "file base schema check failed")
+	}
+	valid := coerced.([]interface{})
+
+	var deserialisationVersion version.Number
+	for v := range fileDeserializationFuncs {
+		if v.Compare(deserialisationVersion) > 0 && v.Compare(controllerVersion) <= 0 {
+			deserialisationVersion = v
+		}
+	}
+	if deserialisationVersion == version.Zero {
+		return nil, NewUnsupportedVersionError("no file read func for version %s", controllerVersion)
+	}
+	readFunc := fileDeserializationFuncs[deserialisationVersion]
+	return readFileList(valid, readFunc)
+}
+
+// readFileList expects the values of the sourceList to be string maps.
+func readFileList(sourceList []interface{}, readFunc fileDeserializationFunc) ([]*file, error) {
+	result := make([]*file, 0, len(sourceList))
+	for i, value := range sourceList {
+		source, ok := value.(map[string]interface{})
+		if !ok {
+			return nil, NewDeserializationError("unexpected value for file %d, %T", i, value)
+		}
+		file, err := readFunc(source)
+		if err != nil {
+			return nil, errors.Annotatef(err, "file %d", i)
+		}
+		result = append(result, file)
+	}
+	return result, nil
+}
+
+type fileDeserializationFunc func(map[string]interface{}) (*file, error)
+
+var fileDeserializationFuncs = map[version.Number]fileDeserializationFunc{
+	twoDotOh: file_2_0,
+}
+
+func file_2_0(source map[string]interface{}) (*file, error) {
+	fields := schema.Fields{
+		"resource_uri":      schema.String(),
+		"filename":          schema.String(),
+		"anon_resource_uri": schema.String(),
+	}
+	checker := schema.FieldMap(fields, nil) // no defaults
+	coerced, err := checker.Coerce(source, nil)
+	if err != nil {
+		return nil, WrapWithDeserializationError(err, "file 2.0 schema check failed")
+	}
+	valid := coerced.(map[string]interface{})
+	// From here we know that the map returned from the schema coercion
+	// contains fields of the right type.
+
+	result := &file{
+		resourceURI:  valid["resource_uri"].(string),
+		filename:     valid["filename"].(string),
+		anonymousURI: valid["anon_resource_uri"].(string),
+	}
+	return result, nil
+}
