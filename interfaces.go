@@ -38,11 +38,16 @@ type Controller interface {
 	// Machines returns a list of machines that match the params.
 	Machines(MachinesArgs) ([]Machine, error)
 
+	// AllocateMachine will attempt to allocate a machine to the user.
+	// If successful, the allocated machine is returned.
 	AllocateMachine(AllocateMachineArgs) (Machine, error)
+	// ReleaseMachines will stop the specified machines, and release them
+	// from the user making them available to be allocated again.
 	ReleaseMachines(ReleaseMachinesArgs) error
 
 	// Devices returns a list of devices that match the params.
 	Devices(DevicesArgs) ([]Device, error)
+	// CreateDevice creates and returns a new Device.
 	CreateDevice(CreateDeviceArgs) (Device, error)
 }
 
@@ -120,13 +125,12 @@ type Device interface {
 	SystemID() string
 	Hostname() string
 	FQDN() string
-
 	IPAddresses() []string
-
 	Zone() Zone
 
 	// Parent, Owner, MAC Addresses if needed
 
+	// Delete will remove this Device.
 	Delete() error
 }
 
@@ -152,7 +156,9 @@ type Machine interface {
 	StatusName() string
 	StatusMessage() string
 
+	// BootInterface returns the interface that was used to boot the Machine.
 	BootInterface() Interface
+	// InterfaceSet returns all the interfaces for the Machine.
 	InterfaceSet() []Interface
 
 	Zone() Zone
