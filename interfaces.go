@@ -50,9 +50,10 @@ type Controller interface {
 	// CreateDevice creates and returns a new Device.
 	CreateDevice(CreateDeviceArgs) (Device, error)
 
-	// Files returns all the files that match the params.
-	Files(FilesArgs) ([]File, error)
-
+	// Files returns all the files that match the specified prefix.
+	Files(prefix string) ([]File, error)
+	// Return a single file by its filename.
+	GetFile(filename string) (File, error)
 	// AddFile adds or replaces the content of the specified filename.
 	// If or when the MAAS api is able to return metadata about a single
 	// file without sending the content of the file, we can return a File
@@ -62,10 +63,15 @@ type Controller interface {
 
 // File represents a file stored in the MAAS controller.
 type File interface {
+	// Filename is the name of the file. No path, just the filename.
 	Filename() string
+	// AnonymousURL is a URL that can be used to retrieve the conents of the
+	// file without credentials.
 	AnonymousURL() string
 
+	// Delete removes the file from the MAAS controller.
 	Delete() error
+	// ReadAll returns the content of the file.
 	ReadAll() ([]byte, error)
 }
 

@@ -4,6 +4,7 @@
 package gomaasapi
 
 import (
+	"encoding/base64"
 	"net/http"
 	"net/url"
 
@@ -18,6 +19,7 @@ type file struct {
 	resourceURI  string
 	filename     string
 	anonymousURI string
+	content      string
 }
 
 // Filename implements File.
@@ -50,6 +52,18 @@ func (f *file) Delete() error {
 
 // ReadAll implements File.
 func (f *file) ReadAll() ([]byte, error) {
+	if f.content == "" {
+		return f.readFromServer()
+	}
+	bytes, err := base64.StdEncoding.DecodeString(f.content)
+	if err != nil {
+		return nil, NewUnexpectedError(err)
+	}
+	return bytes, nil
+}
+
+func (f *file) readFromServer() ([]byte, error) {
+	// If the content is available, it is base64 encoded, so
 	args := make(url.Values)
 	args.Add("filename", f.filename)
 	bytes, err := f.controller._getRaw("files", "get", args)
@@ -68,13 +82,36 @@ func (f *file) ReadAll() ([]byte, error) {
 }
 
 func readFiles(controllerVersion version.Number, source interface{}) ([]*file, error) {
+	readFunc, err := getFileDeserializationFunc(controllerVersion)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+
 	checker := schema.List(schema.StringMap(schema.Any()))
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
 		return nil, WrapWithDeserializationError(err, "file base schema check failed")
 	}
 	valid := coerced.([]interface{})
+	return readFileList(valid, readFunc)
+}
 
+func readFile(controllerVersion version.Number, source interface{}) (*file, error) {
+	readFunc, err := getFileDeserializationFunc(controllerVersion)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+
+	checker := schema.StringMap(schema.Any())
+	coerced, err := checker.Coerce(source, nil)
+	if err != nil {
+		return nil, WrapWithDeserializationError(err, "file base schema check failed")
+	}
+	valid := coerced.(map[string]interface{})
+	return readFunc(valid)
+}
+
+func getFileDeserializationFunc(controllerVersion version.Number) (fileDeserializationFunc, error) {
 	var deserialisationVersion version.Number
 	for v := range fileDeserializationFuncs {
 		if v.Compare(deserialisationVersion) > 0 && v.Compare(controllerVersion) <= 0 {
@@ -84,8 +121,7 @@ func readFiles(controllerVersion version.Number, source interface{}) ([]*file, e
 	if deserialisationVersion == version.Zero {
 		return nil, NewUnsupportedVersionError("no file read func for version %s", controllerVersion)
 	}
-	readFunc := fileDeserializationFuncs[deserialisationVersion]
-	return readFileList(valid, readFunc)
+	return fileDeserializationFuncs[deserialisationVersion], nil
 }
 
 // readFileList expects the values of the sourceList to be string maps.
@@ -116,8 +152,12 @@ func file_2_0(source map[string]interface{}) (*file, error) {
 		"resource_uri":      schema.String(),
 		"filename":          schema.String(),
 		"anon_resource_uri": schema.String(),
+		"content":           schema.String(),
 	}
-	checker := schema.FieldMap(fields, nil) // no defaults
+	defaults := schema.Defaults{
+		"content": "",
+	}
+	checker := schema.FieldMap(fields, defaults)
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
 		return nil, WrapWithDeserializationError(err, "file 2.0 schema check failed")
@@ -130,6 +170,7 @@ func file_2_0(source map[string]interface{}) (*file, error) {
 		resourceURI:  valid["resource_uri"].(string),
 		filename:     valid["filename"].(string),
 		anonymousURI: valid["anon_resource_uri"].(string),
+		content:      valid["content"].(string),
 	}
 	return result, nil
 }

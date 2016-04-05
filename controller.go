@@ -375,17 +375,10 @@ func (c *controller) ReleaseMachines(args ReleaseMachinesArgs) error {
 	return nil
 }
 
-// FilesArgs is an argument struct for passing params into the Files method.
-// Even though there is only one attribute at this stage, the use of an arg
-// struct is continued for consistency.
-type FilesArgs struct {
-	Prefix string
-}
-
 // Files implements Controller.
-func (c *controller) Files(args FilesArgs) ([]File, error) {
+func (c *controller) Files(prefix string) ([]File, error) {
 	params := NewURLParams()
-	params.MaybeAdd("prefix", args.Prefix)
+	params.MaybeAdd("prefix", prefix)
 	source, err := c.getQuery("files", params.Values)
 	if err != nil {
 		return nil, NewUnexpectedError(err)
@@ -400,6 +393,28 @@ func (c *controller) Files(args FilesArgs) ([]File, error) {
 		result = append(result, f)
 	}
 	return result, nil
+}
+
+// GetFile implements Controller.
+func (c *controller) GetFile(filename string) (File, error) {
+	if filename == "" {
+		return nil, errors.NotValidf("missing filename")
+	}
+	source, err := c.get("files/" + filename)
+	if err != nil {
+		if svrErr, ok := errors.Cause(err).(ServerError); ok {
+			if svrErr.StatusCode == http.StatusNotFound {
+				return nil, errors.Wrap(err, NewNoMatchError(svrErr.BodyMessage))
+			}
+		}
+		return nil, NewUnexpectedError(err)
+	}
+	file, err := readFile(c.apiVersion, source)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	file.controller = c
+	return file, nil
 }
 
 // AddFileArgs is a argument struct for passing information into AddFile.
@@ -478,16 +493,26 @@ func (c *controller) checkCreds() error {
 }
 
 func (c *controller) post(path, op string, params url.Values) (interface{}, error) {
-	return c._post(path, op, params, nil)
+	bytes, err := c._postRaw(path, op, params, nil)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+
+	var parsed interface{}
+	err = json.Unmarshal(bytes, &parsed)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	return parsed, nil
 }
 
 func (c *controller) postFile(path, op string, params url.Values, fileContent []byte) (interface{}, error) {
 	// Only one file is ever sent at a time.
 	files := map[string][]byte{"file": fileContent}
-	return c._post(path, op, params, files)
+	return c._postRaw(path, op, params, files)
 }
 
-func (c *controller) _post(path, op string, params url.Values, files map[string][]byte) (interface{}, error) {
+func (c *controller) _postRaw(path, op string, params url.Values, files map[string][]byte) ([]byte, error) {
 	path = EnsureTrailingSlash(path)
 	requestID := nextRequestID()
 	logger.Tracef("request %x: POST %s%s?op=%s, params=%s", requestID, c.client.APIURL, path, op, params.Encode())
@@ -498,13 +523,7 @@ func (c *controller) _post(path, op string, params url.Values, files map[string]
 		return nil, errors.Trace(err)
 	}
 	logger.Tracef("response %x: %s", requestID, string(bytes))
-
-	var parsed interface{}
-	err = json.Unmarshal(bytes, &parsed)
-	if err != nil {
-		return nil, errors.Trace(err)
-	}
-	return parsed, nil
+	return bytes, nil
 }
 
 func (c *controller) delete(path string) error {
