@@ -407,7 +407,7 @@ func (c *controller) post(path, op string, params url.Values) (interface{}, erro
 func (c *controller) delete(path string) error {
 	path = EnsureTrailingSlash(path)
 	requestID := nextRequestID()
-	logger.Tracef("request %x: DELTE %s%s", requestID, c.client.APIURL, path)
+	logger.Tracef("request %x: DELETE %s%s", requestID, c.client.APIURL, path)
 	err := c.client.Delete(&url.URL{Path: path})
 	if err != nil {
 		logger.Tracef("response %x: error: %q", requestID, err.Error())
