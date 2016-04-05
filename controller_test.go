@@ -139,7 +139,7 @@ func (s *controllerSuite) TestDevices(c *gc.C) {
 	c.Assert(devices, gc.HasLen, 1)
 }
 
-func (s *controllerSuite) TestDevicessArgs(c *gc.C) {
+func (s *controllerSuite) TestDevicesArgs(c *gc.C) {
 	controller := s.getController(c)
 	// This will fail with a 404 due to the test server not having something  at
 	// that address, but we don't care, all we want to do is capture the request
