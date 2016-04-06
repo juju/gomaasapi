@@ -22,6 +22,8 @@ type subnet struct {
 
 	gateway string
 	cidr    string
+
+	dnsServers []string
 }
 
 // ID implements Subnet.
@@ -52,6 +54,11 @@ func (s *subnet) Gateway() string {
 // CIDR implements Subnet.
 func (s *subnet) CIDR() string {
 	return s.cidr
+}
+
+// DNSServers implements Subnet.
+func (s *subnet) DNSServers() []string {
+	return s.dnsServers
 }
 
 func readSubnets(controllerVersion version.Number, source interface{}) ([]*subnet, error) {
@@ -107,6 +114,7 @@ func subnet_2_0(source map[string]interface{}) (*subnet, error) {
 		"gateway_ip":   schema.OneOf(schema.Nil(""), schema.String()),
 		"cidr":         schema.String(),
 		"vlan":         schema.StringMap(schema.Any()),
+		"dns_servers":  schema.List(schema.String()),
 	}
 	checker := schema.FieldMap(fields, nil) // no defaults
 	coerced, err := checker.Coerce(source, nil)
@@ -135,6 +143,7 @@ func subnet_2_0(source map[string]interface{}) (*subnet, error) {
 		vlan:        vlan,
 		gateway:     gateway,
 		cidr:        valid["cidr"].(string),
+		dnsServers:  convertToStringSlice(valid["dns_servers"]),
 	}
 	return result, nil
 }

@@ -40,6 +40,9 @@ func (s *interfaceSuite) checkInterface(c *gc.C, iface *interface_) {
 	c.Check(iface.EffectiveMTU(), gc.Equals, 1500)
 	c.Check(iface.Params(), gc.Equals, "some params")
 
+	c.Check(iface.Parents(), jc.DeepEquals, []string{"bond0"})
+	c.Check(iface.Children(), jc.DeepEquals, []string{"eth0.1", "eth0.2"})
+
 	vlan := iface.VLAN()
 	c.Assert(vlan, gc.NotNil)
 	c.Check(vlan.Name(), gc.Equals, "untagged")
@@ -86,7 +89,7 @@ const (
 {
     "effective_mtu": 1500,
     "mac_address": "52:54:00:c9:6a:45",
-    "children": [],
+    "children": ["eth0.1", "eth0.2"],
     "discovered": [],
     "params": "some params",
     "vlan": {
@@ -102,7 +105,7 @@ const (
     },
     "name": "eth0",
     "enabled": true,
-    "parents": [],
+    "parents": ["bond0"],
     "id": 40,
     "type": "physical",
     "resource_uri": "/MAAS/api/2.0/nodes/4y3ha6/interfaces/40/",

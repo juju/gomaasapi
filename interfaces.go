@@ -212,13 +212,24 @@ type Subnet interface {
 
 	Gateway() string
 	CIDR() string
-	// DNS Servers, rdns_mode
+	// dns_mode
+
+	// DNSServers is a list of ip addresses of the DNS servers for the subnet.
+	// This list may be empty.
+	DNSServers() []string
 }
 
 // Interface represents a physical or virtual network interface on a Machine.
 type Interface interface {
 	ID() int
 	Name() string
+	// The parents of an interface are the names of interfaces that must exist
+	// for this interface  to exist. For example a parent of "eth0.100" would be
+	// "eth0". Parents may be empty.
+	Parents() []string
+	// The children interfaces are the names of those that are dependent on this
+	// interface existing. Children may be empty.
+	Children() []string
 	Type() string
 	Enabled() bool
 
