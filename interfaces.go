@@ -212,7 +212,11 @@ type Subnet interface {
 
 	Gateway() string
 	CIDR() string
-	// DNS Servers, rdns_mode
+	// dns_mode
+
+	// DNSServers is a list of ip addresses of the DNS servers for the subnet.
+	// This list may be empty.
+	DNSServers() []string
 }
 
 // Interface represents a physical or virtual network interface on a Machine.

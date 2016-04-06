@@ -32,6 +32,7 @@ func (*subnetSuite) TestReadSubnets(c *gc.C) {
 	vlan := subnet.VLAN()
 	c.Assert(vlan, gc.NotNil)
 	c.Assert(vlan.Name(), gc.Equals, "untagged")
+	c.Assert(subnet.DNSServers(), jc.DeepEquals, []string{"8.8.8.8", "8.8.4.4"})
 }
 
 func (*subnetSuite) TestLowVersion(c *gc.C) {
@@ -64,7 +65,7 @@ var subnetResponse = `
         "space": "space-0",
         "id": 1,
         "resource_uri": "/MAAS/api/2.0/subnets/1/",
-        "dns_servers": [],
+        "dns_servers": ["8.8.8.8", "8.8.4.4"],
         "cidr": "192.168.100.0/24",
         "rdns_mode": 2
     },
