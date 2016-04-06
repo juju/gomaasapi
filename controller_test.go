@@ -4,9 +4,13 @@
 package gomaasapi
 
 import (
+	"bytes"
+	"io/ioutil"
 	"net/http"
+	"net/url"
 
 	"github.com/juju/errors"
+	"github.com/juju/loggo"
 	"github.com/juju/testing"
 	jc "github.com/juju/testing/checkers"
 	"github.com/juju/utils/set"
@@ -27,19 +31,21 @@ func (*versionSuite) TestSupportedVersions(c *gc.C) {
 }
 
 type controllerSuite struct {
-	testing.CleanupSuite
+	testing.LoggingCleanupSuite
 	server *SimpleTestServer
 }
 
 var _ = gc.Suite(&controllerSuite{})
 
 func (s *controllerSuite) SetUpTest(c *gc.C) {
-	s.CleanupSuite.SetUpTest(c)
+	s.LoggingCleanupSuite.SetUpTest(c)
+	loggo.GetLogger("").SetLogLevel(loggo.DEBUG)
 
 	server := NewSimpleServer()
 	server.AddGetResponse("/api/2.0/boot-resources/", http.StatusOK, bootResourcesResponse)
 	server.AddGetResponse("/api/2.0/devices/", http.StatusOK, devicesResponse)
 	server.AddGetResponse("/api/2.0/fabrics/", http.StatusOK, fabricResponse)
+	server.AddGetResponse("/api/2.0/files/", http.StatusOK, filesResponse)
 	server.AddGetResponse("/api/2.0/machines/", http.StatusOK, machinesResponse)
 	server.AddGetResponse("/api/2.0/machines/?hostname=untasted-markita", http.StatusOK, "["+machineResponse+"]")
 	server.AddGetResponse("/api/2.0/spaces/", http.StatusOK, spacesResponse)
@@ -360,6 +366,144 @@ func (s *controllerSuite) TestReleaseMachinesUnexpected(c *gc.C) {
 	})
 	c.Assert(err, jc.Satisfies, IsUnexpectedError)
 	c.Assert(err.Error(), gc.Equals, "unexpected: ServerError: 502 Bad Gateway (wat)")
+}
+
+func (s *controllerSuite) TestFiles(c *gc.C) {
+	controller := s.getController(c)
+	files, err := controller.Files("")
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(files, gc.HasLen, 2)
+
+	file := files[0]
+	c.Assert(file.Filename(), gc.Equals, "test")
+	uri, err := url.Parse(file.AnonymousURL())
+	c.Assert(err, jc.ErrorIsNil)
+
+	c.Assert(uri.Scheme, gc.Equals, "http")
+	c.Assert(uri.RequestURI(), gc.Equals, "/MAAS/api/2.0/files/?op=get_by_key&key=3afba564-fb7d-11e5-932f-52540051bf22")
+}
+
+func (s *controllerSuite) TestGetFile(c *gc.C) {
+	s.server.AddGetResponse("/api/2.0/files/testing/", http.StatusOK, fileResponse)
+	controller := s.getController(c)
+	file, err := controller.GetFile("testing")
+	c.Assert(err, jc.ErrorIsNil)
+
+	c.Assert(file.Filename(), gc.Equals, "testing")
+	uri, err := url.Parse(file.AnonymousURL())
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(uri.Scheme, gc.Equals, "http")
+	c.Assert(uri.RequestURI(), gc.Equals, "/MAAS/api/2.0/files/?op=get_by_key&key=88e64b76-fb82-11e5-932f-52540051bf22")
+}
+
+func (s *controllerSuite) TestGetFileMissing(c *gc.C) {
+	controller := s.getController(c)
+	_, err := controller.GetFile("missing")
+	c.Assert(err, jc.Satisfies, IsNoMatchError)
+}
+
+func (s *controllerSuite) TestAddFileArgsValidate(c *gc.C) {
+	reader := bytes.NewBufferString("test")
+	for i, test := range []struct {
+		args    AddFileArgs
+		errText string
+	}{{
+		errText: "missing Filename not valid",
+	}, {
+		args:    AddFileArgs{Filename: "/foo"},
+		errText: `paths in Filename "/foo" not valid`,
+	}, {
+		args:    AddFileArgs{Filename: "a/foo"},
+		errText: `paths in Filename "a/foo" not valid`,
+	}, {
+		args:    AddFileArgs{Filename: "foo.txt"},
+		errText: `missing Content or Reader not valid`,
+	}, {
+		args: AddFileArgs{
+			Filename: "foo.txt",
+			Reader:   reader,
+		},
+		errText: `missing Length not valid`,
+	}, {
+		args: AddFileArgs{
+			Filename: "foo.txt",
+			Reader:   reader,
+			Length:   4,
+		},
+	}, {
+		args: AddFileArgs{
+			Filename: "foo.txt",
+			Content:  []byte("foo"),
+			Reader:   reader,
+		},
+		errText: `specifying Content and Reader not valid`,
+	}, {
+		args: AddFileArgs{
+			Filename: "foo.txt",
+			Content:  []byte("foo"),
+			Length:   20,
+		},
+		errText: `specifying Length and Content not valid`,
+	}, {
+		args: AddFileArgs{
+			Filename: "foo.txt",
+			Content:  []byte("foo"),
+		},
+	}} {
+		c.Logf("test %d", i)
+		err := test.args.Validate()
+		if test.errText == "" {
+			c.Check(err, jc.ErrorIsNil)
+		} else {
+			c.Check(err, jc.Satisfies, errors.IsNotValid)
+			c.Check(err.Error(), gc.Equals, test.errText)
+		}
+	}
+}
+
+func (s *controllerSuite) TestAddFileValidates(c *gc.C) {
+	controller := s.getController(c)
+	err := controller.AddFile(AddFileArgs{})
+	c.Assert(err, jc.Satisfies, errors.IsNotValid)
+}
+
+func (s *controllerSuite) assertFile(c *gc.C, request *http.Request, filename, content string) {
+	form := request.Form
+	c.Check(form.Get("filename"), gc.Equals, filename)
+	fileHeader := request.MultipartForm.File["file"][0]
+	f, err := fileHeader.Open()
+	c.Assert(err, jc.ErrorIsNil)
+	bytes, err := ioutil.ReadAll(f)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(string(bytes), gc.Equals, content)
+}
+
+func (s *controllerSuite) TestAddFileContent(c *gc.C) {
+	s.server.AddPostResponse("/api/2.0/files/?op=create", http.StatusOK, "")
+	controller := s.getController(c)
+	err := controller.AddFile(AddFileArgs{
+		Filename: "foo.txt",
+		Content:  []byte("foo"),
+	})
+	c.Assert(err, jc.ErrorIsNil)
+
+	request := s.server.LastRequest()
+	s.assertFile(c, request, "foo.txt", "foo")
+}
+
+func (s *controllerSuite) TestAddFileReader(c *gc.C) {
+	reader := bytes.NewBufferString("test\n extra over length ignored")
+	s.server.AddPostResponse("/api/2.0/files/?op=create", http.StatusOK, "")
+	controller := s.getController(c)
+	err := controller.AddFile(AddFileArgs{
+		Filename: "foo.txt",
+		Reader:   reader,
+		Length:   5,
+	})
+	c.Assert(err, jc.ErrorIsNil)
+
+	request := s.server.LastRequest()
+	s.assertFile(c, request, "foo.txt", "test\n")
 }
 
 var versionResponse = `{"version": "unknown", "subversion": "", "capabilities": ["networks-management", "static-ipaddresses", "ipv6-deployment-ubuntu", "devices-management", "storage-deployment-ubuntu", "network-deployment-ubuntu"]}`

@@ -18,7 +18,7 @@ type file struct {
 
 	resourceURI  string
 	filename     string
-	anonymousURI string
+	anonymousURI *url.URL
 	content      string
 }
 
@@ -29,7 +29,7 @@ func (f *file) Filename() string {
 
 // AnonymousURL implements File.
 func (f *file) AnonymousURL() string {
-	url := f.controller.client.GetURL(&url.URL{Path: f.anonymousURI})
+	url := f.controller.client.GetURL(f.anonymousURI)
 	return url.String()
 }
 
@@ -166,10 +166,15 @@ func file_2_0(source map[string]interface{}) (*file, error) {
 	// From here we know that the map returned from the schema coercion
 	// contains fields of the right type.
 
+	anonURI, err := url.ParseRequestURI(valid["anon_resource_uri"].(string))
+	if err != nil {
+		return nil, NewUnexpectedError(err)
+	}
+
 	result := &file{
 		resourceURI:  valid["resource_uri"].(string),
 		filename:     valid["filename"].(string),
-		anonymousURI: valid["anon_resource_uri"].(string),
+		anonymousURI: anonURI,
 		content:      valid["content"].(string),
 	}
 	return result, nil

@@ -445,10 +445,10 @@ func (a *AddFileArgs) Validate() error {
 		}
 	} else {
 		if a.Reader != nil {
-			return errors.NotValidf("both Content or Reader specified")
+			return errors.NotValidf("specifying Content and Reader")
 		}
 		if a.Length != 0 {
-			return errors.NotValidf("specifying Lenght and Content")
+			return errors.NotValidf("specifying Length and Content")
 		}
 	}
 	return nil
