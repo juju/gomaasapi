@@ -5,8 +5,11 @@ package gomaasapi
 
 import (
 	"encoding/json"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
+	"path"
 	"sync/atomic"
 
 	"github.com/juju/errors"
@@ -372,6 +375,111 @@ func (c *controller) ReleaseMachines(args ReleaseMachinesArgs) error {
 	return nil
 }
 
+// Files implements Controller.
+func (c *controller) Files(prefix string) ([]File, error) {
+	params := NewURLParams()
+	params.MaybeAdd("prefix", prefix)
+	source, err := c.getQuery("files", params.Values)
+	if err != nil {
+		return nil, NewUnexpectedError(err)
+	}
+	files, err := readFiles(c.apiVersion, source)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	var result []File
+	for _, f := range files {
+		f.controller = c
+		result = append(result, f)
+	}
+	return result, nil
+}
+
+// GetFile implements Controller.
+func (c *controller) GetFile(filename string) (File, error) {
+	if filename == "" {
+		return nil, errors.NotValidf("missing filename")
+	}
+	source, err := c.get("files/" + filename)
+	if err != nil {
+		if svrErr, ok := errors.Cause(err).(ServerError); ok {
+			if svrErr.StatusCode == http.StatusNotFound {
+				return nil, errors.Wrap(err, NewNoMatchError(svrErr.BodyMessage))
+			}
+		}
+		return nil, NewUnexpectedError(err)
+	}
+	file, err := readFile(c.apiVersion, source)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	file.controller = c
+	return file, nil
+}
+
+// AddFileArgs is a argument struct for passing information into AddFile.
+// One of Content or (Reader, Length) must be specified.
+type AddFileArgs struct {
+	Filename string
+	Content  []byte
+	Reader   io.Reader
+	Length   int64
+}
+
+// Validate checks to make sure the filename has no slashes, and that one of
+// Content or (Reader, Length) is specified.
+func (a *AddFileArgs) Validate() error {
+	dir, _ := path.Split(a.Filename)
+	if dir != "" {
+		return errors.NotValidf("paths in Filename %q", a.Filename)
+	}
+	if a.Filename == "" {
+		return errors.NotValidf("missing Filename")
+	}
+	if a.Content == nil {
+		if a.Reader == nil {
+			return errors.NotValidf("missing Content or Reader")
+		}
+		if a.Length == 0 {
+			return errors.NotValidf("missing Length")
+		}
+	} else {
+		if a.Reader != nil {
+			return errors.NotValidf("specifying Content and Reader")
+		}
+		if a.Length != 0 {
+			return errors.NotValidf("specifying Length and Content")
+		}
+	}
+	return nil
+}
+
+// AddFile implements Controller.
+func (c *controller) AddFile(args AddFileArgs) error {
+	if err := args.Validate(); err != nil {
+		return errors.Trace(err)
+	}
+	fileContent := args.Content
+	if fileContent == nil {
+		content, err := ioutil.ReadAll(io.LimitReader(args.Reader, args.Length))
+		if err != nil {
+			return errors.Annotatef(err, "cannot read file content")
+		}
+		fileContent = content
+	}
+	params := url.Values{"filename": {args.Filename}}
+	_, err := c.postFile("files", "create", params, fileContent)
+	if err != nil {
+		if svrErr, ok := errors.Cause(err).(ServerError); ok {
+			if svrErr.StatusCode == http.StatusBadRequest {
+				return errors.Wrap(err, NewBadRequestError(svrErr.BodyMessage))
+			}
+		}
+		return NewUnexpectedError(err)
+	}
+	return nil
+}
+
 func (c *controller) checkCreds() error {
 	if _, err := c.getOp("users", "whoami"); err != nil {
 		if svrErr, ok := errors.Cause(err).(ServerError); ok {
@@ -385,16 +493,10 @@ func (c *controller) checkCreds() error {
 }
 
 func (c *controller) post(path, op string, params url.Values) (interface{}, error) {
-	path = EnsureTrailingSlash(path)
-	requestID := nextRequestID()
-	logger.Tracef("request %x: POST %s%s?op=%s, params=%s", requestID, c.client.APIURL, path, op, params.Encode())
-	bytes, err := c.client.Post(&url.URL{Path: path}, op, params, nil)
+	bytes, err := c._postRaw(path, op, params, nil)
 	if err != nil {
-		logger.Tracef("response %x: error: %q", requestID, err.Error())
-		logger.Tracef("error detail: %#v", err)
 		return nil, errors.Trace(err)
 	}
-	logger.Tracef("response %x: %s", requestID, string(bytes))
 
 	var parsed interface{}
 	err = json.Unmarshal(bytes, &parsed)
@@ -402,6 +504,26 @@ func (c *controller) post(path, op string, params url.Values) (interface{}, erro
 		return nil, errors.Trace(err)
 	}
 	return parsed, nil
+}
+
+func (c *controller) postFile(path, op string, params url.Values, fileContent []byte) (interface{}, error) {
+	// Only one file is ever sent at a time.
+	files := map[string][]byte{"file": fileContent}
+	return c._postRaw(path, op, params, files)
+}
+
+func (c *controller) _postRaw(path, op string, params url.Values, files map[string][]byte) ([]byte, error) {
+	path = EnsureTrailingSlash(path)
+	requestID := nextRequestID()
+	logger.Tracef("request %x: POST %s%s?op=%s, params=%s", requestID, c.client.APIURL, path, op, params.Encode())
+	bytes, err := c.client.Post(&url.URL{Path: path}, op, params, files)
+	if err != nil {
+		logger.Tracef("response %x: error: %q", requestID, err.Error())
+		logger.Tracef("error detail: %#v", err)
+		return nil, errors.Trace(err)
+	}
+	logger.Tracef("response %x: %s", requestID, string(bytes))
+	return bytes, nil
 }
 
 func (c *controller) delete(path string) error {
@@ -431,6 +553,19 @@ func (c *controller) getOp(path, op string) (interface{}, error) {
 }
 
 func (c *controller) _get(path, op string, params url.Values) (interface{}, error) {
+	bytes, err := c._getRaw(path, op, params)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	var parsed interface{}
+	err = json.Unmarshal(bytes, &parsed)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	return parsed, nil
+}
+
+func (c *controller) _getRaw(path, op string, params url.Values) ([]byte, error) {
 	path = EnsureTrailingSlash(path)
 	requestID := nextRequestID()
 	if logger.IsTraceEnabled() {
@@ -447,13 +582,7 @@ func (c *controller) _get(path, op string, params url.Values) (interface{}, erro
 		return nil, errors.Trace(err)
 	}
 	logger.Tracef("response %x: %s", requestID, string(bytes))
-
-	var parsed interface{}
-	err = json.Unmarshal(bytes, &parsed)
-	if err != nil {
-		return nil, errors.Trace(err)
-	}
-	return parsed, nil
+	return bytes, nil
 }
 
 func nextRequestID() int64 {

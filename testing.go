@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 )
 
 type singleServingServer struct {
@@ -134,20 +135,28 @@ func (s *SimpleTestServer) LastRequest() *http.Request {
 
 func (s *SimpleTestServer) handler(writer http.ResponseWriter, request *http.Request) {
 	method := request.Method
-	var responses map[string][]simpleResponse
-	var responseIndex map[string]int
+	var (
+		err           error
+		responses     map[string][]simpleResponse
+		responseIndex map[string]int
+	)
 	switch method {
 	case "GET":
 		responses = s.getResponses
 		responseIndex = s.getResponseIndex
-		_, err := readAndClose(request.Body)
+		_, err = readAndClose(request.Body)
 		if err != nil {
 			panic(err) // it is a test, panic should be fine
 		}
 	case "POST":
 		responses = s.postResponses
 		responseIndex = s.postResponseIndex
-		err := request.ParseForm()
+		contentType := request.Header.Get("Content-Type")
+		if strings.HasPrefix(contentType, "multipart/form-data;") {
+			err = request.ParseMultipartForm(2 << 20)
+		} else {
+			err = request.ParseForm()
+		}
 		if err != nil {
 			panic(err)
 		}
