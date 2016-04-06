@@ -24,6 +24,9 @@ type interface_ struct {
 	macAddress   string
 	effectiveMTU int
 	params       string
+
+	parents  []string
+	children []string
 }
 
 // ID implements Interface.
@@ -34,6 +37,16 @@ func (i *interface_) ID() int {
 // Name implements Interface.
 func (i *interface_) Name() string {
 	return i.name
+}
+
+// Parents implements Interface.
+func (i *interface_) Parents() []string {
+	return i.parents
+}
+
+// Children implements Interface.
+func (i *interface_) Children() []string {
+	return i.children
 }
 
 // Type implements Interface.
@@ -155,6 +168,9 @@ func interface_2_0(source map[string]interface{}) (*interface_, error) {
 		"mac_address":   schema.String(),
 		"effective_mtu": schema.ForceInt(),
 		"params":        schema.String(),
+
+		"parents":  schema.List(schema.String()),
+		"children": schema.List(schema.String()),
 	}
 	checker := schema.FieldMap(fields, nil) // no defaults
 	coerced, err := checker.Coerce(source, nil)
@@ -188,6 +204,9 @@ func interface_2_0(source map[string]interface{}) (*interface_, error) {
 		macAddress:   valid["mac_address"].(string),
 		effectiveMTU: valid["effective_mtu"].(int),
 		params:       valid["params"].(string),
+
+		parents:  convertToStringSlice(valid["parents"]),
+		children: convertToStringSlice(valid["children"]),
 	}
 	return result, nil
 }
