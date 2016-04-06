@@ -169,6 +169,7 @@ type Machine interface {
 	SystemID() string
 	Hostname() string
 	FQDN() string
+	Tags() []string
 
 	OperatingSystem() string
 	DistroSeries() string
@@ -221,6 +222,7 @@ type Interface interface {
 	Name() string
 	Type() string
 	Enabled() bool
+	Tags() []string
 
 	VLAN() VLAN
 	Links() []Link
@@ -230,7 +232,6 @@ type Interface interface {
 	Params() string
 
 	// Need to work out types for children, discovered, parents
-	// Tags?
 }
 
 // Link represents a network link between an Interface and a Subnet.
