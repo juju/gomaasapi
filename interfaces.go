@@ -41,19 +41,23 @@ type Controller interface {
 	// AllocateMachine will attempt to allocate a machine to the user.
 	// If successful, the allocated machine is returned.
 	AllocateMachine(AllocateMachineArgs) (Machine, error)
+
 	// ReleaseMachines will stop the specified machines, and release them
 	// from the user making them available to be allocated again.
 	ReleaseMachines(ReleaseMachinesArgs) error
 
 	// Devices returns a list of devices that match the params.
 	Devices(DevicesArgs) ([]Device, error)
+
 	// CreateDevice creates and returns a new Device.
 	CreateDevice(CreateDeviceArgs) (Device, error)
 
 	// Files returns all the files that match the specified prefix.
 	Files(prefix string) ([]File, error)
+
 	// Return a single file by its filename.
 	GetFile(filename string) (File, error)
+
 	// AddFile adds or replaces the content of the specified filename.
 	// If or when the MAAS api is able to return metadata about a single
 	// file without sending the content of the file, we can return a File
@@ -65,12 +69,14 @@ type Controller interface {
 type File interface {
 	// Filename is the name of the file. No path, just the filename.
 	Filename() string
+
 	// AnonymousURL is a URL that can be used to retrieve the conents of the
 	// file without credentials.
 	AnonymousURL() string
 
 	// Delete removes the file from the MAAS controller.
 	Delete() error
+
 	// ReadAll returns the content of the file.
 	ReadAll() ([]byte, error)
 }
