@@ -20,6 +20,7 @@ type machine struct {
 	systemID string
 	hostname string
 	fqdn     string
+	tags     []string
 
 	operatingSystem string
 	distroSeries    string
@@ -69,6 +70,11 @@ func (m *machine) Hostname() string {
 // FQDN implements Machine.
 func (m *machine) FQDN() string {
 	return m.fqdn
+}
+
+// Tags implements Machine.
+func (m *machine) Tags() []string {
+	return m.tags
 }
 
 // IPAddresses implements Machine.
@@ -250,6 +256,7 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 		"system_id": schema.String(),
 		"hostname":  schema.String(),
 		"fqdn":      schema.String(),
+		"tag_names": schema.List(schema.String()),
 
 		"osystem":       schema.String(),
 		"distro_series": schema.String(),
@@ -295,6 +302,7 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 		systemID: valid["system_id"].(string),
 		hostname: valid["hostname"].(string),
 		fqdn:     valid["fqdn"].(string),
+		tags:     convertToStringSlice(valid["tag_names"]),
 
 		operatingSystem: valid["osystem"].(string),
 		distroSeries:    valid["distro_series"].(string),

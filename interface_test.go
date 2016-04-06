@@ -35,6 +35,7 @@ func (s *interfaceSuite) checkInterface(c *gc.C, iface *interface_) {
 	c.Check(iface.Name(), gc.Equals, "eth0")
 	c.Check(iface.Type(), gc.Equals, "physical")
 	c.Check(iface.Enabled(), jc.IsTrue)
+	c.Check(iface.Tags(), jc.DeepEquals, []string{"foo", "bar"})
 
 	c.Check(iface.MACAddress(), gc.Equals, "52:54:00:c9:6a:45")
 	c.Check(iface.EffectiveMTU(), gc.Equals, 1500)
@@ -109,7 +110,7 @@ const (
     "id": 40,
     "type": "physical",
     "resource_uri": "/MAAS/api/2.0/nodes/4y3ha6/interfaces/40/",
-    "tags": [],
+    "tags": ["foo", "bar"],
     "links": [
         {
             "id": 69,

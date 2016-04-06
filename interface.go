@@ -17,6 +17,7 @@ type interface_ struct {
 	name    string
 	type_   string
 	enabled bool
+	tags    []string
 
 	vlan  *vlan
 	links []*link
@@ -57,6 +58,11 @@ func (i *interface_) Type() string {
 // Enabled implements Interface.
 func (i *interface_) Enabled() bool {
 	return i.enabled
+}
+
+// Tags implements Interface.
+func (i *interface_) Tags() []string {
+	return i.tags
 }
 
 // VLAN implements Interface.
@@ -161,6 +167,7 @@ func interface_2_0(source map[string]interface{}) (*interface_, error) {
 		"name":    schema.String(),
 		"type":    schema.String(),
 		"enabled": schema.Bool(),
+		"tags":    schema.List(schema.String()),
 
 		"vlan":  schema.StringMap(schema.Any()),
 		"links": schema.List(schema.StringMap(schema.Any())),
@@ -197,6 +204,7 @@ func interface_2_0(source map[string]interface{}) (*interface_, error) {
 		name:    valid["name"].(string),
 		type_:   valid["type"].(string),
 		enabled: valid["enabled"].(bool),
+		tags:    convertToStringSlice(valid["tags"]),
 
 		vlan:  vlan,
 		links: links,

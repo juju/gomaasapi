@@ -43,6 +43,8 @@ func (*machineSuite) TestReadMachines(c *gc.C) {
 	c.Check(machine.SystemID(), gc.Equals, "4y3ha3")
 	c.Check(machine.Hostname(), gc.Equals, "untasted-markita")
 	c.Check(machine.FQDN(), gc.Equals, "untasted-markita.maas")
+	c.Check(machine.Tags(), jc.DeepEquals, []string{"virtual", "magic"})
+
 	c.Check(machine.IPAddresses(), jc.DeepEquals, []string{"192.168.100.4"})
 	c.Check(machine.Memory(), gc.Equals, 1024)
 	c.Check(machine.CPUCount(), gc.Equals, 1)
@@ -337,7 +339,7 @@ const (
         "power_type": "virsh",
         "distro_series": "trusty",
         "tag_names": [
-            "virtual"
+            "virtual", "magic"
         ],
         "disable_ipv4": false,
         "status_message": "From 'Deploying' to 'Deployed'",
