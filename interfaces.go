@@ -194,7 +194,11 @@ type Machine interface {
 
 	Zone() Zone
 
+	// Start the machine and install the operating system specified in the args.
 	Start(StartArgs) error
+
+	// CreatePhysicalInterface will create a physical interface for this machine.
+	CreatePhysicalInterface(CreatePhysicalInterfaceArgs) (Interface, error)
 }
 
 // Space is a name for a collection of Subnets.

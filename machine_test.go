@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"net/http"
 
+	"github.com/juju/errors"
 	"github.com/juju/testing"
 	jc "github.com/juju/testing/checkers"
 	"github.com/juju/version"
@@ -14,7 +15,7 @@ import (
 )
 
 type machineSuite struct {
-	testing.CleanupSuite
+	testing.LoggingCleanupSuite
 }
 
 var _ = gc.Suite(&machineSuite{})
@@ -76,9 +77,7 @@ func (*machineSuite) TestHighVersion(c *gc.C) {
 	c.Assert(machines, gc.HasLen, 3)
 }
 
-// Since the start method uses controller pieces, we get the machine from
-// the controller.
-func (s *machineSuite) startSetup(c *gc.C) (*SimpleTestServer, *machine) {
+func (s *machineSuite) getServerAndMachine(c *gc.C) (*SimpleTestServer, *machine) {
 	server, controller := createTestServerController(c, s)
 	// Just have machines return one machine
 	server.AddGetResponse("/api/2.0/machines/", http.StatusOK, "["+machineResponse+"]")
@@ -90,7 +89,7 @@ func (s *machineSuite) startSetup(c *gc.C) (*SimpleTestServer, *machine) {
 }
 
 func (s *machineSuite) TestStart(c *gc.C) {
-	server, machine := s.startSetup(c)
+	server, machine := s.getServerAndMachine(c)
 	response := updateJSONMap(c, machineResponse, map[string]interface{}{
 		"status_name":    "Deploying",
 		"status_message": "for testing",
@@ -118,7 +117,7 @@ func (s *machineSuite) TestStart(c *gc.C) {
 }
 
 func (s *machineSuite) TestStartMachineNotFound(c *gc.C) {
-	server, machine := s.startSetup(c)
+	server, machine := s.getServerAndMachine(c)
 	server.AddPostResponse(machine.resourceURI+"?op=deploy", http.StatusNotFound, "can't find machine")
 	err := machine.Start(StartArgs{})
 	c.Assert(err, jc.Satisfies, IsBadRequestError)
@@ -126,7 +125,7 @@ func (s *machineSuite) TestStartMachineNotFound(c *gc.C) {
 }
 
 func (s *machineSuite) TestStartMachineConflict(c *gc.C) {
-	server, machine := s.startSetup(c)
+	server, machine := s.getServerAndMachine(c)
 	server.AddPostResponse(machine.resourceURI+"?op=deploy", http.StatusConflict, "machine not allocated")
 	err := machine.Start(StartArgs{})
 	c.Assert(err, jc.Satisfies, IsBadRequestError)
@@ -134,7 +133,7 @@ func (s *machineSuite) TestStartMachineConflict(c *gc.C) {
 }
 
 func (s *machineSuite) TestStartMachineForbidden(c *gc.C) {
-	server, machine := s.startSetup(c)
+	server, machine := s.getServerAndMachine(c)
 	server.AddPostResponse(machine.resourceURI+"?op=deploy", http.StatusForbidden, "machine not yours")
 	err := machine.Start(StartArgs{})
 	c.Assert(err, jc.Satisfies, IsPermissionError)
@@ -142,7 +141,7 @@ func (s *machineSuite) TestStartMachineForbidden(c *gc.C) {
 }
 
 func (s *machineSuite) TestStartMachineServiceUnavailable(c *gc.C) {
-	server, machine := s.startSetup(c)
+	server, machine := s.getServerAndMachine(c)
 	server.AddPostResponse(machine.resourceURI+"?op=deploy", http.StatusServiceUnavailable, "no ip addresses available")
 	err := machine.Start(StartArgs{})
 	c.Assert(err, jc.Satisfies, IsCannotCompleteError)
@@ -150,9 +149,119 @@ func (s *machineSuite) TestStartMachineServiceUnavailable(c *gc.C) {
 }
 
 func (s *machineSuite) TestStartMachineUnknown(c *gc.C) {
-	server, machine := s.startSetup(c)
+	server, machine := s.getServerAndMachine(c)
 	server.AddPostResponse(machine.resourceURI+"?op=deploy", http.StatusMethodNotAllowed, "wat?")
 	err := machine.Start(StartArgs{})
+	c.Assert(err, jc.Satisfies, IsUnexpectedError)
+	c.Assert(err.Error(), gc.Equals, "unexpected: ServerError: 405 Method Not Allowed (wat?)")
+}
+
+type fakeVLAN struct {
+	VLAN
+	id int
+}
+
+func (f *fakeVLAN) ID() int {
+	return f.id
+}
+
+func (s *controllerSuite) TestCreatePhysicalInterfaceArgsValidate(c *gc.C) {
+	for i, test := range []struct {
+		args    CreatePhysicalInterfaceArgs
+		errText string
+	}{{
+		errText: "missing Name not valid",
+	}, {
+		args:    CreatePhysicalInterfaceArgs{Name: "eth3"},
+		errText: "missing MACAddress not valid",
+	}, {
+		args:    CreatePhysicalInterfaceArgs{Name: "eth3", MACAddress: "a-mac-address"},
+		errText: `missing VLAN not valid`,
+	}, {
+		args: CreatePhysicalInterfaceArgs{Name: "eth3", MACAddress: "a-mac-address", VLAN: &fakeVLAN{}},
+	}} {
+		c.Logf("test %d", i)
+		err := test.args.Validate()
+		if test.errText == "" {
+			c.Check(err, jc.ErrorIsNil)
+		} else {
+			c.Check(err, jc.Satisfies, errors.IsNotValid)
+			c.Check(err.Error(), gc.Equals, test.errText)
+		}
+	}
+}
+
+func (s *machineSuite) TestCreatePhysicalInterfaceValidates(c *gc.C) {
+	_, machine := s.getServerAndMachine(c)
+	_, err := machine.CreatePhysicalInterface(CreatePhysicalInterfaceArgs{})
+	c.Assert(err, jc.Satisfies, errors.IsNotValid)
+}
+
+func (s *machineSuite) TestCreatePhysicalInterface(c *gc.C) {
+	server, machine := s.getServerAndMachine(c)
+	server.AddPostResponse(machine.interfacesURI()+"?op=create_physical", http.StatusOK, interfaceResponse)
+
+	iface, err := machine.CreatePhysicalInterface(CreatePhysicalInterfaceArgs{
+		Name:       "eth43",
+		MACAddress: "some-mac-address",
+		VLAN:       &fakeVLAN{id: 33},
+		Tags:       []string{"foo", "bar"},
+	})
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(iface, gc.NotNil)
+
+	request := server.LastRequest()
+	form := request.PostForm
+	c.Assert(form.Get("name"), gc.Equals, "eth43")
+	c.Assert(form.Get("mac_address"), gc.Equals, "some-mac-address")
+	c.Assert(form.Get("vlan"), gc.Equals, "33")
+	c.Assert(form.Get("tags"), gc.Equals, "foo,bar")
+}
+
+func (s *machineSuite) minimalCreatePhysicalInterfaceArgs() CreatePhysicalInterfaceArgs {
+	return CreatePhysicalInterfaceArgs{
+		Name:       "eth43",
+		MACAddress: "some-mac-address",
+		VLAN:       &fakeVLAN{id: 33},
+	}
+}
+
+func (s *machineSuite) TestCreatePhysicalInterfaceNotFound(c *gc.C) {
+	server, machine := s.getServerAndMachine(c)
+	server.AddPostResponse(machine.interfacesURI()+"?op=create_physical", http.StatusNotFound, "can't find machine")
+	_, err := machine.CreatePhysicalInterface(s.minimalCreatePhysicalInterfaceArgs())
+	c.Assert(err, jc.Satisfies, IsBadRequestError)
+	c.Assert(err.Error(), gc.Equals, "can't find machine")
+}
+
+func (s *machineSuite) TestCreatePhysicalInterfaceConflict(c *gc.C) {
+	server, machine := s.getServerAndMachine(c)
+	server.AddPostResponse(machine.interfacesURI()+"?op=create_physical", http.StatusConflict, "machine not allocated")
+	_, err := machine.CreatePhysicalInterface(s.minimalCreatePhysicalInterfaceArgs())
+	c.Assert(err, jc.Satisfies, IsBadRequestError)
+	c.Assert(err.Error(), gc.Equals, "machine not allocated")
+}
+
+func (s *machineSuite) TestCreatePhysicalInterfaceForbidden(c *gc.C) {
+	server, machine := s.getServerAndMachine(c)
+	server.AddPostResponse(machine.interfacesURI()+"?op=create_physical", http.StatusForbidden, "machine not yours")
+	_, err := machine.CreatePhysicalInterface(s.minimalCreatePhysicalInterfaceArgs())
+	c.Assert(err, jc.Satisfies, IsPermissionError)
+	c.Assert(err.Error(), gc.Equals, "machine not yours")
+}
+
+func (s *machineSuite) TestCreatePhysicalInterfaceServiceUnavailable(c *gc.C) {
+	server, machine := s.getServerAndMachine(c)
+	server.AddPostResponse(machine.interfacesURI()+"?op=create_physical", http.StatusServiceUnavailable, "no ip addresses available")
+	_, err := machine.CreatePhysicalInterface(s.minimalCreatePhysicalInterfaceArgs())
+	c.Assert(err, jc.Satisfies, IsCannotCompleteError)
+	c.Assert(err.Error(), gc.Equals, "no ip addresses available")
+}
+
+func (s *machineSuite) TestCreatePhysicalInterfaceUnknown(c *gc.C) {
+	server, machine := s.getServerAndMachine(c)
+	server.AddPostResponse(machine.interfacesURI()+"?op=create_physical", http.StatusMethodNotAllowed, "wat?")
+	_, err := machine.CreatePhysicalInterface(s.minimalCreatePhysicalInterfaceArgs())
 	c.Assert(err, jc.Satisfies, IsUnexpectedError)
 	c.Assert(err.Error(), gc.Equals, "unexpected: ServerError: 405 Method Not Allowed (wat?)")
 }
