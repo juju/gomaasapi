@@ -39,7 +39,6 @@ func (s *interfaceSuite) checkInterface(c *gc.C, iface *interface_) {
 
 	c.Check(iface.MACAddress(), gc.Equals, "52:54:00:c9:6a:45")
 	c.Check(iface.EffectiveMTU(), gc.Equals, 1500)
-	c.Check(iface.Params(), gc.Equals, "some params")
 
 	c.Check(iface.Parents(), jc.DeepEquals, []string{"bond0"})
 	c.Check(iface.Children(), jc.DeepEquals, []string{"eth0.1", "eth0.2"})

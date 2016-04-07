@@ -24,7 +24,6 @@ type interface_ struct {
 
 	macAddress   string
 	effectiveMTU int
-	params       string
 
 	parents  []string
 	children []string
@@ -87,11 +86,6 @@ func (i *interface_) MACAddress() string {
 // EffectiveMTU implements Interface.
 func (i *interface_) EffectiveMTU() int {
 	return i.effectiveMTU
-}
-
-// Params implements Interface.
-func (i *interface_) Params() string {
-	return i.params
 }
 
 func readInterface(controllerVersion version.Number, source interface{}) (*interface_, error) {
@@ -174,7 +168,6 @@ func interface_2_0(source map[string]interface{}) (*interface_, error) {
 
 		"mac_address":   schema.String(),
 		"effective_mtu": schema.ForceInt(),
-		"params":        schema.String(),
 
 		"parents":  schema.List(schema.String()),
 		"children": schema.List(schema.String()),
@@ -211,7 +204,6 @@ func interface_2_0(source map[string]interface{}) (*interface_, error) {
 
 		macAddress:   valid["mac_address"].(string),
 		effectiveMTU: valid["effective_mtu"].(int),
-		params:       valid["params"].(string),
 
 		parents:  convertToStringSlice(valid["parents"]),
 		children: convertToStringSlice(valid["children"]),

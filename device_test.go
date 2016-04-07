@@ -6,6 +6,7 @@ package gomaasapi
 import (
 	"net/http"
 
+	"github.com/juju/errors"
 	"github.com/juju/testing"
 	jc "github.com/juju/testing/checkers"
 	"github.com/juju/version"
@@ -50,7 +51,117 @@ func (*deviceSuite) TestHighVersion(c *gc.C) {
 	c.Assert(devices, gc.HasLen, 1)
 }
 
-func (s *deviceSuite) setupDelete(c *gc.C) (*SimpleTestServer, *device) {
+type fakeVLAN struct {
+	VLAN
+	id int
+}
+
+func (f *fakeVLAN) ID() int {
+	return f.id
+}
+
+func (s *controllerSuite) TestCreatePhysicalInterfaceArgsValidate(c *gc.C) {
+	for i, test := range []struct {
+		args    CreatePhysicalInterfaceArgs
+		errText string
+	}{{
+		errText: "missing Name not valid",
+	}, {
+		args:    CreatePhysicalInterfaceArgs{Name: "eth3"},
+		errText: "missing MACAddress not valid",
+	}, {
+		args:    CreatePhysicalInterfaceArgs{Name: "eth3", MACAddress: "a-mac-address"},
+		errText: `missing VLAN not valid`,
+	}, {
+		args: CreatePhysicalInterfaceArgs{Name: "eth3", MACAddress: "a-mac-address", VLAN: &fakeVLAN{}},
+	}} {
+		c.Logf("test %d", i)
+		err := test.args.Validate()
+		if test.errText == "" {
+			c.Check(err, jc.ErrorIsNil)
+		} else {
+			c.Check(err, jc.Satisfies, errors.IsNotValid)
+			c.Check(err.Error(), gc.Equals, test.errText)
+		}
+	}
+}
+
+func (s *deviceSuite) TestCreatePhysicalInterfaceValidates(c *gc.C) {
+	_, device := s.getServerAndDevice(c)
+	_, err := device.CreatePhysicalInterface(CreatePhysicalInterfaceArgs{})
+	c.Assert(err, jc.Satisfies, errors.IsNotValid)
+}
+
+func (s *deviceSuite) TestCreatePhysicalInterface(c *gc.C) {
+	server, device := s.getServerAndDevice(c)
+	server.AddPostResponse(device.interfacesURI()+"?op=create_physical", http.StatusOK, interfaceResponse)
+
+	iface, err := device.CreatePhysicalInterface(CreatePhysicalInterfaceArgs{
+		Name:       "eth43",
+		MACAddress: "some-mac-address",
+		VLAN:       &fakeVLAN{id: 33},
+		Tags:       []string{"foo", "bar"},
+	})
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(iface, gc.NotNil)
+
+	request := server.LastRequest()
+	form := request.PostForm
+	c.Assert(form.Get("name"), gc.Equals, "eth43")
+	c.Assert(form.Get("mac_address"), gc.Equals, "some-mac-address")
+	c.Assert(form.Get("vlan"), gc.Equals, "33")
+	c.Assert(form.Get("tags"), gc.Equals, "foo,bar")
+}
+
+func (s *deviceSuite) minimalCreatePhysicalInterfaceArgs() CreatePhysicalInterfaceArgs {
+	return CreatePhysicalInterfaceArgs{
+		Name:       "eth43",
+		MACAddress: "some-mac-address",
+		VLAN:       &fakeVLAN{id: 33},
+	}
+}
+
+func (s *deviceSuite) TestCreatePhysicalInterfaceNotFound(c *gc.C) {
+	server, device := s.getServerAndDevice(c)
+	server.AddPostResponse(device.interfacesURI()+"?op=create_physical", http.StatusNotFound, "can't find device")
+	_, err := device.CreatePhysicalInterface(s.minimalCreatePhysicalInterfaceArgs())
+	c.Assert(err, jc.Satisfies, IsBadRequestError)
+	c.Assert(err.Error(), gc.Equals, "can't find device")
+}
+
+func (s *deviceSuite) TestCreatePhysicalInterfaceConflict(c *gc.C) {
+	server, device := s.getServerAndDevice(c)
+	server.AddPostResponse(device.interfacesURI()+"?op=create_physical", http.StatusConflict, "device not allocated")
+	_, err := device.CreatePhysicalInterface(s.minimalCreatePhysicalInterfaceArgs())
+	c.Assert(err, jc.Satisfies, IsBadRequestError)
+	c.Assert(err.Error(), gc.Equals, "device not allocated")
+}
+
+func (s *deviceSuite) TestCreatePhysicalInterfaceForbidden(c *gc.C) {
+	server, device := s.getServerAndDevice(c)
+	server.AddPostResponse(device.interfacesURI()+"?op=create_physical", http.StatusForbidden, "device not yours")
+	_, err := device.CreatePhysicalInterface(s.minimalCreatePhysicalInterfaceArgs())
+	c.Assert(err, jc.Satisfies, IsPermissionError)
+	c.Assert(err.Error(), gc.Equals, "device not yours")
+}
+
+func (s *deviceSuite) TestCreatePhysicalInterfaceServiceUnavailable(c *gc.C) {
+	server, device := s.getServerAndDevice(c)
+	server.AddPostResponse(device.interfacesURI()+"?op=create_physical", http.StatusServiceUnavailable, "no ip addresses available")
+	_, err := device.CreatePhysicalInterface(s.minimalCreatePhysicalInterfaceArgs())
+	c.Assert(err, jc.Satisfies, IsCannotCompleteError)
+	c.Assert(err.Error(), gc.Equals, "no ip addresses available")
+}
+
+func (s *deviceSuite) TestCreatePhysicalInterfaceUnknown(c *gc.C) {
+	server, device := s.getServerAndDevice(c)
+	server.AddPostResponse(device.interfacesURI()+"?op=create_physical", http.StatusMethodNotAllowed, "wat?")
+	_, err := device.CreatePhysicalInterface(s.minimalCreatePhysicalInterfaceArgs())
+	c.Assert(err, jc.Satisfies, IsUnexpectedError)
+	c.Assert(err.Error(), gc.Equals, "unexpected: ServerError: 405 Method Not Allowed (wat?)")
+}
+
+func (s *deviceSuite) getServerAndDevice(c *gc.C) (*SimpleTestServer, *device) {
 	server, controller := createTestServerController(c, s)
 	server.AddGetResponse("/api/2.0/devices/", http.StatusOK, devicesResponse)
 
@@ -61,7 +172,7 @@ func (s *deviceSuite) setupDelete(c *gc.C) (*SimpleTestServer, *device) {
 }
 
 func (s *deviceSuite) TestDelete(c *gc.C) {
-	server, device := s.setupDelete(c)
+	server, device := s.getServerAndDevice(c)
 	// Successful delete is 204 - StatusNoContent
 	server.AddDeleteResponse(device.resourceURI, http.StatusNoContent, "")
 	err := device.Delete()
@@ -69,21 +180,21 @@ func (s *deviceSuite) TestDelete(c *gc.C) {
 }
 
 func (s *deviceSuite) TestDelete404(c *gc.C) {
-	_, device := s.setupDelete(c)
+	_, device := s.getServerAndDevice(c)
 	// No path, so 404
 	err := device.Delete()
 	c.Assert(err, jc.Satisfies, IsNoMatchError)
 }
 
 func (s *deviceSuite) TestDeleteForbidden(c *gc.C) {
-	server, device := s.setupDelete(c)
+	server, device := s.getServerAndDevice(c)
 	server.AddDeleteResponse(device.resourceURI, http.StatusForbidden, "")
 	err := device.Delete()
 	c.Assert(err, jc.Satisfies, IsPermissionError)
 }
 
 func (s *deviceSuite) TestDeleteUnknown(c *gc.C) {
-	server, device := s.setupDelete(c)
+	server, device := s.getServerAndDevice(c)
 	server.AddDeleteResponse(device.resourceURI, http.StatusConflict, "")
 	err := device.Delete()
 	c.Assert(err, jc.Satisfies, IsUnexpectedError)
