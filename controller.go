@@ -284,7 +284,7 @@ func (c *controller) Machines(args MachinesArgs) ([]Machine, error) {
 type StorageSpec struct {
 	// Label is optional and an arbitrary string.
 	// Labels need to be unique across the StorageSpec elements specified
-	// in the AllcoateMachineArgs.
+	// in the AllocateMachineArgs.
 	Label string
 	// Size is required and refers to the required minimum size in GB.
 	Size int
