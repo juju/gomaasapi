@@ -282,9 +282,8 @@ func (c *controller) Machines(args MachinesArgs) ([]Machine, error) {
 // StorageSpec represents one element of storage constraints necessary
 // to be satisfied to allocate a machine.
 type StorageSpec struct {
-	// Label is optional and an arbitrary string.
-	// Labels need to be unique across the StorageSpec elements specified
-	// in the AllocateMachineArgs.
+	// Label is optional and an arbitrary string. Labels need to be unique
+	// across the StorageSpec elements specified in the AllocateMachineArgs.
 	Label string
 	// Size is required and refers to the required minimum size in GB.
 	Size int
@@ -322,7 +321,7 @@ func (s *StorageSpec) String() string {
 // InterfaceSpec represents one elemenet of network related constraints.
 type InterfaceSpec struct {
 	// Label is required and an arbitrary string. Labels need to be unique
-	// across the InterfaceSpec elements specified in the AllcoateMachineArgs.
+	// across the InterfaceSpec elements specified in the AllocateMachineArgs.
 	// The label is returned in the ConstraintMatches response from
 	// AllocateMachine.
 	Label    string
