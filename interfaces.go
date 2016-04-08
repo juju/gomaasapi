@@ -254,4 +254,7 @@ type Link interface {
 	ID() int
 	Mode() string
 	Subnet() Subnet
+	// IPAddress returns the address if one has been assigned.
+	// If unavailble, the address will be empty.
+	IPAddress() string
 }

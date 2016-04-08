@@ -10,9 +10,10 @@ import (
 )
 
 type link struct {
-	id     int
-	mode   string
-	subnet *subnet
+	id        int
+	mode      string
+	subnet    *subnet
+	ipAddress string
 }
 
 // NOTE: not using lowercase L as the receiver as it is a horrible idea.
@@ -31,6 +32,11 @@ func (k *link) Mode() string {
 // Subnet implements Link.
 func (k *link) Subnet() Subnet {
 	return k.subnet
+}
+
+// IPAddress implements Link.
+func (k *link) IPAddress() string {
+	return k.ipAddress
 }
 
 func readLinks(controllerVersion version.Number, source interface{}) ([]*link, error) {
@@ -79,12 +85,14 @@ var linkDeserializationFuncs = map[version.Number]linkDeserializationFunc{
 
 func link_2_0(source map[string]interface{}) (*link, error) {
 	fields := schema.Fields{
-		"id":     schema.ForceInt(),
-		"mode":   schema.String(),
-		"subnet": schema.StringMap(schema.Any()),
+		"id":         schema.ForceInt(),
+		"mode":       schema.String(),
+		"subnet":     schema.StringMap(schema.Any()),
+		"ip_address": schema.String(),
 	}
 	defaults := schema.Defaults{
-		"subnet": schema.Omit,
+		"ip_address": "",
+		"subnet":     schema.Omit,
 	}
 	checker := schema.FieldMap(fields, defaults)
 	coerced, err := checker.Coerce(source, nil)
@@ -104,9 +112,10 @@ func link_2_0(source map[string]interface{}) (*link, error) {
 	}
 
 	result := &link{
-		id:     valid["id"].(int),
-		mode:   valid["mode"].(string),
-		subnet: subnet,
+		id:        valid["id"].(int),
+		mode:      valid["mode"].(string),
+		subnet:    subnet,
+		ipAddress: valid["ip_address"].(string),
 	}
 	return result, nil
 }
