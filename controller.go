@@ -658,36 +658,30 @@ func (c *controller) readAPIVersion(apiVersion version.Number) (set.Strings, ver
 
 func parseAllocateConstraintsResponse(source interface{}, machine *machine) (ConstraintMatches, error) {
 	var empty ConstraintMatches
-	// Do the schema check in two passes.
+	matchFields := schema.Fields{
+		"storage":    schema.StringMap(schema.ForceInt()),
+		"interfaces": schema.StringMap(schema.ForceInt()),
+	}
+	matchDefaults := schema.Defaults{
+		"storage":    schema.Omit,
+		"interfaces": schema.Omit,
+	}
 	fields := schema.Fields{
-		"constraints_by_type": schema.StringMap(schema.Any()),
+		"constraints_by_type": schema.FieldMap(matchFields, matchDefaults),
 	}
 	checker := schema.FieldMap(fields, nil) // no defaults
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
 		return empty, WrapWithDeserializationError(err, "allocation constraints response schema check failed")
 	}
-	constraintsMap := coerced.(map[string]interface{})["constraints_by_type"]
-	fields = schema.Fields{
-		"storage":    schema.StringMap(schema.ForceInt()),
-		"interfaces": schema.StringMap(schema.ForceInt()),
-	}
-	defaults := schema.Defaults{
-		"storage":    schema.Omit,
-		"interfaces": schema.Omit,
-	}
-	checker = schema.FieldMap(fields, defaults)
-	coerced, err = checker.Coerce(constraintsMap, nil)
-	if err != nil {
-		return empty, WrapWithDeserializationError(err, "allocation constraints response schema check failed")
-	}
 	valid := coerced.(map[string]interface{})
+	constraintsMap := valid["constraints_by_type"].(map[string]interface{})
 	result := ConstraintMatches{
 		// TODO: make storage map
 		Interfaces: make(map[string]Interface),
 	}
 	// TODO: handle storage when we export block devices.
-	if interfaceMatches, found := valid["interfaces"]; found {
+	if interfaceMatches, found := constraintsMap["interfaces"]; found {
 		for label, value := range interfaceMatches.(map[string]interface{}) {
 			id := value.(int)
 			iface := machine.Interface(id)
