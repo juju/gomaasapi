@@ -123,7 +123,8 @@ func (d *device) CreateInterface(args CreateInterfaceArgs) (Interface, error) {
 		return nil, errors.Trace(err)
 	}
 
-	//	m.interfaceSet = append(m.interfaceSet, iface)
+	// TODO: add to the interfaces for the device when the interfaces are returned.
+	// lp:bug 1567213.
 	return iface, nil
 }
 
