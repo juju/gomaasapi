@@ -39,7 +39,7 @@ var _ = gc.Suite(&controllerSuite{})
 
 func (s *controllerSuite) SetUpTest(c *gc.C) {
 	s.LoggingCleanupSuite.SetUpTest(c)
-	loggo.GetLogger("").SetLogLevel(loggo.DEBUG)
+	loggo.GetLogger("").SetLogLevel(loggo.TRACE)
 
 	server := NewSimpleServer()
 	server.AddGetResponse("/api/2.0/boot-resources/", http.StatusOK, bootResourcesResponse)
@@ -264,16 +264,27 @@ func (s *controllerSuite) TestMachinesArgs(c *gc.C) {
 	c.Assert(request.URL.Query(), gc.HasLen, 6)
 }
 
+func (s *controllerSuite) addAllocateReponse(c *gc.C, status int, interfaceMatches map[string]int) {
+	constraints := make(map[string]interface{})
+	if interfaceMatches != nil {
+		constraints["interfaces"] = interfaceMatches
+	}
+	allocateJSON := updateJSONMap(c, machineResponse, map[string]interface{}{
+		"constraints_by_type": constraints,
+	})
+	s.server.AddPostResponse("/api/2.0/machines/?op=allocate", status, allocateJSON)
+}
+
 func (s *controllerSuite) TestAllocateMachine(c *gc.C) {
-	s.server.AddPostResponse("/api/2.0/machines/?op=allocate", http.StatusOK, machineResponse)
+	s.addAllocateReponse(c, http.StatusOK, nil)
 	controller := s.getController(c)
-	machine, err := controller.AllocateMachine(AllocateMachineArgs{})
+	machine, _, err := controller.AllocateMachine(AllocateMachineArgs{})
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(machine.SystemID(), gc.Equals, "4y3ha3")
 }
 
 func (s *controllerSuite) TestAllocateMachineArgs(c *gc.C) {
-	s.server.AddPostResponse("/api/2.0/machines/?op=allocate", http.StatusOK, machineResponse)
+	s.addAllocateReponse(c, http.StatusOK, nil)
 	controller := s.getController(c)
 	// Create an arg structure that sets all the values.
 	args := AllocateMachineArgs{
@@ -283,15 +294,15 @@ func (s *controllerSuite) TestAllocateMachineArgs(c *gc.C) {
 		MinMemory:    20000,
 		Tags:         []string{"good"},
 		NotTags:      []string{"bad"},
-		Networks:     []string{"fast"},
-		NotNetworks:  []string{"slow"},
+		Storage:      "root:200(ssd)",
+		Interfaces:   "default:vid=1;db:space=magic",
 		Zone:         "magic",
 		NotInZone:    []string{"not-magic"},
 		AgentName:    "agent 42",
 		Comment:      "testing",
 		DryRun:       true,
 	}
-	_, err := controller.AllocateMachine(args)
+	_, _, err := controller.AllocateMachine(args)
 	c.Assert(err, jc.ErrorIsNil)
 
 	request := s.server.LastRequest()
@@ -302,14 +313,14 @@ func (s *controllerSuite) TestAllocateMachineArgs(c *gc.C) {
 func (s *controllerSuite) TestAllocateMachineNoMatch(c *gc.C) {
 	s.server.AddPostResponse("/api/2.0/machines/?op=allocate", http.StatusConflict, "boo")
 	controller := s.getController(c)
-	_, err := controller.AllocateMachine(AllocateMachineArgs{})
+	_, _, err := controller.AllocateMachine(AllocateMachineArgs{})
 	c.Assert(err, jc.Satisfies, IsNoMatchError)
 }
 
 func (s *controllerSuite) TestAllocateMachineUnexpected(c *gc.C) {
 	s.server.AddPostResponse("/api/2.0/machines/?op=allocate", http.StatusBadRequest, "boo")
 	controller := s.getController(c)
-	_, err := controller.AllocateMachine(AllocateMachineArgs{})
+	_, _, err := controller.AllocateMachine(AllocateMachineArgs{})
 	c.Assert(err, jc.Satisfies, IsUnexpectedError)
 }
 

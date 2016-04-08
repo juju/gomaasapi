@@ -286,26 +286,56 @@ type AllocateMachineArgs struct {
 	MinMemory int
 	Tags      []string
 	NotTags   []string
-	// Networks - list of networks (defined in MAAS) to which the machine must be
-	// attached. A network can be identified by the name assigned to it in MAAS;
-	// or by an ip: prefix followed by any IP address that falls within the
-	// network; or a vlan: prefix followed by a numeric VLAN tag, e.g. vlan:23
-	// for VLAN number 23. Valid VLAN tags must be in the range of 1 to 4094
-	// inclusive.
-	Networks    []string
-	NotNetworks []string
-	Zone        string
-	NotInZone   []string
-	AgentName   string
-	Comment     string
-	DryRun      bool
+	Zone      string
+	NotInZone []string
+	// Storage is an optional value listing one or more storage constraints.
+	// Format is an optional label, followed by an optional colon, then size
+	// (which is mandatory) followed by an optional comma seperated list of tags
+	// in parentheses.
+	//
+	//   Examples:
+	//
+	//   200(ssd,removable),400(ssd),300
+	//   - 200GB disk with ssd and removable tag
+	//   - 400GB disk with ssd tag
+	//   - 300GB disk
+	//
+	//  root:80(ssd),data:400
+	//  - 80+GB disk with ssd tag, name the constraint "root"
+	//  - 400+GB disk, name the consrtaint "data"
+	Storage string
+	// Interfaces is an optional value listing one or more interface constraints.
+	// Format of the string is semi-colon delimited labelled constraints. Each
+	// labelled constraint has the format:
+	//   <label>:<key>=<value>[,<key2>=<value2>[,...]]'
+	// The label is used in the ConstraintMatch structure returned from
+	// AllocateMachine. Valid keys are:
+	//     'space', 'not_space', 'fabric_class', 'not_fabric_class',
+	//     'subnet_cidr', 'not_subnet_cidr', 'vid', 'not_vid',
+	//     'fabric', 'not_fabric', 'subnet', 'not_subnet', 'mode'
+	Interfaces string
+	AgentName  string
+	Comment    string
+	DryRun     bool
+}
+
+// ConstraintMatches provides a way for the caller of AllocateMachine to determine
+//.how the allocated machine matched the storage and interfaces constraints specified.
+// The labels that were used in the constraints are the keys in the maps.
+type ConstraintMatches struct {
+	// Storage matches will come when we support interfaces for the block devices.
+
+	// Interface is a mapping of the constraint label specified to the Interface
+	// that matches that constraint.
+	Interfaces map[string]Interface
 }
 
 // AllocateMachine implements Controller.
 //
 // Returns an error that satisfies IsNoMatchError if the requested
 // constraints cannot be met.
-func (c *controller) AllocateMachine(args AllocateMachineArgs) (Machine, error) {
+func (c *controller) AllocateMachine(args AllocateMachineArgs) (Machine, ConstraintMatches, error) {
+	var matches ConstraintMatches
 	params := NewURLParams()
 	params.MaybeAdd("name", args.Hostname)
 	params.MaybeAdd("arch", args.Architecture)
@@ -313,8 +343,8 @@ func (c *controller) AllocateMachine(args AllocateMachineArgs) (Machine, error) 
 	params.MaybeAddInt("mem", args.MinMemory)
 	params.MaybeAddMany("tags", args.Tags)
 	params.MaybeAddMany("not_tags", args.NotTags)
-	params.MaybeAddMany("networks", args.Networks)
-	params.MaybeAddMany("not_networks", args.NotNetworks)
+	params.MaybeAdd("storage", args.Storage)
+	params.MaybeAdd("interfaces", args.Interfaces)
 	params.MaybeAdd("zone", args.Zone)
 	params.MaybeAddMany("not_in_zone", args.NotInZone)
 	params.MaybeAdd("agent_name", args.AgentName)
@@ -325,19 +355,26 @@ func (c *controller) AllocateMachine(args AllocateMachineArgs) (Machine, error) 
 		// A 409 Status code is "No Matching Machines"
 		if svrErr, ok := errors.Cause(err).(ServerError); ok {
 			if svrErr.StatusCode == http.StatusConflict {
-				return nil, errors.Wrap(err, NewNoMatchError(svrErr.BodyMessage))
+				return nil, matches, errors.Wrap(err, NewNoMatchError(svrErr.BodyMessage))
 			}
 		}
 		// Translate http errors.
-		return nil, NewUnexpectedError(err)
+		return nil, matches, NewUnexpectedError(err)
 	}
 
 	machine, err := readMachine(c.apiVersion, result)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, matches, errors.Trace(err)
 	}
 	machine.controller = c
-	return machine, nil
+
+	// Parse the constraint matches.
+	matches, err = parseAllocateConstraintsResponse(result, machine)
+	if err != nil {
+		return nil, matches, errors.Trace(err)
+	}
+
+	return machine, matches, nil
 }
 
 // ReleaseMachinesArgs is an argument struct for passing the machine system IDs
@@ -617,4 +654,48 @@ func (c *controller) readAPIVersion(apiVersion version.Number) (set.Strings, ver
 	}
 
 	return capabilities, apiVersion, nil
+}
+
+func parseAllocateConstraintsResponse(source interface{}, machine *machine) (ConstraintMatches, error) {
+	var empty ConstraintMatches
+	// Do the schema check in two passes.
+	fields := schema.Fields{
+		"constraints_by_type": schema.StringMap(schema.Any()),
+	}
+	checker := schema.FieldMap(fields, nil) // no defaults
+	coerced, err := checker.Coerce(source, nil)
+	if err != nil {
+		return empty, WrapWithDeserializationError(err, "allocation constraints response schema check failed")
+	}
+	constraintsMap := coerced.(map[string]interface{})["constraints_by_type"]
+	fields = schema.Fields{
+		"storage":    schema.StringMap(schema.ForceInt()),
+		"interfaces": schema.StringMap(schema.ForceInt()),
+	}
+	defaults := schema.Defaults{
+		"storage":    schema.Omit,
+		"interfaces": schema.Omit,
+	}
+	checker = schema.FieldMap(fields, defaults)
+	coerced, err = checker.Coerce(constraintsMap, nil)
+	if err != nil {
+		return empty, WrapWithDeserializationError(err, "allocation constraints response schema check failed")
+	}
+	valid := coerced.(map[string]interface{})
+	result := ConstraintMatches{
+		// TODO: make storage map
+		Interfaces: make(map[string]Interface),
+	}
+	// TODO: handle storage when we export block devices.
+	if interfaceMatches, found := valid["interfaces"]; found {
+		for label, value := range interfaceMatches.(map[string]interface{}) {
+			id := int(value.(int64))
+			iface := machine.Interface(id)
+			if iface == nil {
+				return empty, NewDeserializationError("constraint match interface %q: %d does not match an interface for the machine", label, id)
+			}
+			result.Interfaces[label] = iface
+		}
+	}
+	return result, nil
 }
