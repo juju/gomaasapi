@@ -60,20 +60,20 @@ func (f *fakeVLAN) ID() int {
 	return f.id
 }
 
-func (s *controllerSuite) TestCreatePhysicalInterfaceArgsValidate(c *gc.C) {
+func (s *controllerSuite) TestCreateInterfaceArgsValidate(c *gc.C) {
 	for i, test := range []struct {
-		args    CreatePhysicalInterfaceArgs
+		args    CreateInterfaceArgs
 		errText string
 	}{{
 		errText: "missing Name not valid",
 	}, {
-		args:    CreatePhysicalInterfaceArgs{Name: "eth3"},
+		args:    CreateInterfaceArgs{Name: "eth3"},
 		errText: "missing MACAddress not valid",
 	}, {
-		args:    CreatePhysicalInterfaceArgs{Name: "eth3", MACAddress: "a-mac-address"},
+		args:    CreateInterfaceArgs{Name: "eth3", MACAddress: "a-mac-address"},
 		errText: `missing VLAN not valid`,
 	}, {
-		args: CreatePhysicalInterfaceArgs{Name: "eth3", MACAddress: "a-mac-address", VLAN: &fakeVLAN{}},
+		args: CreateInterfaceArgs{Name: "eth3", MACAddress: "a-mac-address", VLAN: &fakeVLAN{}},
 	}} {
 		c.Logf("test %d", i)
 		err := test.args.Validate()
@@ -86,17 +86,17 @@ func (s *controllerSuite) TestCreatePhysicalInterfaceArgsValidate(c *gc.C) {
 	}
 }
 
-func (s *deviceSuite) TestCreatePhysicalInterfaceValidates(c *gc.C) {
+func (s *deviceSuite) TestCreateInterfaceValidates(c *gc.C) {
 	_, device := s.getServerAndDevice(c)
-	_, err := device.CreatePhysicalInterface(CreatePhysicalInterfaceArgs{})
+	_, err := device.CreateInterface(CreateInterfaceArgs{})
 	c.Assert(err, jc.Satisfies, errors.IsNotValid)
 }
 
-func (s *deviceSuite) TestCreatePhysicalInterface(c *gc.C) {
+func (s *deviceSuite) TestCreateInterface(c *gc.C) {
 	server, device := s.getServerAndDevice(c)
 	server.AddPostResponse(device.interfacesURI()+"?op=create_physical", http.StatusOK, interfaceResponse)
 
-	iface, err := device.CreatePhysicalInterface(CreatePhysicalInterfaceArgs{
+	iface, err := device.CreateInterface(CreateInterfaceArgs{
 		Name:       "eth43",
 		MACAddress: "some-mac-address",
 		VLAN:       &fakeVLAN{id: 33},
@@ -113,50 +113,50 @@ func (s *deviceSuite) TestCreatePhysicalInterface(c *gc.C) {
 	c.Assert(form.Get("tags"), gc.Equals, "foo,bar")
 }
 
-func (s *deviceSuite) minimalCreatePhysicalInterfaceArgs() CreatePhysicalInterfaceArgs {
-	return CreatePhysicalInterfaceArgs{
+func (s *deviceSuite) minimalCreateInterfaceArgs() CreateInterfaceArgs {
+	return CreateInterfaceArgs{
 		Name:       "eth43",
 		MACAddress: "some-mac-address",
 		VLAN:       &fakeVLAN{id: 33},
 	}
 }
 
-func (s *deviceSuite) TestCreatePhysicalInterfaceNotFound(c *gc.C) {
+func (s *deviceSuite) TestCreateInterfaceNotFound(c *gc.C) {
 	server, device := s.getServerAndDevice(c)
 	server.AddPostResponse(device.interfacesURI()+"?op=create_physical", http.StatusNotFound, "can't find device")
-	_, err := device.CreatePhysicalInterface(s.minimalCreatePhysicalInterfaceArgs())
+	_, err := device.CreateInterface(s.minimalCreateInterfaceArgs())
 	c.Assert(err, jc.Satisfies, IsBadRequestError)
 	c.Assert(err.Error(), gc.Equals, "can't find device")
 }
 
-func (s *deviceSuite) TestCreatePhysicalInterfaceConflict(c *gc.C) {
+func (s *deviceSuite) TestCreateInterfaceConflict(c *gc.C) {
 	server, device := s.getServerAndDevice(c)
 	server.AddPostResponse(device.interfacesURI()+"?op=create_physical", http.StatusConflict, "device not allocated")
-	_, err := device.CreatePhysicalInterface(s.minimalCreatePhysicalInterfaceArgs())
+	_, err := device.CreateInterface(s.minimalCreateInterfaceArgs())
 	c.Assert(err, jc.Satisfies, IsBadRequestError)
 	c.Assert(err.Error(), gc.Equals, "device not allocated")
 }
 
-func (s *deviceSuite) TestCreatePhysicalInterfaceForbidden(c *gc.C) {
+func (s *deviceSuite) TestCreateInterfaceForbidden(c *gc.C) {
 	server, device := s.getServerAndDevice(c)
 	server.AddPostResponse(device.interfacesURI()+"?op=create_physical", http.StatusForbidden, "device not yours")
-	_, err := device.CreatePhysicalInterface(s.minimalCreatePhysicalInterfaceArgs())
+	_, err := device.CreateInterface(s.minimalCreateInterfaceArgs())
 	c.Assert(err, jc.Satisfies, IsPermissionError)
 	c.Assert(err.Error(), gc.Equals, "device not yours")
 }
 
-func (s *deviceSuite) TestCreatePhysicalInterfaceServiceUnavailable(c *gc.C) {
+func (s *deviceSuite) TestCreateInterfaceServiceUnavailable(c *gc.C) {
 	server, device := s.getServerAndDevice(c)
 	server.AddPostResponse(device.interfacesURI()+"?op=create_physical", http.StatusServiceUnavailable, "no ip addresses available")
-	_, err := device.CreatePhysicalInterface(s.minimalCreatePhysicalInterfaceArgs())
+	_, err := device.CreateInterface(s.minimalCreateInterfaceArgs())
 	c.Assert(err, jc.Satisfies, IsCannotCompleteError)
 	c.Assert(err.Error(), gc.Equals, "no ip addresses available")
 }
 
-func (s *deviceSuite) TestCreatePhysicalInterfaceUnknown(c *gc.C) {
+func (s *deviceSuite) TestCreateInterfaceUnknown(c *gc.C) {
 	server, device := s.getServerAndDevice(c)
 	server.AddPostResponse(device.interfacesURI()+"?op=create_physical", http.StatusMethodNotAllowed, "wat?")
-	_, err := device.CreatePhysicalInterface(s.minimalCreatePhysicalInterfaceArgs())
+	_, err := device.CreateInterface(s.minimalCreateInterfaceArgs())
 	c.Assert(err, jc.Satisfies, IsUnexpectedError)
 	c.Assert(err.Error(), gc.Equals, "unexpected: ServerError: 405 Method Not Allowed (wat?)")
 }

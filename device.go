@@ -51,9 +51,9 @@ func (d *device) Zone() Zone {
 	return d.zone
 }
 
-// CreatePhysicalInterfaceArgs is an argument struct for passing parameters to
-// the Machine.CreatePhysicalInterface method.
-type CreatePhysicalInterfaceArgs struct {
+// CreateInterfaceArgs is an argument struct for passing parameters to
+// the Machine.CreateInterface method.
+type CreateInterfaceArgs struct {
 	// Name of the interface (required).
 	Name string
 	// MACAddress is the MAC address of the interface (required).
@@ -71,7 +71,7 @@ type CreatePhysicalInterfaceArgs struct {
 }
 
 // Validate checks the required fields are set for the arg structure.
-func (a *CreatePhysicalInterfaceArgs) Validate() error {
+func (a *CreateInterfaceArgs) Validate() error {
 	if a.Name == "" {
 		return errors.NotValidf("missing Name")
 	}
@@ -90,8 +90,8 @@ func (d *device) interfacesURI() string {
 	return strings.Replace(d.resourceURI, "devices", "nodes", 1) + "interfaces/"
 }
 
-// CreatePhysicalInterface implements Device.
-func (d *device) CreatePhysicalInterface(args CreatePhysicalInterfaceArgs) (Interface, error) {
+// CreateInterface implements Device.
+func (d *device) CreateInterface(args CreateInterfaceArgs) (Interface, error) {
 	if err := args.Validate(); err != nil {
 		return nil, errors.Trace(err)
 	}

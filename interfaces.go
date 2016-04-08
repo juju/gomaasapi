@@ -160,8 +160,8 @@ type Device interface {
 
 	// Parent, Owner, MAC Addresses if needed
 
-	// CreatePhysicalInterface will create a physical interface for this machine.
-	CreatePhysicalInterface(CreatePhysicalInterfaceArgs) (Interface, error)
+	// CreateInterface will create a physical interface for this machine.
+	CreateInterface(CreateInterfaceArgs) (Interface, error)
 
 	// Delete will remove this Device.
 	Delete() error
