@@ -92,6 +92,7 @@ func link_2_0(source map[string]interface{}) (*link, error) {
 	}
 	defaults := schema.Defaults{
 		"ip_address": "",
+		"subnet":     schema.Omit,
 	}
 	checker := schema.FieldMap(fields, defaults)
 	coerced, err := checker.Coerce(source, nil)
@@ -102,9 +103,12 @@ func link_2_0(source map[string]interface{}) (*link, error) {
 	// From here we know that the map returned from the schema coercion
 	// contains fields of the right type.
 
-	subnet, err := subnet_2_0(valid["subnet"].(map[string]interface{}))
-	if err != nil {
-		return nil, errors.Trace(err)
+	var subnet *subnet
+	if value, ok := valid["subnet"]; ok {
+		subnet, err = subnet_2_0(value.(map[string]interface{}))
+		if err != nil {
+			return nil, errors.Trace(err)
+		}
 	}
 
 	result := &link{

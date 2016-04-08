@@ -14,7 +14,7 @@ import (
 )
 
 type machineSuite struct {
-	testing.CleanupSuite
+	testing.LoggingCleanupSuite
 }
 
 var _ = gc.Suite(&machineSuite{})
@@ -76,9 +76,7 @@ func (*machineSuite) TestHighVersion(c *gc.C) {
 	c.Assert(machines, gc.HasLen, 3)
 }
 
-// Since the start method uses controller pieces, we get the machine from
-// the controller.
-func (s *machineSuite) startSetup(c *gc.C) (*SimpleTestServer, *machine) {
+func (s *machineSuite) getServerAndMachine(c *gc.C) (*SimpleTestServer, *machine) {
 	server, controller := createTestServerController(c, s)
 	// Just have machines return one machine
 	server.AddGetResponse("/api/2.0/machines/", http.StatusOK, "["+machineResponse+"]")
@@ -90,7 +88,7 @@ func (s *machineSuite) startSetup(c *gc.C) (*SimpleTestServer, *machine) {
 }
 
 func (s *machineSuite) TestStart(c *gc.C) {
-	server, machine := s.startSetup(c)
+	server, machine := s.getServerAndMachine(c)
 	response := updateJSONMap(c, machineResponse, map[string]interface{}{
 		"status_name":    "Deploying",
 		"status_message": "for testing",
@@ -118,7 +116,7 @@ func (s *machineSuite) TestStart(c *gc.C) {
 }
 
 func (s *machineSuite) TestStartMachineNotFound(c *gc.C) {
-	server, machine := s.startSetup(c)
+	server, machine := s.getServerAndMachine(c)
 	server.AddPostResponse(machine.resourceURI+"?op=deploy", http.StatusNotFound, "can't find machine")
 	err := machine.Start(StartArgs{})
 	c.Assert(err, jc.Satisfies, IsBadRequestError)
@@ -126,7 +124,7 @@ func (s *machineSuite) TestStartMachineNotFound(c *gc.C) {
 }
 
 func (s *machineSuite) TestStartMachineConflict(c *gc.C) {
-	server, machine := s.startSetup(c)
+	server, machine := s.getServerAndMachine(c)
 	server.AddPostResponse(machine.resourceURI+"?op=deploy", http.StatusConflict, "machine not allocated")
 	err := machine.Start(StartArgs{})
 	c.Assert(err, jc.Satisfies, IsBadRequestError)
@@ -134,7 +132,7 @@ func (s *machineSuite) TestStartMachineConflict(c *gc.C) {
 }
 
 func (s *machineSuite) TestStartMachineForbidden(c *gc.C) {
-	server, machine := s.startSetup(c)
+	server, machine := s.getServerAndMachine(c)
 	server.AddPostResponse(machine.resourceURI+"?op=deploy", http.StatusForbidden, "machine not yours")
 	err := machine.Start(StartArgs{})
 	c.Assert(err, jc.Satisfies, IsPermissionError)
@@ -142,7 +140,7 @@ func (s *machineSuite) TestStartMachineForbidden(c *gc.C) {
 }
 
 func (s *machineSuite) TestStartMachineServiceUnavailable(c *gc.C) {
-	server, machine := s.startSetup(c)
+	server, machine := s.getServerAndMachine(c)
 	server.AddPostResponse(machine.resourceURI+"?op=deploy", http.StatusServiceUnavailable, "no ip addresses available")
 	err := machine.Start(StartArgs{})
 	c.Assert(err, jc.Satisfies, IsCannotCompleteError)
@@ -150,7 +148,7 @@ func (s *machineSuite) TestStartMachineServiceUnavailable(c *gc.C) {
 }
 
 func (s *machineSuite) TestStartMachineUnknown(c *gc.C) {
-	server, machine := s.startSetup(c)
+	server, machine := s.getServerAndMachine(c)
 	server.AddPostResponse(machine.resourceURI+"?op=deploy", http.StatusMethodNotAllowed, "wat?")
 	err := machine.Start(StartArgs{})
 	c.Assert(err, jc.Satisfies, IsUnexpectedError)

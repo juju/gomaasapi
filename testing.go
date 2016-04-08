@@ -114,14 +114,17 @@ func NewSimpleServer() *SimpleTestServer {
 }
 
 func (s *SimpleTestServer) AddGetResponse(path string, status int, body string) {
+	logger.Debugf("add get response for: %s, %d", path, status)
 	s.getResponses[path] = append(s.getResponses[path], simpleResponse{status: status, body: body})
 }
 
 func (s *SimpleTestServer) AddPostResponse(path string, status int, body string) {
+	logger.Debugf("add post response for: %s, %d", path, status)
 	s.postResponses[path] = append(s.postResponses[path], simpleResponse{status: status, body: body})
 }
 
 func (s *SimpleTestServer) AddDeleteResponse(path string, status int, body string) {
+	logger.Debugf("add delete response for: %s, %d", path, status)
 	s.deleteResponses[path] = append(s.deleteResponses[path], simpleResponse{status: status, body: body})
 }
 

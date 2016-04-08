@@ -4,7 +4,9 @@
 package gomaasapi
 
 import (
+	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/juju/errors"
 	"github.com/juju/schema"
@@ -47,6 +49,83 @@ func (d *device) IPAddresses() []string {
 // Zone implements Device.
 func (d *device) Zone() Zone {
 	return d.zone
+}
+
+// CreateInterfaceArgs is an argument struct for passing parameters to
+// the Machine.CreateInterface method.
+type CreateInterfaceArgs struct {
+	// Name of the interface (required).
+	Name string
+	// MACAddress is the MAC address of the interface (required).
+	MACAddress string
+	// VLAN is the untagged VLAN the interface is connected to (required).
+	VLAN VLAN
+	// Tags to attach to the interface (optional).
+	Tags []string
+	// MTU - Maximum transmission unit. (optional)
+	MTU int
+	// AcceptRA - Accept router advertisements. (IPv6 only)
+	AcceptRA bool
+	// Autoconf - Perform stateless autoconfiguration. (IPv6 only)
+	Autoconf bool
+}
+
+// Validate checks the required fields are set for the arg structure.
+func (a *CreateInterfaceArgs) Validate() error {
+	if a.Name == "" {
+		return errors.NotValidf("missing Name")
+	}
+	if a.MACAddress == "" {
+		return errors.NotValidf("missing MACAddress")
+	}
+	if a.VLAN == nil {
+		return errors.NotValidf("missing VLAN")
+	}
+	return nil
+}
+
+// interfacesURI used to add interfaces for this device. The operations
+// are on the nodes endpoint, not devices.
+func (d *device) interfacesURI() string {
+	return strings.Replace(d.resourceURI, "devices", "nodes", 1) + "interfaces/"
+}
+
+// CreateInterface implements Device.
+func (d *device) CreateInterface(args CreateInterfaceArgs) (Interface, error) {
+	if err := args.Validate(); err != nil {
+		return nil, errors.Trace(err)
+	}
+	params := NewURLParams()
+	params.Values.Add("name", args.Name)
+	params.Values.Add("mac_address", args.MACAddress)
+	params.Values.Add("vlan", fmt.Sprint(args.VLAN.ID()))
+	params.MaybeAdd("tags", strings.Join(args.Tags, ","))
+	params.MaybeAddInt("mtu", args.MTU)
+	params.MaybeAddBool("accept_ra", args.AcceptRA)
+	params.MaybeAddBool("autoconf", args.Autoconf)
+	result, err := d.controller.post(d.interfacesURI(), "create_physical", params.Values)
+	if err != nil {
+		if svrErr, ok := errors.Cause(err).(ServerError); ok {
+			switch svrErr.StatusCode {
+			case http.StatusNotFound, http.StatusConflict:
+				return nil, errors.Wrap(err, NewBadRequestError(svrErr.BodyMessage))
+			case http.StatusForbidden:
+				return nil, errors.Wrap(err, NewPermissionError(svrErr.BodyMessage))
+			case http.StatusServiceUnavailable:
+				return nil, errors.Wrap(err, NewCannotCompleteError(svrErr.BodyMessage))
+			}
+		}
+		return nil, NewUnexpectedError(err)
+	}
+
+	iface, err := readInterface(d.controller.apiVersion, result)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+
+	// TODO: add to the interfaces for the device when the interfaces are returned.
+	// lp:bug 1567213.
+	return iface, nil
 }
 
 // Delete implements Device.

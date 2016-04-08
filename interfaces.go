@@ -160,6 +160,9 @@ type Device interface {
 
 	// Parent, Owner, MAC Addresses if needed
 
+	// CreateInterface will create a physical interface for this machine.
+	CreateInterface(CreateInterfaceArgs) (Interface, error)
+
 	// Delete will remove this Device.
 	Delete() error
 }
@@ -194,6 +197,7 @@ type Machine interface {
 
 	Zone() Zone
 
+	// Start the machine and install the operating system specified in the args.
 	Start(StartArgs) error
 }
 
@@ -240,9 +244,9 @@ type Interface interface {
 
 	MACAddress() string
 	EffectiveMTU() int
-	Params() string
 
-	// Need to work out types for children, discovered, parents
+	// Params is a JSON field, and defaults to an empty string, but is almost
+	// always a JSON object in practice. Gleefully ignoring it until we need it.
 }
 
 // Link represents a network link between an Interface and a Subnet.
