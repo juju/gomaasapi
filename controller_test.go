@@ -283,6 +283,35 @@ func (s *controllerSuite) TestAllocateMachine(c *gc.C) {
 	c.Assert(machine.SystemID(), gc.Equals, "4y3ha3")
 }
 
+func (s *controllerSuite) TestAllocateMachineInterfacesMatch(c *gc.C) {
+	s.addAllocateReponse(c, http.StatusOK, map[string]int{
+		"database": 35,
+	})
+	controller := s.getController(c)
+	_, match, err := controller.AllocateMachine(AllocateMachineArgs{
+		// This isn't actually used, but here to show how it should be used.
+		Interfaces: "database:space=space-0",
+	})
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(match.Interfaces, gc.HasLen, 1)
+	iface := match.Interfaces["database"]
+	c.Assert(iface.ID(), gc.Equals, 35)
+}
+
+func (s *controllerSuite) TestAllocateMachineInterfacesMatchMissing(c *gc.C) {
+	// This should never happen, but if it does it is a clear indication of a
+	// bug somewhere.
+	s.addAllocateReponse(c, http.StatusOK, map[string]int{
+		"database": 40,
+	})
+	controller := s.getController(c)
+	_, _, err := controller.AllocateMachine(AllocateMachineArgs{
+		// This isn't actually used, but here to show how it should be used.
+		Interfaces: "database:space=space-0",
+	})
+	c.Assert(err, jc.Satisfies, IsDeserializationError)
+}
+
 func (s *controllerSuite) TestAllocateMachineArgs(c *gc.C) {
 	s.addAllocateReponse(c, http.StatusOK, nil)
 	controller := s.getController(c)

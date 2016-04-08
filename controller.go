@@ -689,7 +689,7 @@ func parseAllocateConstraintsResponse(source interface{}, machine *machine) (Con
 	// TODO: handle storage when we export block devices.
 	if interfaceMatches, found := valid["interfaces"]; found {
 		for label, value := range interfaceMatches.(map[string]interface{}) {
-			id := int(value.(int64))
+			id := value.(int)
 			iface := machine.Interface(id)
 			if iface == nil {
 				return empty, NewDeserializationError("constraint match interface %q: %d does not match an interface for the machine", label, id)
