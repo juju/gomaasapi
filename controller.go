@@ -5,11 +5,13 @@ package gomaasapi
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"path"
+	"strings"
 	"sync/atomic"
 
 	"github.com/juju/errors"
@@ -277,6 +279,106 @@ func (c *controller) Machines(args MachinesArgs) ([]Machine, error) {
 	return result, nil
 }
 
+// StorageSpec represents one element of storage constraints necessary
+// to be satisfied to allocate a machine.
+type StorageSpec struct {
+	// Label is optional and an arbitrary string.
+	// Labels need to be unique across the StorageSpec elements specified
+	// in the AllcoateMachineArgs.
+	Label string
+	// Size is required and refers to the required minimum size in GB.
+	Size int
+	// Zero or more tags assocated to with the disks.
+	Tags []string
+}
+
+// Validate ensures that there is a positive size and that there are no Empty
+// tag values.
+func (s *StorageSpec) Validate() error {
+	if s.Size <= 0 {
+		return errors.NotValidf("Size value %d", s.Size)
+	}
+	for _, v := range s.Tags {
+		if v == "" {
+			return errors.NotValidf("empty tag")
+		}
+	}
+	return nil
+}
+
+// String returns the string representation of the storage spec.
+func (s *StorageSpec) String() string {
+	label := s.Label
+	if label != "" {
+		label += ":"
+	}
+	tags := strings.Join(s.Tags, ",")
+	if tags != "" {
+		tags = "(" + tags + ")"
+	}
+	return fmt.Sprintf("%s%d%s", label, s.Size, tags)
+}
+
+// InterfaceSpec represents one elemenet of network related constraints.
+type InterfaceSpec struct {
+	// Label is required and an arbitrary string. Labels need to be unique
+	// across the InterfaceSpec elements specified in the AllcoateMachineArgs.
+	// The label is returned in the ConstraintMatches response from
+	// AllocateMachine.
+	Label    string
+	Space    []string
+	NotSpace []string
+
+	// NOTE: there are other interface spec values that we are not exposing at
+	// this stage that can be added on an as needed basis. Other possible values are:
+	//     'fabric_class', 'not_fabric_class',
+	//     'subnet_cidr', 'not_subnet_cidr',
+	//     'vid', 'not_vid',
+	//     'fabric', 'not_fabric',
+	//     'subnet', 'not_subnet',
+	//     'mode'
+}
+
+// Validate ensures that a Label is specified and that there is at least one
+// Space or NotSpace value set.
+func (a *InterfaceSpec) Validate() error {
+	if a.Label == "" {
+		return errors.NotValidf("missing Label")
+	}
+	// Empty strings are not valid.
+	// At least one value must be set.
+	values := 0
+	for _, v := range a.Space {
+		if v == "" {
+			return errors.NotValidf("empty Space constraint")
+		}
+		values++
+	}
+	for _, v := range a.NotSpace {
+		if v == "" {
+			return errors.NotValidf("empty NotSpace constraint")
+		}
+		values++
+	}
+	if values == 0 {
+		return errors.NotValidf("missing constraints")
+	}
+
+	return nil
+}
+
+// String returns the interface spec as MaaS requires it.
+func (a *InterfaceSpec) String() string {
+	var values []string
+	for _, v := range a.Space {
+		values = append(values, "space="+v)
+	}
+	for _, v := range a.NotSpace {
+		values = append(values, "not_space="+v)
+	}
+	return fmt.Sprintf("%s:%s", a.Label, strings.Join(values, ","))
+}
+
 // AllocateMachineArgs is an argument struct for passing args into Machine.Allocate.
 type AllocateMachineArgs struct {
 	Hostname     string
@@ -288,35 +390,59 @@ type AllocateMachineArgs struct {
 	NotTags   []string
 	Zone      string
 	NotInZone []string
-	// Storage is an optional value listing one or more storage constraints.
-	// Format is an optional label, followed by an optional colon, then size
-	// (which is mandatory) followed by an optional comma seperated list of tags
-	// in parentheses.
-	//
-	//   Examples:
-	//
-	//   200(ssd,removable),400(ssd),300
-	//   - 200GB disk with ssd and removable tag
-	//   - 400GB disk with ssd tag
-	//   - 300GB disk
-	//
-	//  root:80(ssd),data:400
-	//  - 80+GB disk with ssd tag, name the constraint "root"
-	//  - 400+GB disk, name the consrtaint "data"
-	Storage string
-	// Interfaces is an optional value listing one or more interface constraints.
-	// Format of the string is semi-colon delimited labelled constraints. Each
-	// labelled constraint has the format:
-	//   <label>:<key>=<value>[,<key2>=<value2>[,...]]'
-	// The label is used in the ConstraintMatch structure returned from
-	// AllocateMachine. Valid keys are:
-	//     'space', 'not_space', 'fabric_class', 'not_fabric_class',
-	//     'subnet_cidr', 'not_subnet_cidr', 'vid', 'not_vid',
-	//     'fabric', 'not_fabric', 'subnet', 'not_subnet', 'mode'
-	Interfaces string
+	// Storage represents the required disks on the Machine. If any are specified
+	// the first value is used for the root disk.
+	Storage []StorageSpec
+	// Interfaces represents a number of required interfaces on the machine.
+	// Each InterfaceSpec relates to an individual network interface.
+	Interfaces []InterfaceSpec
 	AgentName  string
 	Comment    string
 	DryRun     bool
+}
+
+// Validate makes sure that any labels specifed in Storage or Interfaces
+// are unique, and that the required specifications are valid.
+func (a *AllocateMachineArgs) Validate() error {
+	storageLabels := set.NewStrings()
+	for _, spec := range a.Storage {
+		if err := spec.Validate(); err != nil {
+			return errors.Annotate(err, "Storage")
+		}
+		if spec.Label != "" {
+			if storageLabels.Contains(spec.Label) {
+				return errors.NotValidf("reusing storage label %q", spec.Label)
+			}
+			storageLabels.Add(spec.Label)
+		}
+	}
+	interfaceLabels := set.NewStrings()
+	for _, spec := range a.Interfaces {
+		if err := spec.Validate(); err != nil {
+			return errors.Annotate(err, "Interfaces")
+		}
+		if interfaceLabels.Contains(spec.Label) {
+			return errors.NotValidf("reusing interface label %q", spec.Label)
+		}
+		interfaceLabels.Add(spec.Label)
+	}
+	return nil
+}
+
+func (a *AllocateMachineArgs) storage() string {
+	var values []string
+	for _, spec := range a.Storage {
+		values = append(values, spec.String())
+	}
+	return strings.Join(values, ",")
+}
+
+func (a *AllocateMachineArgs) interfaces() string {
+	var values []string
+	for _, spec := range a.Interfaces {
+		values = append(values, spec.String())
+	}
+	return strings.Join(values, ";")
 }
 
 // ConstraintMatches provides a way for the caller of AllocateMachine to determine
@@ -343,8 +469,8 @@ func (c *controller) AllocateMachine(args AllocateMachineArgs) (Machine, Constra
 	params.MaybeAddInt("mem", args.MinMemory)
 	params.MaybeAddMany("tags", args.Tags)
 	params.MaybeAddMany("not_tags", args.NotTags)
-	params.MaybeAdd("storage", args.Storage)
-	params.MaybeAdd("interfaces", args.Interfaces)
+	params.MaybeAdd("storage", args.storage())
+	params.MaybeAdd("interfaces", args.interfaces())
 	params.MaybeAdd("zone", args.Zone)
 	params.MaybeAddMany("not_in_zone", args.NotInZone)
 	params.MaybeAdd("agent_name", args.AgentName)

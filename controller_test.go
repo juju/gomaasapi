@@ -264,6 +264,156 @@ func (s *controllerSuite) TestMachinesArgs(c *gc.C) {
 	c.Assert(request.URL.Query(), gc.HasLen, 6)
 }
 
+func (s *controllerSuite) TestStorageSpec(c *gc.C) {
+	for i, test := range []struct {
+		spec StorageSpec
+		err  string
+		repr string
+	}{{
+		spec: StorageSpec{},
+		err:  "Size value 0 not valid",
+	}, {
+		spec: StorageSpec{Size: -10},
+		err:  "Size value -10 not valid",
+	}, {
+		spec: StorageSpec{Size: 200},
+		repr: "200",
+	}, {
+		spec: StorageSpec{Label: "foo", Size: 200},
+		repr: "foo:200",
+	}, {
+		spec: StorageSpec{Size: 200, Tags: []string{"foo", ""}},
+		err:  "empty tag not valid",
+	}, {
+		spec: StorageSpec{Size: 200, Tags: []string{"foo"}},
+		repr: "200(foo)",
+	}, {
+		spec: StorageSpec{Label: "omg", Size: 200, Tags: []string{"foo", "bar"}},
+		repr: "omg:200(foo,bar)",
+	}} {
+		c.Logf("test %d", i)
+		err := test.spec.Validate()
+		if test.err == "" {
+			c.Assert(err, jc.ErrorIsNil)
+			c.Assert(test.spec.String(), gc.Equals, test.repr)
+		} else {
+			c.Assert(err, jc.Satisfies, errors.IsNotValid)
+			c.Assert(err.Error(), gc.Equals, test.err)
+		}
+	}
+}
+
+func (s *controllerSuite) TestInterfaceSpec(c *gc.C) {
+	for i, test := range []struct {
+		spec InterfaceSpec
+		err  string
+		repr string
+	}{{
+		spec: InterfaceSpec{},
+		err:  "missing Label not valid",
+	}, {
+		spec: InterfaceSpec{Label: "foo"},
+		err:  "missing constraints not valid",
+	}, {
+		spec: InterfaceSpec{Label: "foo", Space: []string{""}},
+		err:  "empty Space constraint not valid",
+	}, {
+		spec: InterfaceSpec{Label: "foo", NotSpace: []string{""}},
+		err:  "empty NotSpace constraint not valid",
+	}, {
+		spec: InterfaceSpec{Label: "foo", Space: []string{"magic"}},
+		repr: "foo:space=magic",
+	}, {
+		// NOTE: not entirely sure that specifying more than one space makes sense.
+		spec: InterfaceSpec{Label: "foo", Space: []string{"magic", "home"}},
+		repr: "foo:space=magic,space=home",
+	}, {
+		spec: InterfaceSpec{Label: "foo", NotSpace: []string{"weird"}},
+		repr: "foo:not_space=weird",
+	}, {
+		spec: InterfaceSpec{Label: "foo", NotSpace: []string{"weird", "place"}},
+		repr: "foo:not_space=weird,not_space=place",
+	}, {
+		spec: InterfaceSpec{
+			Label:    "foo",
+			Space:    []string{"magic", "home"},
+			NotSpace: []string{"weird", "place"},
+		},
+		repr: "foo:space=magic,space=home,not_space=weird,not_space=place",
+	}} {
+		c.Logf("test %d", i)
+		err := test.spec.Validate()
+		if test.err == "" {
+			c.Check(err, jc.ErrorIsNil)
+			c.Check(test.spec.String(), gc.Equals, test.repr)
+		} else {
+			c.Check(err, jc.Satisfies, errors.IsNotValid)
+			c.Check(err.Error(), gc.Equals, test.err)
+		}
+	}
+}
+
+func (s *controllerSuite) TestAllocateMachineArgs(c *gc.C) {
+	for i, test := range []struct {
+		args       AllocateMachineArgs
+		err        string
+		storage    string
+		interfaces string
+	}{{
+		args: AllocateMachineArgs{},
+	}, {
+		args: AllocateMachineArgs{
+			Storage: []StorageSpec{{}},
+		},
+		err: "Storage: Size value 0 not valid",
+	}, {
+		args: AllocateMachineArgs{
+			Storage: []StorageSpec{{Size: 200}, {Size: 400, Tags: []string{"ssd"}}},
+		},
+		storage: "200,400(ssd)",
+	}, {
+		args: AllocateMachineArgs{
+			Storage: []StorageSpec{
+				{Label: "foo", Size: 200},
+				{Label: "foo", Size: 400, Tags: []string{"ssd"}},
+			},
+		},
+		err: `reusing storage label "foo" not valid`,
+	}, {
+		args: AllocateMachineArgs{
+			Interfaces: []InterfaceSpec{{}},
+		},
+		err: "Interfaces: missing Label not valid",
+	}, {
+		args: AllocateMachineArgs{
+			Interfaces: []InterfaceSpec{
+				{Label: "foo", Space: []string{"magic"}},
+				{Label: "bar", Space: []string{"other"}},
+			},
+		},
+		interfaces: "foo:space=magic;bar:space=other",
+	}, {
+		args: AllocateMachineArgs{
+			Interfaces: []InterfaceSpec{
+				{Label: "foo", Space: []string{"magic"}},
+				{Label: "foo", Space: []string{"other"}},
+			},
+		},
+		err: `reusing interface label "foo" not valid`,
+	}} {
+		c.Logf("test %d", i)
+		err := test.args.Validate()
+		if test.err == "" {
+			c.Check(err, jc.ErrorIsNil)
+			c.Check(test.args.storage(), gc.Equals, test.storage)
+			c.Check(test.args.interfaces(), gc.Equals, test.interfaces)
+		} else {
+			c.Check(err, jc.Satisfies, errors.IsNotValid)
+			c.Check(err.Error(), gc.Equals, test.err)
+		}
+	}
+}
+
 func (s *controllerSuite) addAllocateReponse(c *gc.C, status int, interfaceMatches map[string]int) {
 	constraints := make(map[string]interface{})
 	if interfaceMatches != nil {
@@ -290,7 +440,10 @@ func (s *controllerSuite) TestAllocateMachineInterfacesMatch(c *gc.C) {
 	controller := s.getController(c)
 	_, match, err := controller.AllocateMachine(AllocateMachineArgs{
 		// This isn't actually used, but here to show how it should be used.
-		Interfaces: "database:space=space-0",
+		Interfaces: []InterfaceSpec{{
+			Label: "database",
+			Space: []string{"space-0"},
+		}},
 	})
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(match.Interfaces, gc.HasLen, 1)
@@ -306,13 +459,15 @@ func (s *controllerSuite) TestAllocateMachineInterfacesMatchMissing(c *gc.C) {
 	})
 	controller := s.getController(c)
 	_, _, err := controller.AllocateMachine(AllocateMachineArgs{
-		// This isn't actually used, but here to show how it should be used.
-		Interfaces: "database:space=space-0",
+		Interfaces: []InterfaceSpec{{
+			Label: "database",
+			Space: []string{"space-0"},
+		}},
 	})
 	c.Assert(err, jc.Satisfies, IsDeserializationError)
 }
 
-func (s *controllerSuite) TestAllocateMachineArgs(c *gc.C) {
+func (s *controllerSuite) TestAllocateMachineArgsForm(c *gc.C) {
 	s.addAllocateReponse(c, http.StatusOK, nil)
 	controller := s.getController(c)
 	// Create an arg structure that sets all the values.
@@ -323,8 +478,8 @@ func (s *controllerSuite) TestAllocateMachineArgs(c *gc.C) {
 		MinMemory:    20000,
 		Tags:         []string{"good"},
 		NotTags:      []string{"bad"},
-		Storage:      "root:200(ssd)",
-		Interfaces:   "default:vid=1;db:space=magic",
+		Storage:      []StorageSpec{{Label: "root", Size: 200}},
+		Interfaces:   []InterfaceSpec{{Label: "default", Space: []string{"magic"}}},
 		Zone:         "magic",
 		NotInZone:    []string{"not-magic"},
 		AgentName:    "agent 42",
