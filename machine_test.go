@@ -62,6 +62,9 @@ func (*machineSuite) TestReadMachines(c *gc.C) {
 
 	interfaceSet := machine.InterfaceSet()
 	c.Assert(interfaceSet, gc.HasLen, 1)
+	id := interfaceSet[0].ID()
+	c.Assert(machine.Interface(id), jc.DeepEquals, interfaceSet[0])
+	c.Assert(machine.Interface(id+5), gc.IsNil)
 }
 
 func (*machineSuite) TestLowVersion(c *gc.C) {

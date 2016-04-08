@@ -87,7 +87,14 @@ func WrapWithDeserializationError(err error, format string, args ...interface{})
 	// previous error, but wrap it in the new type.
 	derr := &DeserializationError{Err: errors.NewErr(message + ": " + err.Error())}
 	derr.SetLocation(1)
-	return errors.Wrap(err, derr)
+	wrapped := errors.Wrap(err, derr)
+	// We want the location of the wrapped error to be the caller of this function,
+	// not the line above.
+	if errType, ok := wrapped.(*errors.Err); ok {
+		// We know it is because that is what Wrap returns.
+		errType.SetLocation(1)
+	}
+	return wrapped
 }
 
 // IsDeserializationError returns true if err is a DeserializationError.

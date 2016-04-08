@@ -40,7 +40,7 @@ type Controller interface {
 
 	// AllocateMachine will attempt to allocate a machine to the user.
 	// If successful, the allocated machine is returned.
-	AllocateMachine(AllocateMachineArgs) (Machine, error)
+	AllocateMachine(AllocateMachineArgs) (Machine, ConstraintMatches, error)
 
 	// ReleaseMachines will stop the specified machines, and release them
 	// from the user making them available to be allocated again.
@@ -194,6 +194,9 @@ type Machine interface {
 	BootInterface() Interface
 	// InterfaceSet returns all the interfaces for the Machine.
 	InterfaceSet() []Interface
+	// Interface returns the interface for the machine that matches the id
+	// specified. If there is no match, nil is returned.
+	Interface(id int) Interface
 
 	Zone() Zone
 
