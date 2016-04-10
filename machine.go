@@ -104,6 +104,7 @@ func (m *machine) Zone() Zone {
 
 // BootInterface implements Machine.
 func (m *machine) BootInterface() Interface {
+	m.bootInterface.controller = m.controller
 	return m.bootInterface
 }
 
@@ -111,6 +112,7 @@ func (m *machine) BootInterface() Interface {
 func (m *machine) InterfaceSet() []Interface {
 	result := make([]Interface, len(m.interfaceSet))
 	for i, v := range m.interfaceSet {
+		v.controller = m.controller
 		result[i] = v
 	}
 	return result
@@ -120,6 +122,7 @@ func (m *machine) InterfaceSet() []Interface {
 func (m *machine) Interface(id int) Interface {
 	for _, iface := range m.interfaceSet {
 		if iface.ID() == id {
+			iface.controller = m.controller
 			return iface
 		}
 	}

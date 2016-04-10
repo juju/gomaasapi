@@ -113,7 +113,7 @@ func (s *deviceSuite) TestCreateInterface(c *gc.C) {
 	c.Assert(form.Get("tags"), gc.Equals, "foo,bar")
 }
 
-func (s *deviceSuite) minimalCreateInterfaceArgs() CreateInterfaceArgs {
+func minimalCreateInterfaceArgs() CreateInterfaceArgs {
 	return CreateInterfaceArgs{
 		Name:       "eth43",
 		MACAddress: "some-mac-address",
@@ -124,7 +124,7 @@ func (s *deviceSuite) minimalCreateInterfaceArgs() CreateInterfaceArgs {
 func (s *deviceSuite) TestCreateInterfaceNotFound(c *gc.C) {
 	server, device := s.getServerAndDevice(c)
 	server.AddPostResponse(device.interfacesURI()+"?op=create_physical", http.StatusNotFound, "can't find device")
-	_, err := device.CreateInterface(s.minimalCreateInterfaceArgs())
+	_, err := device.CreateInterface(minimalCreateInterfaceArgs())
 	c.Assert(err, jc.Satisfies, IsBadRequestError)
 	c.Assert(err.Error(), gc.Equals, "can't find device")
 }
@@ -132,7 +132,7 @@ func (s *deviceSuite) TestCreateInterfaceNotFound(c *gc.C) {
 func (s *deviceSuite) TestCreateInterfaceConflict(c *gc.C) {
 	server, device := s.getServerAndDevice(c)
 	server.AddPostResponse(device.interfacesURI()+"?op=create_physical", http.StatusConflict, "device not allocated")
-	_, err := device.CreateInterface(s.minimalCreateInterfaceArgs())
+	_, err := device.CreateInterface(minimalCreateInterfaceArgs())
 	c.Assert(err, jc.Satisfies, IsBadRequestError)
 	c.Assert(err.Error(), gc.Equals, "device not allocated")
 }
@@ -140,7 +140,7 @@ func (s *deviceSuite) TestCreateInterfaceConflict(c *gc.C) {
 func (s *deviceSuite) TestCreateInterfaceForbidden(c *gc.C) {
 	server, device := s.getServerAndDevice(c)
 	server.AddPostResponse(device.interfacesURI()+"?op=create_physical", http.StatusForbidden, "device not yours")
-	_, err := device.CreateInterface(s.minimalCreateInterfaceArgs())
+	_, err := device.CreateInterface(minimalCreateInterfaceArgs())
 	c.Assert(err, jc.Satisfies, IsPermissionError)
 	c.Assert(err.Error(), gc.Equals, "device not yours")
 }
@@ -148,7 +148,7 @@ func (s *deviceSuite) TestCreateInterfaceForbidden(c *gc.C) {
 func (s *deviceSuite) TestCreateInterfaceServiceUnavailable(c *gc.C) {
 	server, device := s.getServerAndDevice(c)
 	server.AddPostResponse(device.interfacesURI()+"?op=create_physical", http.StatusServiceUnavailable, "no ip addresses available")
-	_, err := device.CreateInterface(s.minimalCreateInterfaceArgs())
+	_, err := device.CreateInterface(minimalCreateInterfaceArgs())
 	c.Assert(err, jc.Satisfies, IsCannotCompleteError)
 	c.Assert(err.Error(), gc.Equals, "no ip addresses available")
 }
@@ -156,7 +156,7 @@ func (s *deviceSuite) TestCreateInterfaceServiceUnavailable(c *gc.C) {
 func (s *deviceSuite) TestCreateInterfaceUnknown(c *gc.C) {
 	server, device := s.getServerAndDevice(c)
 	server.AddPostResponse(device.interfacesURI()+"?op=create_physical", http.StatusMethodNotAllowed, "wat?")
-	_, err := device.CreateInterface(s.minimalCreateInterfaceArgs())
+	_, err := device.CreateInterface(minimalCreateInterfaceArgs())
 	c.Assert(err, jc.Satisfies, IsUnexpectedError)
 	c.Assert(err.Error(), gc.Equals, "unexpected: ServerError: 405 Method Not Allowed (wat?)")
 }

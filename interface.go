@@ -4,6 +4,8 @@
 package gomaasapi
 
 import (
+	"net/http"
+
 	"github.com/juju/errors"
 	"github.com/juju/schema"
 	"github.com/juju/version"
@@ -11,6 +13,8 @@ import (
 
 // Can't use interface as a type, so add an underscore. Yay.
 type interface_ struct {
+	controller *controller
+
 	resourceURI string
 
 	id      int
@@ -86,6 +90,23 @@ func (i *interface_) MACAddress() string {
 // EffectiveMTU implements Interface.
 func (i *interface_) EffectiveMTU() int {
 	return i.effectiveMTU
+}
+
+// Delete implements Interface.
+func (i *interface_) Delete() error {
+	err := i.controller.delete(i.resourceURI)
+	if err != nil {
+		if svrErr, ok := errors.Cause(err).(ServerError); ok {
+			switch svrErr.StatusCode {
+			case http.StatusNotFound:
+				return errors.Wrap(err, NewNoMatchError(svrErr.BodyMessage))
+			case http.StatusForbidden:
+				return errors.Wrap(err, NewPermissionError(svrErr.BodyMessage))
+			}
+		}
+		return NewUnexpectedError(err)
+	}
+	return nil
 }
 
 func readInterface(controllerVersion version.Number, source interface{}) (*interface_, error) {

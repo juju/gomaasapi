@@ -122,6 +122,7 @@ func (d *device) CreateInterface(args CreateInterfaceArgs) (Interface, error) {
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
+	iface.controller = d.controller
 
 	// TODO: add to the interfaces for the device when the interfaces are returned.
 	// lp:bug 1567213.
