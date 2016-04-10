@@ -116,6 +116,16 @@ func (m *machine) InterfaceSet() []Interface {
 	return result
 }
 
+// Interface implements Machine.
+func (m *machine) Interface(id int) Interface {
+	for _, iface := range m.interfaceSet {
+		if iface.ID() == id {
+			return iface
+		}
+	}
+	return nil
+}
+
 // OperatingSystem implements Machine.
 func (m *machine) OperatingSystem() string {
 	return m.operatingSystem
