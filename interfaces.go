@@ -253,6 +253,10 @@ type Interface interface {
 
 	// Delete this interface.
 	Delete() error
+
+	// LinkSubnet will attempt to make this interface available on the specified
+	// Subnet.
+	LinkSubnet(LinkSubnetArgs) error
 }
 
 // Link represents a network link between an Interface and a Subnet.

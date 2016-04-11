@@ -6,6 +6,7 @@ package gomaasapi
 import (
 	"net/http"
 
+	"github.com/juju/errors"
 	"github.com/juju/testing"
 	jc "github.com/juju/testing/checkers"
 	"github.com/juju/version"
@@ -125,6 +126,141 @@ func (s *interfaceSuite) TestDeleteUnknown(c *gc.C) {
 	server.AddDeleteResponse(iface.resourceURI, http.StatusConflict, "")
 	err := iface.Delete()
 	c.Assert(err, jc.Satisfies, IsUnexpectedError)
+}
+
+type fakeSubnet struct {
+	Subnet
+	id int
+}
+
+func (f *fakeSubnet) ID() int {
+	return f.id
+}
+
+func (s *interfaceSuite) TestLinkSubnetArgs(c *gc.C) {
+	for i, test := range []struct {
+		args    LinkSubnetArgs
+		errText string
+	}{{
+		errText: "missing Mode not valid",
+	}, {
+		args:    LinkSubnetArgs{Mode: LinkModeAuto},
+		errText: "missing Subnet not valid",
+	}, {
+		args:    LinkSubnetArgs{Mode: InterfaceLinkMode("foo")},
+		errText: `unknown Mode value ("foo") not valid`,
+	}, {
+		args: LinkSubnetArgs{Mode: LinkModeAuto, Subnet: &fakeSubnet{}},
+	}, {
+		args: LinkSubnetArgs{Mode: LinkModeDHCP, Subnet: &fakeSubnet{}},
+	}, {
+		args: LinkSubnetArgs{Mode: LinkModeStatic, Subnet: &fakeSubnet{}},
+	}, {
+		args: LinkSubnetArgs{Mode: LinkModeLinkUp, Subnet: &fakeSubnet{}},
+	}, {
+		args:    LinkSubnetArgs{Mode: LinkModeAuto, Subnet: &fakeSubnet{}, IPAddress: "10.10.10.10"},
+		errText: `setting IP Address when Mode is not LinkModeStatic not valid`,
+	}, {
+		args:    LinkSubnetArgs{Mode: LinkModeDHCP, Subnet: &fakeSubnet{}, IPAddress: "10.10.10.10"},
+		errText: `setting IP Address when Mode is not LinkModeStatic not valid`,
+	}, {
+		args: LinkSubnetArgs{Mode: LinkModeStatic, Subnet: &fakeSubnet{}, IPAddress: "10.10.10.10"},
+	}, {
+		args:    LinkSubnetArgs{Mode: LinkModeLinkUp, Subnet: &fakeSubnet{}, IPAddress: "10.10.10.10"},
+		errText: `setting IP Address when Mode is not LinkModeStatic not valid`,
+	}, {
+		args: LinkSubnetArgs{Mode: LinkModeAuto, Subnet: &fakeSubnet{}, DefaultGateway: true},
+	}, {
+		args:    LinkSubnetArgs{Mode: LinkModeDHCP, Subnet: &fakeSubnet{}, DefaultGateway: true},
+		errText: `specifying DefaultGateway for Mode "DHCP" not valid`,
+	}, {
+		args: LinkSubnetArgs{Mode: LinkModeStatic, Subnet: &fakeSubnet{}, DefaultGateway: true},
+	}, {
+		args:    LinkSubnetArgs{Mode: LinkModeLinkUp, Subnet: &fakeSubnet{}, DefaultGateway: true},
+		errText: `specifying DefaultGateway for Mode "LINK_UP" not valid`,
+	}} {
+		c.Logf("test %d", i)
+		err := test.args.Validate()
+		if test.errText == "" {
+			c.Check(err, jc.ErrorIsNil)
+		} else {
+			c.Check(err, jc.Satisfies, errors.IsNotValid)
+			c.Check(err.Error(), gc.Equals, test.errText)
+		}
+	}
+}
+
+func (s *interfaceSuite) TestLinkSubnetValidates(c *gc.C) {
+	_, iface := s.getServerAndNewInterface(c)
+	err := iface.LinkSubnet(LinkSubnetArgs{})
+	c.Check(err, jc.Satisfies, errors.IsNotValid)
+	c.Check(err.Error(), gc.Equals, "missing Mode not valid")
+}
+
+func (s *interfaceSuite) TestLinkSubnetGood(c *gc.C) {
+	server, iface := s.getServerAndNewInterface(c)
+	server.AddPostResponse(iface.resourceURI+"?op=link_subnet", http.StatusOK, "{}")
+	args := LinkSubnetArgs{
+		Mode:           LinkModeStatic,
+		Subnet:         &fakeSubnet{id: 42},
+		IPAddress:      "10.10.10.10",
+		DefaultGateway: true,
+	}
+	err := iface.LinkSubnet(args)
+	c.Check(err, jc.ErrorIsNil)
+
+	request := server.LastRequest()
+	form := request.PostForm
+	c.Assert(form.Get("mode"), gc.Equals, "STATIC")
+	c.Assert(form.Get("subnet"), gc.Equals, "42")
+	c.Assert(form.Get("ip_address"), gc.Equals, "10.10.10.10")
+	c.Assert(form.Get("default_gateway"), gc.Equals, "true")
+}
+
+func (s *interfaceSuite) TestLinkSubnetMissing(c *gc.C) {
+	_, iface := s.getServerAndNewInterface(c)
+	args := LinkSubnetArgs{
+		Mode:   LinkModeStatic,
+		Subnet: &fakeSubnet{id: 42},
+	}
+	err := iface.LinkSubnet(args)
+	c.Check(err, jc.Satisfies, IsBadRequestError)
+}
+
+func (s *interfaceSuite) TestLinkSubnetForbidden(c *gc.C) {
+	server, iface := s.getServerAndNewInterface(c)
+	server.AddPostResponse(iface.resourceURI+"?op=link_subnet", http.StatusForbidden, "bad user")
+	args := LinkSubnetArgs{
+		Mode:   LinkModeStatic,
+		Subnet: &fakeSubnet{id: 42},
+	}
+	err := iface.LinkSubnet(args)
+	c.Check(err, jc.Satisfies, IsPermissionError)
+	c.Check(err.Error(), gc.Equals, "bad user")
+}
+
+func (s *interfaceSuite) TestLinkSubnetNoAddressesAvailable(c *gc.C) {
+	server, iface := s.getServerAndNewInterface(c)
+	server.AddPostResponse(iface.resourceURI+"?op=link_subnet", http.StatusServiceUnavailable, "no addresses")
+	args := LinkSubnetArgs{
+		Mode:   LinkModeStatic,
+		Subnet: &fakeSubnet{id: 42},
+	}
+	err := iface.LinkSubnet(args)
+	c.Check(err, jc.Satisfies, IsCannotCompleteError)
+	c.Check(err.Error(), gc.Equals, "no addresses")
+}
+
+func (s *interfaceSuite) TestLinkSubnetUnknown(c *gc.C) {
+	server, iface := s.getServerAndNewInterface(c)
+	server.AddPostResponse(iface.resourceURI+"?op=link_subnet", http.StatusMethodNotAllowed, "wat?")
+	args := LinkSubnetArgs{
+		Mode:   LinkModeStatic,
+		Subnet: &fakeSubnet{id: 42},
+	}
+	err := iface.LinkSubnet(args)
+	c.Check(err, jc.Satisfies, IsUnexpectedError)
+	c.Assert(err.Error(), gc.Equals, "unexpected: ServerError: 405 Method Not Allowed (wat?)")
 }
 
 const (

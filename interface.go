@@ -4,6 +4,7 @@
 package gomaasapi
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/juju/errors"
@@ -106,6 +107,103 @@ func (i *interface_) Delete() error {
 		}
 		return NewUnexpectedError(err)
 	}
+	return nil
+}
+
+// InterfaceLinkMode is the type of the various link mode constants used for
+// LinkSubnetArgs.
+type InterfaceLinkMode string
+
+const (
+	// LinkModeAuto - Assign the interface a static IP address from the
+	// provided subnet. The subnet must be a managed subnet. The IP address will
+	// not be assigned until the node goes to be deployed.
+	LinkModeAuto InterfaceLinkMode = "AUTO"
+
+	// LinkModeDHCP - Bring the interface up with DHCP on the given subnet. Only
+	// one subnet can be set to DHCP. If the subnet is managed this interface
+	// will pull from the dynamic IP range.
+	LinkModeDHCP InterfaceLinkMode = "DHCP"
+
+	// LinkModeStatic - Bring the interface up with a STATIC IP address on the
+	// given subnet. Any number of STATIC links can exist on an interface.
+	LinkModeStatic InterfaceLinkMode = "STATIC"
+
+	// LinkModeLinkUp - Bring the interface up only on the given subnet. No IP
+	// address will be assigned to this interface. The interface cannot have any
+	// current AUTO, DHCP or STATIC links.
+	LinkModeLinkUp InterfaceLinkMode = "LINK_UP"
+)
+
+// LinkSubnetArgs is an argument struct for passing parameters to
+// the Interface.LinkSubnet method.
+type LinkSubnetArgs struct {
+	// Mode is used to describe how the address is provided for the Link.
+	// Required field.
+	Mode InterfaceLinkMode
+	// Subnet is the subnet to link to. Required field.
+	Subnet Subnet
+	// IPAddress is only valid when the Mode is set to LinkModeStatic. If
+	// not specified with a Mode of LinkModeStatic, an IP address from the
+	// subnet will be auto selected.
+	IPAddress string
+	// DefaultGateway will set the gateway IP address for the Subnet as the
+	// default gateway for the machine or device the interface belongs to.
+	// Option can only be used with the LinkModeAuto and LinkModeStatic modes.
+	DefaultGateway bool
+}
+
+// Validate ensures that the Mode and Subnet are set, and that the other options
+// are consistent with the Mode.
+func (a *LinkSubnetArgs) Validate() error {
+	switch a.Mode {
+	case LinkModeAuto, LinkModeDHCP, LinkModeLinkUp, LinkModeStatic:
+	case "":
+		return errors.NotValidf("missing Mode")
+	default:
+		return errors.NotValidf("unknown Mode value (%q)", a.Mode)
+	}
+	if a.Subnet == nil {
+		return errors.NotValidf("missing Subnet")
+	}
+	if a.IPAddress != "" && a.Mode != LinkModeStatic {
+		return errors.NotValidf("setting IP Address when Mode is not LinkModeStatic")
+	}
+	if a.DefaultGateway {
+		switch a.Mode {
+		case LinkModeAuto, LinkModeStatic:
+		default:
+			return errors.NotValidf("specifying DefaultGateway for Mode %q", a.Mode)
+		}
+	}
+	return nil
+}
+
+// LinkSubnet implements Interface.
+func (i *interface_) LinkSubnet(args LinkSubnetArgs) error {
+	if err := args.Validate(); err != nil {
+		return errors.Trace(err)
+	}
+	params := NewURLParams()
+	params.Values.Add("mode", string(args.Mode))
+	params.Values.Add("subnet", fmt.Sprint(args.Subnet.ID()))
+	params.MaybeAdd("ip_address", args.IPAddress)
+	params.MaybeAddBool("default_gateway", args.DefaultGateway)
+	_, err := i.controller.post(i.resourceURI, "link_subnet", params.Values)
+	if err != nil {
+		if svrErr, ok := errors.Cause(err).(ServerError); ok {
+			switch svrErr.StatusCode {
+			case http.StatusNotFound, http.StatusConflict:
+				return errors.Wrap(err, NewBadRequestError(svrErr.BodyMessage))
+			case http.StatusForbidden:
+				return errors.Wrap(err, NewPermissionError(svrErr.BodyMessage))
+			case http.StatusServiceUnavailable:
+				return errors.Wrap(err, NewCannotCompleteError(svrErr.BodyMessage))
+			}
+		}
+		return NewUnexpectedError(err)
+	}
+
 	return nil
 }
 
