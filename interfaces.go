@@ -250,6 +250,9 @@ type Interface interface {
 
 	// Params is a JSON field, and defaults to an empty string, but is almost
 	// always a JSON object in practice. Gleefully ignoring it until we need it.
+
+	// Delete this interface.
+	Delete() error
 }
 
 // Link represents a network link between an Interface and a Subnet.

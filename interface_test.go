@@ -4,6 +4,8 @@
 package gomaasapi
 
 import (
+	"net/http"
+
 	"github.com/juju/testing"
 	jc "github.com/juju/testing/checkers"
 	"github.com/juju/version"
@@ -81,6 +83,48 @@ func (*interfaceSuite) TestHighVersion(c *gc.C) {
 	c.Assert(read, gc.HasLen, 1)
 	_, err = readInterface(version.MustParse("2.1.9"), parseJSON(c, interfaceResponse))
 	c.Assert(err, jc.ErrorIsNil)
+}
+
+func (s *interfaceSuite) getServerAndNewInterface(c *gc.C) (*SimpleTestServer, *interface_) {
+	server, controller := createTestServerController(c, s)
+	server.AddGetResponse("/api/2.0/devices/", http.StatusOK, devicesResponse)
+	devices, err := controller.Devices(DevicesArgs{})
+	c.Assert(err, jc.ErrorIsNil)
+	device := devices[0].(*device)
+	server.AddPostResponse(device.interfacesURI()+"?op=create_physical", http.StatusOK, interfaceResponse)
+	iface, err := device.CreateInterface(minimalCreateInterfaceArgs())
+	c.Assert(err, jc.ErrorIsNil)
+	return server, iface.(*interface_)
+}
+
+func (s *interfaceSuite) TestDelete(c *gc.C) {
+	server, iface := s.getServerAndNewInterface(c)
+	// Successful delete is 204 - StatusNoContent - We hope, would be consistent
+	// with device deletions.
+	server.AddDeleteResponse(iface.resourceURI, http.StatusNoContent, "")
+	err := iface.Delete()
+	c.Assert(err, jc.ErrorIsNil)
+}
+
+func (s *interfaceSuite) TestDelete404(c *gc.C) {
+	_, iface := s.getServerAndNewInterface(c)
+	// No path, so 404
+	err := iface.Delete()
+	c.Assert(err, jc.Satisfies, IsNoMatchError)
+}
+
+func (s *interfaceSuite) TestDeleteForbidden(c *gc.C) {
+	server, iface := s.getServerAndNewInterface(c)
+	server.AddDeleteResponse(iface.resourceURI, http.StatusForbidden, "")
+	err := iface.Delete()
+	c.Assert(err, jc.Satisfies, IsPermissionError)
+}
+
+func (s *interfaceSuite) TestDeleteUnknown(c *gc.C) {
+	server, iface := s.getServerAndNewInterface(c)
+	server.AddDeleteResponse(iface.resourceURI, http.StatusConflict, "")
+	err := iface.Delete()
+	c.Assert(err, jc.Satisfies, IsUnexpectedError)
 }
 
 const (
