@@ -144,22 +144,17 @@ func (s *interfaceSuite) TestLinkSubnetArgs(c *gc.C) {
 	}{{
 		errText: "missing Mode not valid",
 	}, {
-		args:    LinkSubnetArgs{Mode: LinkModeAuto},
+		args:    LinkSubnetArgs{Mode: LinkModeDHCP},
 		errText: "missing Subnet not valid",
 	}, {
 		args:    LinkSubnetArgs{Mode: InterfaceLinkMode("foo")},
 		errText: `unknown Mode value ("foo") not valid`,
-	}, {
-		args: LinkSubnetArgs{Mode: LinkModeAuto, Subnet: &fakeSubnet{}},
 	}, {
 		args: LinkSubnetArgs{Mode: LinkModeDHCP, Subnet: &fakeSubnet{}},
 	}, {
 		args: LinkSubnetArgs{Mode: LinkModeStatic, Subnet: &fakeSubnet{}},
 	}, {
 		args: LinkSubnetArgs{Mode: LinkModeLinkUp, Subnet: &fakeSubnet{}},
-	}, {
-		args:    LinkSubnetArgs{Mode: LinkModeAuto, Subnet: &fakeSubnet{}, IPAddress: "10.10.10.10"},
-		errText: `setting IP Address when Mode is not LinkModeStatic not valid`,
 	}, {
 		args:    LinkSubnetArgs{Mode: LinkModeDHCP, Subnet: &fakeSubnet{}, IPAddress: "10.10.10.10"},
 		errText: `setting IP Address when Mode is not LinkModeStatic not valid`,
@@ -168,8 +163,6 @@ func (s *interfaceSuite) TestLinkSubnetArgs(c *gc.C) {
 	}, {
 		args:    LinkSubnetArgs{Mode: LinkModeLinkUp, Subnet: &fakeSubnet{}, IPAddress: "10.10.10.10"},
 		errText: `setting IP Address when Mode is not LinkModeStatic not valid`,
-	}, {
-		args: LinkSubnetArgs{Mode: LinkModeAuto, Subnet: &fakeSubnet{}, DefaultGateway: true},
 	}, {
 		args:    LinkSubnetArgs{Mode: LinkModeDHCP, Subnet: &fakeSubnet{}, DefaultGateway: true},
 		errText: `specifying DefaultGateway for Mode "DHCP" not valid`,
@@ -199,7 +192,12 @@ func (s *interfaceSuite) TestLinkSubnetValidates(c *gc.C) {
 
 func (s *interfaceSuite) TestLinkSubnetGood(c *gc.C) {
 	server, iface := s.getServerAndNewInterface(c)
-	server.AddPostResponse(iface.resourceURI+"?op=link_subnet", http.StatusOK, "{}")
+	// The changed information is there just for the test to show that the response
+	// is parsed and the interface updated
+	response := updateJSONMap(c, interfaceResponse, map[string]interface{}{
+		"name": "eth42",
+	})
+	server.AddPostResponse(iface.resourceURI+"?op=link_subnet", http.StatusOK, response)
 	args := LinkSubnetArgs{
 		Mode:           LinkModeStatic,
 		Subnet:         &fakeSubnet{id: 42},
@@ -208,6 +206,7 @@ func (s *interfaceSuite) TestLinkSubnetGood(c *gc.C) {
 	}
 	err := iface.LinkSubnet(args)
 	c.Check(err, jc.ErrorIsNil)
+	c.Check(iface.Name(), gc.Equals, "eth42")
 
 	request := server.LastRequest()
 	form := request.PostForm

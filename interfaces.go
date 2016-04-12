@@ -257,6 +257,10 @@ type Interface interface {
 	// LinkSubnet will attempt to make this interface available on the specified
 	// Subnet.
 	LinkSubnet(LinkSubnetArgs) error
+
+	// UnlinkSubnet will remove the Link to the subnet, and release the IP
+	// address associated if there is one.
+	UnlinkSubnet(Subnet) error
 }
 
 // Link represents a network link between an Interface and a Subnet.

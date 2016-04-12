@@ -34,6 +34,21 @@ type interface_ struct {
 	children []string
 }
 
+func (i *interface_) updateFrom(other *interface_) {
+	i.resourceURI = other.resourceURI
+	i.id = other.id
+	i.name = other.name
+	i.type_ = other.type_
+	i.enabled = other.enabled
+	i.tags = other.tags
+	i.vlan = other.vlan
+	i.links = other.links
+	i.macAddress = other.macAddress
+	i.effectiveMTU = other.effectiveMTU
+	i.parents = other.parents
+	i.children = other.children
+}
+
 // ID implements Interface.
 func (i *interface_) ID() int {
 	return i.id
@@ -115,11 +130,6 @@ func (i *interface_) Delete() error {
 type InterfaceLinkMode string
 
 const (
-	// LinkModeAuto - Assign the interface a static IP address from the
-	// provided subnet. The subnet must be a managed subnet. The IP address will
-	// not be assigned until the node goes to be deployed.
-	LinkModeAuto InterfaceLinkMode = "AUTO"
-
 	// LinkModeDHCP - Bring the interface up with DHCP on the given subnet. Only
 	// one subnet can be set to DHCP. If the subnet is managed this interface
 	// will pull from the dynamic IP range.
@@ -131,7 +141,7 @@ const (
 
 	// LinkModeLinkUp - Bring the interface up only on the given subnet. No IP
 	// address will be assigned to this interface. The interface cannot have any
-	// current AUTO, DHCP or STATIC links.
+	// current DHCP or STATIC links.
 	LinkModeLinkUp InterfaceLinkMode = "LINK_UP"
 )
 
@@ -149,7 +159,7 @@ type LinkSubnetArgs struct {
 	IPAddress string
 	// DefaultGateway will set the gateway IP address for the Subnet as the
 	// default gateway for the machine or device the interface belongs to.
-	// Option can only be used with the LinkModeAuto and LinkModeStatic modes.
+	// Option can only be used with mode LinkModeStatic.
 	DefaultGateway bool
 }
 
@@ -157,7 +167,7 @@ type LinkSubnetArgs struct {
 // are consistent with the Mode.
 func (a *LinkSubnetArgs) Validate() error {
 	switch a.Mode {
-	case LinkModeAuto, LinkModeDHCP, LinkModeLinkUp, LinkModeStatic:
+	case LinkModeDHCP, LinkModeLinkUp, LinkModeStatic:
 	case "":
 		return errors.NotValidf("missing Mode")
 	default:
@@ -169,12 +179,8 @@ func (a *LinkSubnetArgs) Validate() error {
 	if a.IPAddress != "" && a.Mode != LinkModeStatic {
 		return errors.NotValidf("setting IP Address when Mode is not LinkModeStatic")
 	}
-	if a.DefaultGateway {
-		switch a.Mode {
-		case LinkModeAuto, LinkModeStatic:
-		default:
-			return errors.NotValidf("specifying DefaultGateway for Mode %q", a.Mode)
-		}
+	if a.DefaultGateway && a.Mode != LinkModeStatic {
+		return errors.NotValidf("specifying DefaultGateway for Mode %q", a.Mode)
 	}
 	return nil
 }
@@ -189,16 +195,54 @@ func (i *interface_) LinkSubnet(args LinkSubnetArgs) error {
 	params.Values.Add("subnet", fmt.Sprint(args.Subnet.ID()))
 	params.MaybeAdd("ip_address", args.IPAddress)
 	params.MaybeAddBool("default_gateway", args.DefaultGateway)
-	_, err := i.controller.post(i.resourceURI, "link_subnet", params.Values)
+	source, err := i.controller.post(i.resourceURI, "link_subnet", params.Values)
 	if err != nil {
 		if svrErr, ok := errors.Cause(err).(ServerError); ok {
 			switch svrErr.StatusCode {
-			case http.StatusNotFound, http.StatusConflict:
+			case http.StatusNotFound, http.StatusBadRequest:
 				return errors.Wrap(err, NewBadRequestError(svrErr.BodyMessage))
 			case http.StatusForbidden:
 				return errors.Wrap(err, NewPermissionError(svrErr.BodyMessage))
 			case http.StatusServiceUnavailable:
 				return errors.Wrap(err, NewCannotCompleteError(svrErr.BodyMessage))
+			}
+		}
+		return NewUnexpectedError(err)
+	}
+
+	response, err := readInterface(i.controller.apiVersion, source)
+	if err != nil {
+		return errors.Trace(err)
+	}
+	i.updateFrom(response)
+	return nil
+}
+
+// LinkSubnet implements Interface.
+func (i *interface_) UnlinkSubnet(subnet Subnet) error {
+	if subnet == nil {
+		return errors.NotValidf("missing Subnet")
+	}
+	var link Link
+	for _, k := range i.links {
+		if s := k.Subnet(); s != nil && s.ID() == subnet.ID() {
+			link = k
+			break
+		}
+	}
+	if link == nil {
+		return errors.NotValidf("unlinked Subnet")
+	}
+	params := NewURLParams()
+	params.Values.Add("id", fmt.Sprint(link.ID()))
+	_, err := i.controller.post(i.resourceURI, "unlink_subnet", params.Values)
+	if err != nil {
+		if svrErr, ok := errors.Cause(err).(ServerError); ok {
+			switch svrErr.StatusCode {
+			case http.StatusNotFound, http.StatusBadRequest:
+				return errors.Wrap(err, NewBadRequestError(svrErr.BodyMessage))
+			case http.StatusForbidden:
+				return errors.Wrap(err, NewPermissionError(svrErr.BodyMessage))
 			}
 		}
 		return NewUnexpectedError(err)
