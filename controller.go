@@ -172,7 +172,7 @@ func (c *controller) Zones() ([]Zone, error) {
 // DevicesArgs is a argument struct for selecting Devices.
 // Only devices that match the specified criteria are returned.
 type DevicesArgs struct {
-	Hostname     string
+	Hostname     []string
 	MACAddresses []string
 	SystemIDs    []string
 	Domain       string
@@ -183,7 +183,7 @@ type DevicesArgs struct {
 // Devices implements Controller.
 func (c *controller) Devices(args DevicesArgs) ([]Device, error) {
 	params := NewURLParams()
-	params.MaybeAdd("hostname", args.Hostname)
+	params.MaybeAddMany("hostname", args.Hostname)
 	params.MaybeAddMany("mac_address", args.MACAddresses)
 	params.MaybeAddMany("id", args.SystemIDs)
 	params.MaybeAdd("domain", args.Domain)
@@ -324,9 +324,8 @@ type InterfaceSpec struct {
 	// across the InterfaceSpec elements specified in the AllocateMachineArgs.
 	// The label is returned in the ConstraintMatches response from
 	// AllocateMachine.
-	Label    string
-	Space    []string
-	NotSpace []string
+	Label string
+	Space string
 
 	// NOTE: there are other interface spec values that we are not exposing at
 	// this stage that can be added on an as needed basis. Other possible values are:
@@ -344,38 +343,17 @@ func (a *InterfaceSpec) Validate() error {
 	if a.Label == "" {
 		return errors.NotValidf("missing Label")
 	}
-	// Empty strings are not valid.
-	// At least one value must be set.
-	values := 0
-	for _, v := range a.Space {
-		if v == "" {
-			return errors.NotValidf("empty Space constraint")
-		}
-		values++
+	// Perhaps at some stage in the future there will be other possible specs
+	// supported (like vid, subnet, etc), but until then, just space to check.
+	if a.Space == "" {
+		return errors.NotValidf("empty Space constraint")
 	}
-	for _, v := range a.NotSpace {
-		if v == "" {
-			return errors.NotValidf("empty NotSpace constraint")
-		}
-		values++
-	}
-	if values == 0 {
-		return errors.NotValidf("missing constraints")
-	}
-
 	return nil
 }
 
 // String returns the interface spec as MaaS requires it.
 func (a *InterfaceSpec) String() string {
-	var values []string
-	for _, v := range a.Space {
-		values = append(values, "space="+v)
-	}
-	for _, v := range a.NotSpace {
-		values = append(values, "not_space="+v)
-	}
-	return fmt.Sprintf("%s:%s", a.Label, strings.Join(values, ","))
+	return fmt.Sprintf("%s:space=%s", a.Label, a.Space)
 }
 
 // AllocateMachineArgs is an argument struct for passing args into Machine.Allocate.
@@ -395,9 +373,12 @@ type AllocateMachineArgs struct {
 	// Interfaces represents a number of required interfaces on the machine.
 	// Each InterfaceSpec relates to an individual network interface.
 	Interfaces []InterfaceSpec
-	AgentName  string
-	Comment    string
-	DryRun     bool
+	// NotSpace is a machine level constraint, and applies to the entire machine
+	// rather than specific interfaces.
+	NotSpace  []string
+	AgentName string
+	Comment   string
+	DryRun    bool
 }
 
 // Validate makes sure that any labels specifed in Storage or Interfaces
@@ -425,6 +406,11 @@ func (a *AllocateMachineArgs) Validate() error {
 		}
 		interfaceLabels.Add(spec.Label)
 	}
+	for _, v := range a.NotSpace {
+		if v == "" {
+			return errors.NotValidf("empty NotSpace constraint")
+		}
+	}
 	return nil
 }
 
@@ -442,6 +428,14 @@ func (a *AllocateMachineArgs) interfaces() string {
 		values = append(values, spec.String())
 	}
 	return strings.Join(values, ";")
+}
+
+func (a *AllocateMachineArgs) notNetworks() string {
+	var values []string
+	for _, v := range a.NotSpace {
+		values = append(values, "space:"+v)
+	}
+	return strings.Join(values, ",")
 }
 
 // ConstraintMatches provides a way for the caller of AllocateMachine to determine
@@ -470,6 +464,7 @@ func (c *controller) AllocateMachine(args AllocateMachineArgs) (Machine, Constra
 	params.MaybeAddMany("not_tags", args.NotTags)
 	params.MaybeAdd("storage", args.storage())
 	params.MaybeAdd("interfaces", args.interfaces())
+	params.MaybeAdd("not_networks", args.notNetworks())
 	params.MaybeAdd("zone", args.Zone)
 	params.MaybeAddMany("not_in_zone", args.NotInZone)
 	params.MaybeAdd("agent_name", args.AgentName)
