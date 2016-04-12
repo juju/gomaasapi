@@ -235,7 +235,7 @@ func (i *interface_) UnlinkSubnet(subnet Subnet) error {
 	}
 	params := NewURLParams()
 	params.Values.Add("id", fmt.Sprint(link.ID()))
-	_, err := i.controller.post(i.resourceURI, "unlink_subnet", params.Values)
+	source, err := i.controller.post(i.resourceURI, "unlink_subnet", params.Values)
 	if err != nil {
 		if svrErr, ok := errors.Cause(err).(ServerError); ok {
 			switch svrErr.StatusCode {
@@ -247,6 +247,12 @@ func (i *interface_) UnlinkSubnet(subnet Subnet) error {
 		}
 		return NewUnexpectedError(err)
 	}
+
+	response, err := readInterface(i.controller.apiVersion, source)
+	if err != nil {
+		return errors.Trace(err)
+	}
+	i.updateFrom(response)
 
 	return nil
 }

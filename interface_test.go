@@ -262,6 +262,60 @@ func (s *interfaceSuite) TestLinkSubnetUnknown(c *gc.C) {
 	c.Assert(err.Error(), gc.Equals, "unexpected: ServerError: 405 Method Not Allowed (wat?)")
 }
 
+func (s *interfaceSuite) TestUnlinkSubnetValidates(c *gc.C) {
+	_, iface := s.getServerAndNewInterface(c)
+	err := iface.UnlinkSubnet(nil)
+	c.Check(err, jc.Satisfies, errors.IsNotValid)
+	c.Check(err.Error(), gc.Equals, "missing Subnet not valid")
+}
+
+func (s *interfaceSuite) TestUnlinkSubnetNotLinked(c *gc.C) {
+	_, iface := s.getServerAndNewInterface(c)
+	err := iface.UnlinkSubnet(&fakeSubnet{id: 42})
+	c.Check(err, jc.Satisfies, errors.IsNotValid)
+	c.Check(err.Error(), gc.Equals, "unlinked Subnet not valid")
+}
+
+func (s *interfaceSuite) TestUnlinkSubnetGood(c *gc.C) {
+	server, iface := s.getServerAndNewInterface(c)
+	// The changed information is there just for the test to show that the response
+	// is parsed and the interface updated
+	response := updateJSONMap(c, interfaceResponse, map[string]interface{}{
+		"name": "eth42",
+	})
+	server.AddPostResponse(iface.resourceURI+"?op=unlink_subnet", http.StatusOK, response)
+	err := iface.UnlinkSubnet(&fakeSubnet{id: 1})
+	c.Check(err, jc.ErrorIsNil)
+	c.Check(iface.Name(), gc.Equals, "eth42")
+
+	request := server.LastRequest()
+	form := request.PostForm
+	// The link id that contains subnet 1 has an internal id of 69.
+	c.Assert(form.Get("id"), gc.Equals, "69")
+}
+
+func (s *interfaceSuite) TestUnlinkSubnetMissing(c *gc.C) {
+	_, iface := s.getServerAndNewInterface(c)
+	err := iface.UnlinkSubnet(&fakeSubnet{id: 1})
+	c.Check(err, jc.Satisfies, IsBadRequestError)
+}
+
+func (s *interfaceSuite) TestUnlinkSubnetForbidden(c *gc.C) {
+	server, iface := s.getServerAndNewInterface(c)
+	server.AddPostResponse(iface.resourceURI+"?op=unlink_subnet", http.StatusForbidden, "bad user")
+	err := iface.UnlinkSubnet(&fakeSubnet{id: 1})
+	c.Check(err, jc.Satisfies, IsPermissionError)
+	c.Check(err.Error(), gc.Equals, "bad user")
+}
+
+func (s *interfaceSuite) TestUnlinkSubnetUnknown(c *gc.C) {
+	server, iface := s.getServerAndNewInterface(c)
+	server.AddPostResponse(iface.resourceURI+"?op=unlink_subnet", http.StatusMethodNotAllowed, "wat?")
+	err := iface.UnlinkSubnet(&fakeSubnet{id: 1})
+	c.Check(err, jc.Satisfies, IsUnexpectedError)
+	c.Assert(err.Error(), gc.Equals, "unexpected: ServerError: 405 Method Not Allowed (wat?)")
+}
+
 const (
 	interfacesResponse = "[" + interfaceResponse + "]"
 	interfaceResponse  = `
