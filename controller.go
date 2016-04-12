@@ -172,7 +172,7 @@ func (c *controller) Zones() ([]Zone, error) {
 // DevicesArgs is a argument struct for selecting Devices.
 // Only devices that match the specified criteria are returned.
 type DevicesArgs struct {
-	Hostname     string
+	Hostname     []string
 	MACAddresses []string
 	SystemIDs    []string
 	Domain       string
@@ -183,7 +183,7 @@ type DevicesArgs struct {
 // Devices implements Controller.
 func (c *controller) Devices(args DevicesArgs) ([]Device, error) {
 	params := NewURLParams()
-	params.MaybeAdd("hostname", args.Hostname)
+	params.MaybeAddMany("hostname", args.Hostname)
 	params.MaybeAddMany("mac_address", args.MACAddresses)
 	params.MaybeAddMany("id", args.SystemIDs)
 	params.MaybeAdd("domain", args.Domain)

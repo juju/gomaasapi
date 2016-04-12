@@ -151,7 +151,7 @@ func (s *controllerSuite) TestDevicesArgs(c *gc.C) {
 	// that address, but we don't care, all we want to do is capture the request
 	// and make sure that all the values were set.
 	controller.Devices(DevicesArgs{
-		Hostname:     "untasted-markita",
+		Hostname:     []string{"untasted-markita"},
 		MACAddresses: []string{"something"},
 		SystemIDs:    []string{"something-else"},
 		Domain:       "magic",
