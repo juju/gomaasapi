@@ -160,6 +160,12 @@ type Device interface {
 
 	// Parent, Owner, MAC Addresses if needed
 
+	// InterfaceSet returns all the interfaces for the Device. This is an
+	// interim call until r4900 is packaged, when we will be able to remove the
+	// error response as the device JSON will include the interface set which
+	// will be able to be parsed at object creation time.
+	InterfaceSet() ([]Interface, error)
+
 	// CreateInterface will create a physical interface for this machine.
 	CreateInterface(CreateInterfaceArgs) (Interface, error)
 

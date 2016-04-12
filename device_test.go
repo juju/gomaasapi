@@ -51,6 +51,15 @@ func (*deviceSuite) TestHighVersion(c *gc.C) {
 	c.Assert(devices, gc.HasLen, 1)
 }
 
+func (s *deviceSuite) TestInterfaceSet(c *gc.C) {
+	server, device := s.getServerAndDevice(c)
+	server.AddGetResponse(device.interfacesURI(), http.StatusOK, interfacesResponse)
+
+	ifaces, err := device.InterfaceSet()
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(ifaces, gc.HasLen, 1)
+}
+
 type fakeVLAN struct {
 	VLAN
 	id int
