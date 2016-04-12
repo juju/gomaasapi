@@ -313,33 +313,10 @@ func (s *controllerSuite) TestInterfaceSpec(c *gc.C) {
 		err:  "missing Label not valid",
 	}, {
 		spec: InterfaceSpec{Label: "foo"},
-		err:  "missing constraints not valid",
-	}, {
-		spec: InterfaceSpec{Label: "foo", Space: []string{""}},
 		err:  "empty Space constraint not valid",
 	}, {
-		spec: InterfaceSpec{Label: "foo", NotSpace: []string{""}},
-		err:  "empty NotSpace constraint not valid",
-	}, {
-		spec: InterfaceSpec{Label: "foo", Space: []string{"magic"}},
+		spec: InterfaceSpec{Label: "foo", Space: "magic"},
 		repr: "foo:space=magic",
-	}, {
-		// NOTE: not entirely sure that specifying more than one space makes sense.
-		spec: InterfaceSpec{Label: "foo", Space: []string{"magic", "home"}},
-		repr: "foo:space=magic,space=home",
-	}, {
-		spec: InterfaceSpec{Label: "foo", NotSpace: []string{"weird"}},
-		repr: "foo:not_space=weird",
-	}, {
-		spec: InterfaceSpec{Label: "foo", NotSpace: []string{"weird", "place"}},
-		repr: "foo:not_space=weird,not_space=place",
-	}, {
-		spec: InterfaceSpec{
-			Label:    "foo",
-			Space:    []string{"magic", "home"},
-			NotSpace: []string{"weird", "place"},
-		},
-		repr: "foo:space=magic,space=home,not_space=weird,not_space=place",
 	}} {
 		c.Logf("test %d", i)
 		err := test.spec.Validate()
@@ -355,10 +332,11 @@ func (s *controllerSuite) TestInterfaceSpec(c *gc.C) {
 
 func (s *controllerSuite) TestAllocateMachineArgs(c *gc.C) {
 	for i, test := range []struct {
-		args       AllocateMachineArgs
-		err        string
-		storage    string
-		interfaces string
+		args        AllocateMachineArgs
+		err         string
+		storage     string
+		interfaces  string
+		notNetworks string
 	}{{
 		args: AllocateMachineArgs{},
 	}, {
@@ -387,19 +365,29 @@ func (s *controllerSuite) TestAllocateMachineArgs(c *gc.C) {
 	}, {
 		args: AllocateMachineArgs{
 			Interfaces: []InterfaceSpec{
-				{Label: "foo", Space: []string{"magic"}},
-				{Label: "bar", Space: []string{"other"}},
+				{Label: "foo", Space: "magic"},
+				{Label: "bar", Space: "other"},
 			},
 		},
 		interfaces: "foo:space=magic;bar:space=other",
 	}, {
 		args: AllocateMachineArgs{
 			Interfaces: []InterfaceSpec{
-				{Label: "foo", Space: []string{"magic"}},
-				{Label: "foo", Space: []string{"other"}},
+				{Label: "foo", Space: "magic"},
+				{Label: "foo", Space: "other"},
 			},
 		},
 		err: `reusing interface label "foo" not valid`,
+	}, {
+		args: AllocateMachineArgs{
+			NotSpace: []string{""},
+		},
+		err: "empty NotSpace constraint not valid",
+	}, {
+		args: AllocateMachineArgs{
+			NotSpace: []string{"foo"},
+		},
+		notNetworks: "space:foo",
 	}} {
 		c.Logf("test %d", i)
 		err := test.args.Validate()
@@ -407,6 +395,7 @@ func (s *controllerSuite) TestAllocateMachineArgs(c *gc.C) {
 			c.Check(err, jc.ErrorIsNil)
 			c.Check(test.args.storage(), gc.Equals, test.storage)
 			c.Check(test.args.interfaces(), gc.Equals, test.interfaces)
+			c.Check(test.args.notNetworks(), gc.Equals, test.notNetworks)
 		} else {
 			c.Check(err, jc.Satisfies, errors.IsNotValid)
 			c.Check(err.Error(), gc.Equals, test.err)
@@ -442,7 +431,7 @@ func (s *controllerSuite) TestAllocateMachineInterfacesMatch(c *gc.C) {
 		// This isn't actually used, but here to show how it should be used.
 		Interfaces: []InterfaceSpec{{
 			Label: "database",
-			Space: []string{"space-0"},
+			Space: "space-0",
 		}},
 	})
 	c.Assert(err, jc.ErrorIsNil)
@@ -461,7 +450,7 @@ func (s *controllerSuite) TestAllocateMachineInterfacesMatchMissing(c *gc.C) {
 	_, _, err := controller.AllocateMachine(AllocateMachineArgs{
 		Interfaces: []InterfaceSpec{{
 			Label: "database",
-			Space: []string{"space-0"},
+			Space: "space-0",
 		}},
 	})
 	c.Assert(err, jc.Satisfies, IsDeserializationError)
@@ -479,7 +468,8 @@ func (s *controllerSuite) TestAllocateMachineArgsForm(c *gc.C) {
 		Tags:         []string{"good"},
 		NotTags:      []string{"bad"},
 		Storage:      []StorageSpec{{Label: "root", Size: 200}},
-		Interfaces:   []InterfaceSpec{{Label: "default", Space: []string{"magic"}}},
+		Interfaces:   []InterfaceSpec{{Label: "default", Space: "magic"}},
+		NotSpace:     []string{"special"},
 		Zone:         "magic",
 		NotInZone:    []string{"not-magic"},
 		AgentName:    "agent 42",
@@ -491,7 +481,12 @@ func (s *controllerSuite) TestAllocateMachineArgsForm(c *gc.C) {
 
 	request := s.server.LastRequest()
 	// There should be one entry in the form values for each of the args.
-	c.Assert(request.PostForm, gc.HasLen, 13)
+	form := request.PostForm
+	c.Assert(form, gc.HasLen, 14)
+	// Positive space check.
+	c.Assert(form.Get("interfaces"), gc.Equals, "default:space=magic")
+	// Negative space check.
+	c.Assert(form.Get("not_networks"), gc.Equals, "space:special")
 }
 
 func (s *controllerSuite) TestAllocateMachineNoMatch(c *gc.C) {
