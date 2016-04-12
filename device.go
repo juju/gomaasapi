@@ -51,6 +51,27 @@ func (d *device) Zone() Zone {
 	return d.zone
 }
 
+// InterfaceSet implements Device.
+func (d *device) InterfaceSet() ([]Interface, error) {
+	// NOTE: the get and extra parse will not be necessary
+	// when r4900 of maas has been packaged and released.
+	source, err := d.controller.get(d.interfacesURI())
+	if err != nil {
+		return nil, NewUnexpectedError(err)
+	}
+	ifaces, err := readInterfaces(d.controller.apiVersion, source)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+
+	result := make([]Interface, len(ifaces))
+	for i, v := range ifaces {
+		v.controller = d.controller
+		result[i] = v
+	}
+	return result, nil
+}
+
 // CreateInterfaceArgs is an argument struct for passing parameters to
 // the Machine.CreateInterface method.
 type CreateInterfaceArgs struct {
