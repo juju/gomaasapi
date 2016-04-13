@@ -115,6 +115,13 @@ type UpdateInterfaceArgs struct {
 	VLAN       VLAN
 }
 
+func (a *UpdateInterfaceArgs) vlanID() int {
+	if a.VLAN == nil {
+		return 0
+	}
+	return a.VLAN.ID()
+}
+
 // Update implements Interface.
 func (i *interface_) Update(args UpdateInterfaceArgs) error {
 	var empty UpdateInterfaceArgs
@@ -124,7 +131,7 @@ func (i *interface_) Update(args UpdateInterfaceArgs) error {
 	params := NewURLParams()
 	params.MaybeAdd("name", args.Name)
 	params.MaybeAdd("mac_address", args.MACAddress)
-	params.MaybeAddInt("vlan", args.VLAN.ID())
+	params.MaybeAddInt("vlan", args.vlanID())
 	source, err := i.controller.put(i.resourceURI, params.Values)
 	if err != nil {
 		if svrErr, ok := errors.Cause(err).(ServerError); ok {

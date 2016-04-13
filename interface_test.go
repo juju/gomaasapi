@@ -316,6 +316,60 @@ func (s *interfaceSuite) TestUnlinkSubnetUnknown(c *gc.C) {
 	c.Assert(err.Error(), gc.Equals, "unexpected: ServerError: 405 Method Not Allowed (wat?)")
 }
 
+func (s *interfaceSuite) TestUpdateNoChangeNoRequest(c *gc.C) {
+	server, iface := s.getServerAndNewInterface(c)
+	count := server.RequestCount()
+	err := iface.Update(UpdateInterfaceArgs{})
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(server.RequestCount(), gc.Equals, count)
+}
+
+func (s *interfaceSuite) TestUpdateMissing(c *gc.C) {
+	_, iface := s.getServerAndNewInterface(c)
+	err := iface.Update(UpdateInterfaceArgs{Name: "eth2"})
+	c.Check(err, jc.Satisfies, IsNoMatchError)
+}
+
+func (s *interfaceSuite) TestUpdateForbidden(c *gc.C) {
+	server, iface := s.getServerAndNewInterface(c)
+	server.AddPutResponse(iface.resourceURI, http.StatusForbidden, "bad user")
+	err := iface.Update(UpdateInterfaceArgs{Name: "eth2"})
+	c.Check(err, jc.Satisfies, IsPermissionError)
+	c.Check(err.Error(), gc.Equals, "bad user")
+}
+
+func (s *interfaceSuite) TestUpdateUnknown(c *gc.C) {
+	server, iface := s.getServerAndNewInterface(c)
+	server.AddPutResponse(iface.resourceURI, http.StatusMethodNotAllowed, "wat?")
+	err := iface.Update(UpdateInterfaceArgs{Name: "eth2"})
+	c.Check(err, jc.Satisfies, IsUnexpectedError)
+	c.Assert(err.Error(), gc.Equals, "unexpected: ServerError: 405 Method Not Allowed (wat?)")
+}
+
+func (s *interfaceSuite) TestUndateGood(c *gc.C) {
+	server, iface := s.getServerAndNewInterface(c)
+	// The changed information is there just for the test to show that the response
+	// is parsed and the interface updated
+	response := updateJSONMap(c, interfaceResponse, map[string]interface{}{
+		"name": "eth42",
+	})
+	server.AddPutResponse(iface.resourceURI, http.StatusOK, response)
+	args := UpdateInterfaceArgs{
+		Name:       "eth42",
+		MACAddress: "c3-52-51-b4-50-cd",
+		VLAN:       &fakeVLAN{id: 13},
+	}
+	err := iface.Update(args)
+	c.Check(err, jc.ErrorIsNil)
+	c.Check(iface.Name(), gc.Equals, "eth42")
+
+	request := server.LastRequest()
+	form := request.PostForm
+	c.Assert(form.Get("name"), gc.Equals, "eth42")
+	c.Assert(form.Get("mac_address"), gc.Equals, "c3-52-51-b4-50-cd")
+	c.Assert(form.Get("vlan"), gc.Equals, "13")
+}
+
 const (
 	interfacesResponse = "[" + interfaceResponse + "]"
 	interfaceResponse  = `

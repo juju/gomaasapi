@@ -145,6 +145,10 @@ func (s *SimpleTestServer) LastRequest() *http.Request {
 	return s.requests[pos]
 }
 
+func (s *SimpleTestServer) RequestCount() int {
+	return len(s.requests)
+}
+
 func (s *SimpleTestServer) handler(writer http.ResponseWriter, request *http.Request) {
 	method := request.Method
 	var (
