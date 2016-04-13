@@ -218,18 +218,21 @@ func (i *interface_) LinkSubnet(args LinkSubnetArgs) error {
 	return nil
 }
 
+func (i *interface_) linkForSubnet(subnet Subnet) *link {
+	for _, link := range i.links {
+		if s := link.Subnet(); s != nil && s.ID() == subnet.ID() {
+			return link
+		}
+	}
+	return nil
+}
+
 // LinkSubnet implements Interface.
 func (i *interface_) UnlinkSubnet(subnet Subnet) error {
 	if subnet == nil {
 		return errors.NotValidf("missing Subnet")
 	}
-	var link Link
-	for _, k := range i.links {
-		if s := k.Subnet(); s != nil && s.ID() == subnet.ID() {
-			link = k
-			break
-		}
-	}
+	link := i.linkForSubnet(subnet)
 	if link == nil {
 		return errors.NotValidf("unlinked Subnet")
 	}
