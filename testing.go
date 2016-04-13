@@ -92,6 +92,8 @@ type SimpleTestServer struct {
 
 	getResponses        map[string][]simpleResponse
 	getResponseIndex    map[string]int
+	putResponses        map[string][]simpleResponse
+	putResponseIndex    map[string]int
 	postResponses       map[string][]simpleResponse
 	postResponseIndex   map[string]int
 	deleteResponses     map[string][]simpleResponse
@@ -104,6 +106,8 @@ func NewSimpleServer() *SimpleTestServer {
 	server := &SimpleTestServer{
 		getResponses:        make(map[string][]simpleResponse),
 		getResponseIndex:    make(map[string]int),
+		putResponses:        make(map[string][]simpleResponse),
+		putResponseIndex:    make(map[string]int),
 		postResponses:       make(map[string][]simpleResponse),
 		postResponseIndex:   make(map[string]int),
 		deleteResponses:     make(map[string][]simpleResponse),
@@ -116,6 +120,11 @@ func NewSimpleServer() *SimpleTestServer {
 func (s *SimpleTestServer) AddGetResponse(path string, status int, body string) {
 	logger.Debugf("add get response for: %s, %d", path, status)
 	s.getResponses[path] = append(s.getResponses[path], simpleResponse{status: status, body: body})
+}
+
+func (s *SimpleTestServer) AddPutResponse(path string, status int, body string) {
+	logger.Debugf("add put response for: %s, %d", path, status)
+	s.putResponses[path] = append(s.putResponses[path], simpleResponse{status: status, body: body})
 }
 
 func (s *SimpleTestServer) AddPostResponse(path string, status int, body string) {
@@ -136,6 +145,10 @@ func (s *SimpleTestServer) LastRequest() *http.Request {
 	return s.requests[pos]
 }
 
+func (s *SimpleTestServer) RequestCount() int {
+	return len(s.requests)
+}
+
 func (s *SimpleTestServer) handler(writer http.ResponseWriter, request *http.Request) {
 	method := request.Method
 	var (
@@ -150,6 +163,13 @@ func (s *SimpleTestServer) handler(writer http.ResponseWriter, request *http.Req
 		_, err = readAndClose(request.Body)
 		if err != nil {
 			panic(err) // it is a test, panic should be fine
+		}
+	case "PUT":
+		responses = s.putResponses
+		responseIndex = s.putResponseIndex
+		err = request.ParseForm()
+		if err != nil {
+			panic(err)
 		}
 	case "POST":
 		responses = s.postResponses

@@ -108,6 +108,51 @@ func (i *interface_) EffectiveMTU() int {
 	return i.effectiveMTU
 }
 
+// UpdateInterfaceArgs is an argument struct for calling Interface.Update.
+type UpdateInterfaceArgs struct {
+	Name       string
+	MACAddress string
+	VLAN       VLAN
+}
+
+func (a *UpdateInterfaceArgs) vlanID() int {
+	if a.VLAN == nil {
+		return 0
+	}
+	return a.VLAN.ID()
+}
+
+// Update implements Interface.
+func (i *interface_) Update(args UpdateInterfaceArgs) error {
+	var empty UpdateInterfaceArgs
+	if args == empty {
+		return nil
+	}
+	params := NewURLParams()
+	params.MaybeAdd("name", args.Name)
+	params.MaybeAdd("mac_address", args.MACAddress)
+	params.MaybeAddInt("vlan", args.vlanID())
+	source, err := i.controller.put(i.resourceURI, params.Values)
+	if err != nil {
+		if svrErr, ok := errors.Cause(err).(ServerError); ok {
+			switch svrErr.StatusCode {
+			case http.StatusNotFound:
+				return errors.Wrap(err, NewNoMatchError(svrErr.BodyMessage))
+			case http.StatusForbidden:
+				return errors.Wrap(err, NewPermissionError(svrErr.BodyMessage))
+			}
+		}
+		return NewUnexpectedError(err)
+	}
+
+	response, err := readInterface(i.controller.apiVersion, source)
+	if err != nil {
+		return errors.Trace(err)
+	}
+	i.updateFrom(response)
+	return nil
+}
+
 // Delete implements Interface.
 func (i *interface_) Delete() error {
 	err := i.controller.delete(i.resourceURI)

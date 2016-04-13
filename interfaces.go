@@ -263,6 +263,9 @@ type Interface interface {
 	// Params is a JSON field, and defaults to an empty string, but is almost
 	// always a JSON object in practice. Gleefully ignoring it until we need it.
 
+	// Update the name, mac address or VLAN.
+	Update(UpdateInterfaceArgs) error
+
 	// Delete this interface.
 	Delete() error
 
