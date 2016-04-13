@@ -649,6 +649,26 @@ func (c *controller) checkCreds() error {
 	return nil
 }
 
+func (c *controller) put(path string, params url.Values) (interface{}, error) {
+	path = EnsureTrailingSlash(path)
+	requestID := nextRequestID()
+	logger.Tracef("request %x: PUT %s%s, params: %s", requestID, c.client.APIURL, path, params.Encode())
+	bytes, err := c.client.Put(&url.URL{Path: path}, params)
+	if err != nil {
+		logger.Tracef("response %x: error: %q", requestID, err.Error())
+		logger.Tracef("error detail: %#v", err)
+		return nil, errors.Trace(err)
+	}
+	logger.Tracef("response %x: %s", requestID, string(bytes))
+
+	var parsed interface{}
+	err = json.Unmarshal(bytes, &parsed)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	return parsed, nil
+}
+
 func (c *controller) post(path, op string, params url.Values) (interface{}, error) {
 	bytes, err := c._postRaw(path, op, params, nil)
 	if err != nil {

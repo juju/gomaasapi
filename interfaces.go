@@ -259,8 +259,19 @@ type Interface interface {
 	// Params is a JSON field, and defaults to an empty string, but is almost
 	// always a JSON object in practice. Gleefully ignoring it until we need it.
 
+	// Update the name, mac address or VLAN.
+	Update(UpdateInterfaceArgs) error
+
 	// Delete this interface.
 	Delete() error
+
+	// LinkSubnet will attempt to make this interface available on the specified
+	// Subnet.
+	LinkSubnet(LinkSubnetArgs) error
+
+	// UnlinkSubnet will remove the Link to the subnet, and release the IP
+	// address associated if there is one.
+	UnlinkSubnet(Subnet) error
 }
 
 // Link represents a network link between an Interface and a Subnet.
