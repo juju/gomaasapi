@@ -346,7 +346,7 @@ func (s *interfaceSuite) TestUpdateUnknown(c *gc.C) {
 	c.Assert(err.Error(), gc.Equals, "unexpected: ServerError: 405 Method Not Allowed (wat?)")
 }
 
-func (s *interfaceSuite) TestUndateGood(c *gc.C) {
+func (s *interfaceSuite) TestUpdateGood(c *gc.C) {
 	server, iface := s.getServerAndNewInterface(c)
 	// The changed information is there just for the test to show that the response
 	// is parsed and the interface updated
