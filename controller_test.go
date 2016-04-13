@@ -164,7 +164,7 @@ func (s *controllerSuite) TestDevicesArgs(c *gc.C) {
 }
 
 func (s *controllerSuite) TestCreateDevice(c *gc.C) {
-	s.server.AddPostResponse("/api/2.0/devices/?op=create", http.StatusOK, deviceResponse)
+	s.server.AddPostResponse("/api/2.0/devices/?op=", http.StatusOK, deviceResponse)
 	controller := s.getController(c)
 	device, err := controller.CreateDevice(CreateDeviceArgs{
 		MACAddresses: []string{"a-mac-address"},
@@ -181,7 +181,7 @@ func (s *controllerSuite) TestCreateDeviceMissingAddress(c *gc.C) {
 }
 
 func (s *controllerSuite) TestCreateDeviceBadRequest(c *gc.C) {
-	s.server.AddPostResponse("/api/2.0/devices/?op=create", http.StatusBadRequest, "some error")
+	s.server.AddPostResponse("/api/2.0/devices/?op=", http.StatusBadRequest, "some error")
 	controller := s.getController(c)
 	_, err := controller.CreateDevice(CreateDeviceArgs{
 		MACAddresses: []string{"a-mac-address"},
@@ -191,7 +191,7 @@ func (s *controllerSuite) TestCreateDeviceBadRequest(c *gc.C) {
 }
 
 func (s *controllerSuite) TestCreateDeviceArgs(c *gc.C) {
-	s.server.AddPostResponse("/api/2.0/devices/?op=create", http.StatusOK, deviceResponse)
+	s.server.AddPostResponse("/api/2.0/devices/?op=", http.StatusOK, deviceResponse)
 	controller := s.getController(c)
 	// Create an arg structure that sets all the values.
 	args := CreateDeviceArgs{
@@ -669,7 +669,7 @@ func (s *controllerSuite) assertFile(c *gc.C, request *http.Request, filename, c
 }
 
 func (s *controllerSuite) TestAddFileContent(c *gc.C) {
-	s.server.AddPostResponse("/api/2.0/files/?op=create", http.StatusOK, "")
+	s.server.AddPostResponse("/api/2.0/files/?op=", http.StatusOK, "")
 	controller := s.getController(c)
 	err := controller.AddFile(AddFileArgs{
 		Filename: "foo.txt",
@@ -683,7 +683,7 @@ func (s *controllerSuite) TestAddFileContent(c *gc.C) {
 
 func (s *controllerSuite) TestAddFileReader(c *gc.C) {
 	reader := bytes.NewBufferString("test\n extra over length ignored")
-	s.server.AddPostResponse("/api/2.0/files/?op=create", http.StatusOK, "")
+	s.server.AddPostResponse("/api/2.0/files/?op=", http.StatusOK, "")
 	controller := s.getController(c)
 	err := controller.AddFile(AddFileArgs{
 		Filename: "foo.txt",
