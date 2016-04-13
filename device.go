@@ -22,8 +22,12 @@ type device struct {
 	hostname string
 	fqdn     string
 
-	ipAddresses []string
-	zone        *zone
+	parent string
+	owner  string
+
+	ipAddresses  []string
+	interfaceSet []*interface_
+	zone         *zone
 }
 
 // SystemID implements Device.
@@ -41,6 +45,16 @@ func (d *device) FQDN() string {
 	return d.fqdn
 }
 
+// Parent implements Device.
+func (d *device) Parent() string {
+	return d.parent
+}
+
+// Owner implements Device.
+func (d *device) Owner() string {
+	return d.owner
+}
+
 // IPAddresses implements Device.
 func (d *device) IPAddresses() []string {
 	return d.ipAddresses
@@ -52,24 +66,13 @@ func (d *device) Zone() Zone {
 }
 
 // InterfaceSet implements Device.
-func (d *device) InterfaceSet() ([]Interface, error) {
-	// NOTE: the get and extra parse will not be necessary
-	// when r4900 of maas has been packaged and released.
-	source, err := d.controller.get(d.interfacesURI())
-	if err != nil {
-		return nil, NewUnexpectedError(err)
-	}
-	ifaces, err := readInterfaces(d.controller.apiVersion, source)
-	if err != nil {
-		return nil, errors.Trace(err)
-	}
-
-	result := make([]Interface, len(ifaces))
-	for i, v := range ifaces {
+func (d *device) InterfaceSet() []Interface {
+	result := make([]Interface, len(d.interfaceSet))
+	for i, v := range d.interfaceSet {
 		v.controller = d.controller
 		result[i] = v
 	}
-	return result, nil
+	return result
 }
 
 // CreateInterfaceArgs is an argument struct for passing parameters to
@@ -240,9 +243,12 @@ func device_2_0(source map[string]interface{}) (*device, error) {
 		"system_id": schema.String(),
 		"hostname":  schema.String(),
 		"fqdn":      schema.String(),
+		"parent":    schema.String(),
+		"owner":     schema.String(),
 
-		"ip_addresses": schema.List(schema.String()),
-		"zone":         schema.StringMap(schema.Any()),
+		"ip_addresses":  schema.List(schema.String()),
+		"interface_set": schema.List(schema.StringMap(schema.Any())),
+		"zone":          schema.StringMap(schema.Any()),
 	}
 	checker := schema.FieldMap(fields, nil) // no defaults
 	coerced, err := checker.Coerce(source, nil)
@@ -253,6 +259,10 @@ func device_2_0(source map[string]interface{}) (*device, error) {
 	// From here we know that the map returned from the schema coercion
 	// contains fields of the right type.
 
+	interfaceSet, err := readInterfaceList(valid["interface_set"].([]interface{}), interface_2_0)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
 	zone, err := zone_2_0(valid["zone"].(map[string]interface{}))
 	if err != nil {
 		return nil, errors.Trace(err)
@@ -264,9 +274,12 @@ func device_2_0(source map[string]interface{}) (*device, error) {
 		systemID: valid["system_id"].(string),
 		hostname: valid["hostname"].(string),
 		fqdn:     valid["fqdn"].(string),
+		parent:   valid["parent"].(string),
+		owner:    valid["owner"].(string),
 
-		ipAddresses: convertToStringSlice(valid["ip_addresses"]),
-		zone:        zone,
+		ipAddresses:  convertToStringSlice(valid["ip_addresses"]),
+		interfaceSet: interfaceSet,
+		zone:         zone,
 	}
 	return result, nil
 }

@@ -170,7 +170,7 @@ func (s *controllerSuite) TestCreateDevice(c *gc.C) {
 		MACAddresses: []string{"a-mac-address"},
 	})
 	c.Assert(err, jc.ErrorIsNil)
-	c.Assert(device.SystemID(), gc.Equals, "4y3ha8")
+	c.Assert(device.SystemID(), gc.Equals, "4y3haf")
 }
 
 func (s *controllerSuite) TestCreateDeviceMissingAddress(c *gc.C) {

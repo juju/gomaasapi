@@ -31,13 +31,13 @@ func (*deviceSuite) TestReadDevices(c *gc.C) {
 	c.Assert(devices, gc.HasLen, 1)
 
 	device := devices[0]
-	c.Assert(device.SystemID(), gc.Equals, "4y3ha8")
-	c.Assert(device.Hostname(), gc.Equals, "furnacelike-brittney")
-	c.Assert(device.FQDN(), gc.Equals, "furnacelike-brittney.maas")
-	c.Assert(device.IPAddresses(), jc.DeepEquals, []string{"192.168.100.11"})
+	c.Check(device.SystemID(), gc.Equals, "4y3haf")
+	c.Check(device.Hostname(), gc.Equals, "furnacelike-brittney")
+	c.Check(device.FQDN(), gc.Equals, "furnacelike-brittney.maas")
+	c.Check(device.IPAddresses(), jc.DeepEquals, []string{"192.168.100.11"})
 	zone := device.Zone()
-	c.Assert(zone, gc.NotNil)
-	c.Assert(zone.Name(), gc.Equals, "default")
+	c.Check(zone, gc.NotNil)
+	c.Check(zone.Name(), gc.Equals, "default")
 }
 
 func (*deviceSuite) TestLowVersion(c *gc.C) {
@@ -54,10 +54,8 @@ func (*deviceSuite) TestHighVersion(c *gc.C) {
 func (s *deviceSuite) TestInterfaceSet(c *gc.C) {
 	server, device := s.getServerAndDevice(c)
 	server.AddGetResponse(device.interfacesURI(), http.StatusOK, interfacesResponse)
-
-	ifaces, err := device.InterfaceSet()
-	c.Assert(err, jc.ErrorIsNil)
-	c.Assert(ifaces, gc.HasLen, 1)
+	ifaces := device.InterfaceSet()
+	c.Assert(ifaces, gc.HasLen, 2)
 }
 
 type fakeVLAN struct {
@@ -211,36 +209,93 @@ func (s *deviceSuite) TestDeleteUnknown(c *gc.C) {
 
 const (
 	deviceResponse = `
-        {
-            "domain": {
-                "name": "maas",
-                "ttl": null,
-                "resource_record_count": 0,
-                "resource_uri": "/MAAS/api/2.0/domains/0/",
-                "id": 0,
-                "authoritative": true
+    {
+        "zone": {
+            "description": "",
+            "resource_uri": "/MAAS/api/2.0/zones/default/",
+            "name": "default"
+        },
+        "domain": {
+            "resource_record_count": 0,
+            "resource_uri": "/MAAS/api/2.0/domains/0/",
+            "authoritative": true,
+            "name": "maas",
+            "ttl": null,
+            "id": 0
+        },
+        "node_type_name": "Device",
+        "address_ttl": null,
+        "hostname": "furnacelike-brittney",
+        "node_type": 1,
+        "resource_uri": "/MAAS/api/2.0/devices/4y3haf/",
+        "ip_addresses": ["192.168.100.11"],
+        "owner": "thumper",
+        "tag_names": [],
+        "fqdn": "furnacelike-brittney.maas",
+        "system_id": "4y3haf",
+        "parent": "4y3ha3",
+        "interface_set": [
+            {
+                "resource_uri": "/MAAS/api/2.0/nodes/4y3haf/interfaces/48/",
+                "type": "physical",
+                "mac_address": "78:f0:f1:16:a7:46",
+                "params": "",
+                "discovered": null,
+                "effective_mtu": 1500,
+                "id": 48,
+                "children": [],
+                "links": [],
+                "name": "eth0",
+                "vlan": {
+                    "secondary_rack": null,
+                    "dhcp_on": true,
+                    "fabric": "fabric-0",
+                    "mtu": 1500,
+                    "primary_rack": "4y3h7n",
+                    "resource_uri": "/MAAS/api/2.0/vlans/1/",
+                    "external_dhcp": null,
+                    "name": "untagged",
+                    "id": 1,
+                    "vid": 0
+                },
+                "tags": [],
+                "parents": [],
+                "enabled": true
             },
-            "tag_names": [],
-            "hostname": "furnacelike-brittney",
-            "zone": {
-                "name": "default",
-                "description": "",
-                "resource_uri": "/MAAS/api/2.0/zones/default/"
-            },
-            "parent": null,
-            "system_id": "4y3ha8",
-            "node_type": 1,
-            "ip_addresses": ["192.168.100.11"],
-            "resource_uri": "/MAAS/api/2.0/devices/4y3ha8/",
-            "owner": "thumper",
-            "fqdn": "furnacelike-brittney.maas",
-            "node_type_name": "Device",
-            "macaddress_set": [
-                {
-                    "mac_address": "b8:6a:6d:58:b3:7d"
-                }
-            ]
-        }
-        `
+            {
+                "resource_uri": "/MAAS/api/2.0/nodes/4y3haf/interfaces/49/",
+                "type": "physical",
+                "mac_address": "15:34:d3:2d:f7:a7",
+                "params": {},
+                "discovered": null,
+                "effective_mtu": 1500,
+                "id": 49,
+                "children": [],
+                "links": [
+                    {
+                        "mode": "link_up",
+                        "id": 101
+                    }
+                ],
+                "name": "eth1",
+                "vlan": {
+                    "secondary_rack": null,
+                    "dhcp_on": true,
+                    "fabric": "fabric-0",
+                    "mtu": 1500,
+                    "primary_rack": "4y3h7n",
+                    "resource_uri": "/MAAS/api/2.0/vlans/1/",
+                    "external_dhcp": null,
+                    "name": "untagged",
+                    "id": 1,
+                    "vid": 0
+                },
+                "tags": [],
+                "parents": [],
+                "enabled": true
+            }
+        ]
+    }
+    `
 	devicesResponse = "[" + deviceResponse + "]"
 )
