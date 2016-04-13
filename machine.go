@@ -154,6 +154,23 @@ func (m *machine) StatusMessage() string {
 	return m.statusMessage
 }
 
+// Devices implements Machine.
+func (m *machine) Devices(args DevicesArgs) ([]Device, error) {
+	// Perhaps in the future, MAAS will give us a way to query just for the
+	// devices for a particular parent.
+	devices, err := m.controller.Devices(args)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	var result []Device
+	for _, device := range devices {
+		if device.Parent() == m.SystemID() {
+			result = append(result, device)
+		}
+	}
+	return result, nil
+}
+
 // StartArgs is an argument struct for passing parameters to the Machine.Start
 // method.
 type StartArgs struct {
