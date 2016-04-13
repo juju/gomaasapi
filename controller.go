@@ -625,7 +625,7 @@ func (c *controller) AddFile(args AddFileArgs) error {
 		fileContent = content
 	}
 	params := url.Values{"filename": {args.Filename}}
-	_, err := c.postFile("files", "create", params, fileContent)
+	_, err := c.postFile("files", "", params, fileContent)
 	if err != nil {
 		if svrErr, ok := errors.Cause(err).(ServerError); ok {
 			if svrErr.StatusCode == http.StatusBadRequest {
@@ -692,7 +692,13 @@ func (c *controller) postFile(path, op string, params url.Values, fileContent []
 func (c *controller) _postRaw(path, op string, params url.Values, files map[string][]byte) ([]byte, error) {
 	path = EnsureTrailingSlash(path)
 	requestID := nextRequestID()
-	logger.Tracef("request %x: POST %s%s?op=%s, params=%s", requestID, c.client.APIURL, path, op, params.Encode())
+	if logger.IsTraceEnabled() {
+		opArg := ""
+		if op != "" {
+			opArg = "?op=" + op
+		}
+		logger.Tracef("request %x: POST %s%s%s, params=%s", requestID, c.client.APIURL, path, opArg, params.Encode())
+	}
 	bytes, err := c.client.Post(&url.URL{Path: path}, op, params, files)
 	if err != nil {
 		logger.Tracef("response %x: error: %q", requestID, err.Error())
