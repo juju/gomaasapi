@@ -158,6 +158,26 @@ func (s *machineSuite) TestStartMachineUnknown(c *gc.C) {
 	c.Assert(err.Error(), gc.Equals, "unexpected: ServerError: 405 Method Not Allowed (wat?)")
 }
 
+func (s *machineSuite) TestDevices(c *gc.C) {
+	server, machine := s.getServerAndMachine(c)
+	server.AddGetResponse("/api/2.0/devices/", http.StatusOK, devicesResponse)
+	devices, err := machine.Devices(DevicesArgs{})
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(devices, gc.HasLen, 1)
+	c.Assert(devices[0].Parent(), gc.Equals, machine.SystemID())
+}
+
+func (s *machineSuite) TestDevicesNone(c *gc.C) {
+	server, machine := s.getServerAndMachine(c)
+	response := updateJSONMap(c, deviceResponse, map[string]interface{}{
+		"parent": "other",
+	})
+	server.AddGetResponse("/api/2.0/devices/", http.StatusOK, "["+response+"]")
+	devices, err := machine.Devices(DevicesArgs{})
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(devices, gc.HasLen, 0)
+}
+
 const (
 	machineResponse = `
 	{

@@ -191,6 +191,10 @@ type Machine interface {
 	IPAddresses() []string
 	PowerState() string
 
+	// Devices returns a list of devices that match the params and have
+	// this Machine as the parent.
+	Devices(DevicesArgs) ([]Device, error)
+
 	// Consider bundling the status values into a single struct.
 	// but need to check for consistent representation if exposed on other
 	// entities.
