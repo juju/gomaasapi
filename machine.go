@@ -215,7 +215,7 @@ func (m *machine) Start(args StartArgs) error {
 }
 
 // CreateMachineDeviceArgs is an argument structure for Machine.CreateDevice.
-// All fields are required.
+// All fields except Hostname are required.
 type CreateMachineDeviceArgs struct {
 	Hostname      string
 	InterfaceName string
@@ -223,11 +223,8 @@ type CreateMachineDeviceArgs struct {
 	Subnet        Subnet
 }
 
-// Validate ensures that all values are non-emtpy.
+// Validate ensures that all required values are non-emtpy.
 func (a *CreateMachineDeviceArgs) Validate() error {
-	if a.Hostname == "" {
-		return errors.NotValidf("missing Hostname")
-	}
 	if a.InterfaceName == "" {
 		return errors.NotValidf("missing InterfaceName")
 	}

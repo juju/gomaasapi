@@ -224,7 +224,7 @@ func (c *controller) CreateDevice(args CreateDeviceArgs) (Device, error) {
 	params.MaybeAdd("domain", args.Domain)
 	params.MaybeAddMany("mac_addresses", args.MACAddresses)
 	params.MaybeAdd("parent", args.Parent)
-	result, err := c.post("devices", "create", params.Values)
+	result, err := c.post("devices", "", params.Values)
 	if err != nil {
 		if svrErr, ok := errors.Cause(err).(ServerError); ok {
 			if svrErr.StatusCode == http.StatusBadRequest {
