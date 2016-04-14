@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"net/http"
 
+	"github.com/juju/errors"
 	"github.com/juju/testing"
 	jc "github.com/juju/testing/checkers"
 	"github.com/juju/version"
@@ -176,6 +177,105 @@ func (s *machineSuite) TestDevicesNone(c *gc.C) {
 	devices, err := machine.Devices(DevicesArgs{})
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(devices, gc.HasLen, 0)
+}
+
+func (s *machineSuite) TestCreateMachineDeviceArgsValidate(c *gc.C) {
+	for i, test := range []struct {
+		args    CreateMachineDeviceArgs
+		errText string
+	}{{
+		errText: "missing InterfaceName not valid",
+	}, {
+		args: CreateMachineDeviceArgs{
+			InterfaceName: "eth1",
+		},
+		errText: `missing MACAddress not valid`,
+	}, {
+		args: CreateMachineDeviceArgs{
+			InterfaceName: "eth1",
+			MACAddress:    "something",
+		},
+		errText: `missing Subnet not valid`,
+	}, {
+		args: CreateMachineDeviceArgs{
+			InterfaceName: "eth1",
+			MACAddress:    "something",
+			Subnet:        &fakeSubnet{},
+		},
+	}, {
+		args: CreateMachineDeviceArgs{
+			Hostname:      "is-optional",
+			InterfaceName: "eth1",
+			MACAddress:    "something",
+			Subnet:        &fakeSubnet{},
+		},
+	}} {
+		c.Logf("test %d", i)
+		err := test.args.Validate()
+		if test.errText == "" {
+			c.Check(err, jc.ErrorIsNil)
+		} else {
+			c.Check(err, jc.Satisfies, errors.IsNotValid)
+			c.Check(err.Error(), gc.Equals, test.errText)
+		}
+	}
+}
+
+func (s *machineSuite) TestCreateDeviceValidates(c *gc.C) {
+	_, machine := s.getServerAndMachine(c)
+	_, err := machine.CreateDevice(CreateMachineDeviceArgs{})
+	c.Assert(err, jc.Satisfies, errors.IsNotValid)
+	c.Assert(err.Error(), gc.Equals, "missing InterfaceName not valid")
+}
+
+func (s *machineSuite) TestCreateDevice(c *gc.C) {
+	server, machine := s.getServerAndMachine(c)
+	// The createDeviceResponse returns a single interface with the name "eth0".
+	server.AddPostResponse("/api/2.0/devices/?op=", http.StatusOK, createDeviceResponse)
+	updateInterfaceResponse := updateJSONMap(c, interfaceResponse, map[string]interface{}{
+		"name":         "eth4",
+		"links":        []interface{}{},
+		"resource_uri": "/MAAS/api/2.0/nodes/4y3haf/interfaces/48/",
+	})
+	server.AddPutResponse("/MAAS/api/2.0/nodes/4y3haf/interfaces/48/", http.StatusOK, updateInterfaceResponse)
+	linkSubnetResponse := updateJSONMap(c, interfaceResponse, map[string]interface{}{
+		"name":         "eth4",
+		"resource_uri": "/MAAS/api/2.0/nodes/4y3haf/interfaces/48/",
+	})
+	server.AddPostResponse("/MAAS/api/2.0/nodes/4y3haf/interfaces/48/?op=link_subnet", http.StatusOK, linkSubnetResponse)
+	subnet := machine.BootInterface().Links()[0].Subnet()
+	device, err := machine.CreateDevice(CreateMachineDeviceArgs{
+		InterfaceName: "eth4",
+		MACAddress:    "fake-mac-address",
+		Subnet:        subnet,
+	})
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(device.InterfaceSet()[0].Name(), gc.Equals, "eth4")
+}
+
+func (s *machineSuite) TestCreateDeviceTriesToDeleteDeviceOnError(c *gc.C) {
+	server, machine := s.getServerAndMachine(c)
+	// The createDeviceResponse returns a single interface with the name "eth0".
+	server.AddPostResponse("/api/2.0/devices/?op=", http.StatusOK, createDeviceResponse)
+	updateInterfaceResponse := updateJSONMap(c, interfaceResponse, map[string]interface{}{
+		"name":         "eth4",
+		"links":        []interface{}{},
+		"resource_uri": "/MAAS/api/2.0/nodes/4y3haf/interfaces/48/",
+	})
+	server.AddPutResponse("/MAAS/api/2.0/nodes/4y3haf/interfaces/48/", http.StatusOK, updateInterfaceResponse)
+	server.AddPostResponse("/MAAS/api/2.0/nodes/4y3haf/interfaces/48/?op=link_subnet", http.StatusServiceUnavailable, "no addresses")
+	// We'll ignore that that it fails to delete, all we care about testing is that it tried.
+	subnet := machine.BootInterface().Links()[0].Subnet()
+	_, err := machine.CreateDevice(CreateMachineDeviceArgs{
+		InterfaceName: "eth4",
+		MACAddress:    "fake-mac-address",
+		Subnet:        subnet,
+	})
+	c.Assert(err, jc.Satisfies, IsCannotCompleteError)
+
+	request := server.LastRequest()
+	c.Assert(request.Method, gc.Equals, "DELETE")
+	c.Assert(request.RequestURI, gc.Equals, "/MAAS/api/2.0/devices/4y3haf/")
 }
 
 const (
@@ -913,5 +1013,63 @@ const (
         }
     }
 ]
+`
+
+	createDeviceResponse = `
+{
+	"zone": {
+		"description": "",
+		"resource_uri": "/MAAS/api/2.0/zones/default/",
+		"name": "default"
+	},
+	"domain": {
+		"resource_record_count": 0,
+		"resource_uri": "/MAAS/api/2.0/domains/0/",
+		"authoritative": true,
+		"name": "maas",
+		"ttl": null,
+		"id": 0
+	},
+	"node_type_name": "Device",
+	"address_ttl": null,
+	"hostname": "furnacelike-brittney",
+	"node_type": 1,
+	"resource_uri": "/MAAS/api/2.0/devices/4y3haf/",
+	"ip_addresses": ["192.168.100.11"],
+	"owner": "thumper",
+	"tag_names": [],
+	"fqdn": "furnacelike-brittney.maas",
+	"system_id": "4y3haf",
+	"parent": "4y3ha3",
+	"interface_set": [
+		{
+			"resource_uri": "/MAAS/api/2.0/nodes/4y3haf/interfaces/48/",
+			"type": "physical",
+			"mac_address": "78:f0:f1:16:a7:46",
+			"params": "",
+			"discovered": null,
+			"effective_mtu": 1500,
+			"id": 48,
+			"children": [],
+			"links": [],
+			"name": "eth0",
+			"vlan": {
+				"secondary_rack": null,
+				"dhcp_on": true,
+				"fabric": "fabric-0",
+				"mtu": 1500,
+				"primary_rack": "4y3h7n",
+				"resource_uri": "/MAAS/api/2.0/vlans/1/",
+				"external_dhcp": null,
+				"name": "untagged",
+				"id": 1,
+				"vid": 0
+			},
+			"tags": [],
+			"parents": [],
+			"enabled": true
+		}
+	]
+}
 `
 )
