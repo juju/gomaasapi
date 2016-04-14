@@ -239,6 +239,9 @@ func (a *CreateMachineDeviceArgs) Validate() error {
 
 // CreateDevice implements Machine
 func (m *machine) CreateDevice(args CreateMachineDeviceArgs) (_ Device, err error) {
+	if err := args.Validate(); err != nil {
+		return nil, errors.Trace(err)
+	}
 	device, err := m.controller.CreateDevice(CreateDeviceArgs{
 		Hostname:     args.Hostname,
 		MACAddresses: []string{args.MACAddress},
