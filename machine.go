@@ -173,6 +173,7 @@ func (m *machine) Devices(args DevicesArgs) ([]Device, error) {
 // StartArgs is an argument struct for passing parameters to the Machine.Start
 // method.
 type StartArgs struct {
+	// UserData needs to be Base64 encoded user data for cloud-init.
 	UserData     string
 	DistroSeries string
 	Kernel       string
