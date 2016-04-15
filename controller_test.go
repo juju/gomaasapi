@@ -403,10 +403,13 @@ func (s *controllerSuite) TestAllocateMachineArgs(c *gc.C) {
 	}
 }
 
-func (s *controllerSuite) addAllocateReponse(c *gc.C, status int, interfaceMatches map[string]int) {
+func (s *controllerSuite) addAllocateResponse(c *gc.C, status int, interfaceMatches, storageMatches map[string]int) {
 	constraints := make(map[string]interface{})
 	if interfaceMatches != nil {
 		constraints["interfaces"] = interfaceMatches
+	}
+	if storageMatches != nil {
+		constraints["storage"] = storageMatches
 	}
 	allocateJSON := updateJSONMap(c, machineResponse, map[string]interface{}{
 		"constraints_by_type": constraints,
@@ -415,7 +418,7 @@ func (s *controllerSuite) addAllocateReponse(c *gc.C, status int, interfaceMatch
 }
 
 func (s *controllerSuite) TestAllocateMachine(c *gc.C) {
-	s.addAllocateReponse(c, http.StatusOK, nil)
+	s.addAllocateResponse(c, http.StatusOK, nil, nil)
 	controller := s.getController(c)
 	machine, _, err := controller.AllocateMachine(AllocateMachineArgs{})
 	c.Assert(err, jc.ErrorIsNil)
@@ -423,9 +426,9 @@ func (s *controllerSuite) TestAllocateMachine(c *gc.C) {
 }
 
 func (s *controllerSuite) TestAllocateMachineInterfacesMatch(c *gc.C) {
-	s.addAllocateReponse(c, http.StatusOK, map[string]int{
+	s.addAllocateResponse(c, http.StatusOK, map[string]int{
 		"database": 35,
-	})
+	}, nil)
 	controller := s.getController(c)
 	_, match, err := controller.AllocateMachine(AllocateMachineArgs{
 		// This isn't actually used, but here to show how it should be used.
@@ -443,9 +446,9 @@ func (s *controllerSuite) TestAllocateMachineInterfacesMatch(c *gc.C) {
 func (s *controllerSuite) TestAllocateMachineInterfacesMatchMissing(c *gc.C) {
 	// This should never happen, but if it does it is a clear indication of a
 	// bug somewhere.
-	s.addAllocateReponse(c, http.StatusOK, map[string]int{
+	s.addAllocateResponse(c, http.StatusOK, map[string]int{
 		"database": 40,
-	})
+	}, nil)
 	controller := s.getController(c)
 	_, _, err := controller.AllocateMachine(AllocateMachineArgs{
 		Interfaces: []InterfaceSpec{{
@@ -456,8 +459,43 @@ func (s *controllerSuite) TestAllocateMachineInterfacesMatchMissing(c *gc.C) {
 	c.Assert(err, jc.Satisfies, IsDeserializationError)
 }
 
+func (s *controllerSuite) TestAllocateMachineStorageMatches(c *gc.C) {
+	s.addAllocateResponse(c, http.StatusOK, nil, map[string]int{
+		"root": 34,
+	})
+	controller := s.getController(c)
+	_, match, err := controller.AllocateMachine(AllocateMachineArgs{
+		Storage: []StorageSpec{{
+			Label: "root",
+			Size:  50,
+			Tags:  []string{"hefty", "tangy"},
+		}},
+	})
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(match.Storage, gc.HasLen, 1)
+	storage := match.Storage["root"]
+	c.Assert(storage.ID(), gc.Equals, 34)
+}
+
+func (s *controllerSuite) TestAllocateMachineStorageMatchMissing(c *gc.C) {
+	// This should never happen, but if it does it is a clear indication of a
+	// bug somewhere.
+	s.addAllocateResponse(c, http.StatusOK, nil, map[string]int{
+		"root": 50,
+	})
+	controller := s.getController(c)
+	_, _, err := controller.AllocateMachine(AllocateMachineArgs{
+		Storage: []StorageSpec{{
+			Label: "root",
+			Size:  50,
+			Tags:  []string{"hefty", "tangy"},
+		}},
+	})
+	c.Assert(err, jc.Satisfies, IsDeserializationError)
+}
+
 func (s *controllerSuite) TestAllocateMachineArgsForm(c *gc.C) {
-	s.addAllocateReponse(c, http.StatusOK, nil)
+	s.addAllocateResponse(c, http.StatusOK, nil, nil)
 	controller := s.getController(c)
 	// Create an arg structure that sets all the values.
 	args := AllocateMachineArgs{
