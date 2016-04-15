@@ -109,7 +109,12 @@ func (s *machineSuite) TestStart(c *gc.C) {
 
 	request := server.LastRequest()
 	// There should be one entry in the form values for each of the args.
-	c.Assert(request.PostForm, gc.HasLen, 4)
+	form := request.PostForm
+	c.Assert(form, gc.HasLen, 4)
+	c.Check(form.Get("user_data"), gc.Equals, "userdata")
+	c.Check(form.Get("distro_series"), gc.Equals, "trusty")
+	c.Check(form.Get("hwe_kernel"), gc.Equals, "kernel")
+	c.Check(form.Get("comment"), gc.Equals, "a comment")
 }
 
 func (s *machineSuite) TestStartMachineNotFound(c *gc.C) {
