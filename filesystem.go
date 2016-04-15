@@ -3,11 +3,7 @@
 
 package gomaasapi
 
-import (
-	"github.com/juju/errors"
-	"github.com/juju/schema"
-	"github.com/juju/version"
-)
+import "github.com/juju/schema"
 
 type filesystem struct {
 	fstype     string
@@ -37,51 +33,10 @@ func (f *filesystem) UUID() string {
 	return f.uuid
 }
 
-func readFileSystems(controllerVersion version.Number, source interface{}) ([]*filesystem, error) {
-	checker := schema.List(schema.StringMap(schema.Any()))
-	coerced, err := checker.Coerce(source, nil)
-	if err != nil {
-		return nil, WrapWithDeserializationError(err, "filesystem base schema check failed")
-	}
-	valid := coerced.([]interface{})
+// There is no need for controller based parsing of filesystems until we need it.
+// Currently the filesystem reading is only called by the Partition parsing.
 
-	var deserialisationVersion version.Number
-	for v := range filesystemDeserializationFuncs {
-		if v.Compare(deserialisationVersion) > 0 && v.Compare(controllerVersion) <= 0 {
-			deserialisationVersion = v
-		}
-	}
-	if deserialisationVersion == version.Zero {
-		return nil, NewUnsupportedVersionError("no filesystem read func for version %s", controllerVersion)
-	}
-	readFunc := filesystemDeserializationFuncs[deserialisationVersion]
-	return readFileSystemList(valid, readFunc)
-}
-
-// readFileSystemList expects the values of the sourceList to be string maps.
-func readFileSystemList(sourceList []interface{}, readFunc filesystemDeserializationFunc) ([]*filesystem, error) {
-	result := make([]*filesystem, 0, len(sourceList))
-	for i, value := range sourceList {
-		source, ok := value.(map[string]interface{})
-		if !ok {
-			return nil, NewDeserializationError("unexpected value for filesystem %d, %T", i, value)
-		}
-		filesystem, err := readFunc(source)
-		if err != nil {
-			return nil, errors.Annotatef(err, "filesystem %d", i)
-		}
-		result = append(result, filesystem)
-	}
-	return result, nil
-}
-
-type filesystemDeserializationFunc func(map[string]interface{}) (*filesystem, error)
-
-var filesystemDeserializationFuncs = map[version.Number]filesystemDeserializationFunc{
-	twoDotOh: filesystem_2_0,
-}
-
-func filesystem_2_0(source map[string]interface{}) (*filesystem, error) {
+func filesystem2_0(source map[string]interface{}) (*filesystem, error) {
 	fields := schema.Fields{
 		"fstype":      schema.String(),
 		"mount_point": schema.String(),

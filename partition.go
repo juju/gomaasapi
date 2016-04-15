@@ -120,7 +120,7 @@ func partition_2_0(source map[string]interface{}) (*partition, error) {
 
 	var filesystem *filesystem
 	if fsSource := valid["filesystem"]; fsSource != nil {
-		filesystem, err = filesystem_2_0(fsSource.(map[string]interface{}))
+		filesystem, err = filesystem2_0(fsSource.(map[string]interface{}))
 		if err != nil {
 			return nil, errors.Trace(err)
 		}
