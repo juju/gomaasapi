@@ -210,6 +210,9 @@ type Machine interface {
 	// specified. If there is no match, nil is returned.
 	Interface(id int) Interface
 
+	PhysicalBlockDevices() []BlockDevice
+	BlockDevices() []BlockDevice
+
 	Zone() Zone
 
 	// Start the machine and install the operating system specified in the args.
@@ -286,4 +289,47 @@ type Link interface {
 	// IPAddress returns the address if one has been assigned.
 	// If unavailble, the address will be empty.
 	IPAddress() string
+}
+
+// FileSystem represents a formatted filesystem mounted at a location.
+type FileSystem interface {
+	// Type is the format type, e.g. "ext4".
+	Type() string
+
+	MountPoint() string
+	Label() string
+	UUID() string
+}
+
+// Partition represents a partition of a block device. It may be mounted
+// as a filesystem.
+type Partition interface {
+	ID() int
+	Path() string
+	// FileSystem may be nil if not mounted.
+	FileSystem() FileSystem
+	UUID() string
+	// UsedFor is a human readable string.
+	UsedFor() string
+	// Size is the number of bytes in the partition.
+	Size() int
+}
+
+// BlockDevice represents an entire block device on the machine.
+type BlockDevice interface {
+	ID() int
+	Name() string
+	Model() string
+	Path() string
+	UsedFor() string
+	Tags() []string
+
+	BlockSize() int
+	UsedSize() int
+	Size() int
+
+	Partitions() []Partition
+
+	// There are some other attributes for block devices, but we can
+	// expose them on an as needed basis.
 }
