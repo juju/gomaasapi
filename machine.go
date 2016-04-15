@@ -37,6 +37,9 @@ type machine struct {
 	bootInterface *interface_
 	interfaceSet  []*interface_
 	zone          *zone
+	// Don't really know the difference between these two lists:
+	physicalBlockDevices []*blockdevice
+	blockDevices         []*blockdevice
 }
 
 func (m *machine) updateFrom(other *machine) {
@@ -151,6 +154,34 @@ func (m *machine) StatusName() string {
 // StatusMessage implements Machine.
 func (m *machine) StatusMessage() string {
 	return m.statusMessage
+}
+
+// PhysicalBlockDevices implements Machine.
+func (m *machine) PhysicalBlockDevices() []BlockDevice {
+	result := make([]BlockDevice, len(m.physicalBlockDevices))
+	for i, v := range m.physicalBlockDevices {
+		result[i] = v
+	}
+	return result
+}
+
+// PhysicalBlockDevice implements Machine.
+func (m *machine) PhysicalBlockDevice(id int) BlockDevice {
+	for _, blockDevice := range m.physicalBlockDevices {
+		if blockDevice.ID() == id {
+			return blockDevice
+		}
+	}
+	return nil
+}
+
+// BlockDevices implements Machine.
+func (m *machine) BlockDevices() []BlockDevice {
+	result := make([]BlockDevice, len(m.blockDevices))
+	for i, v := range m.blockDevices {
+		result[i] = v
+	}
+	return result
 }
 
 // Devices implements Machine.
@@ -376,8 +407,10 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 
 		"boot_interface": schema.StringMap(schema.Any()),
 		"interface_set":  schema.List(schema.StringMap(schema.Any())),
+		"zone":           schema.StringMap(schema.Any()),
 
-		"zone": schema.StringMap(schema.Any()),
+		"physicalblockdevice_set": schema.List(schema.StringMap(schema.Any())),
+		"blockdevice_set":         schema.List(schema.StringMap(schema.Any())),
 	}
 	checker := schema.FieldMap(fields, nil) // no defaults
 	coerced, err := checker.Coerce(source, nil)
@@ -397,6 +430,14 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 		return nil, errors.Trace(err)
 	}
 	zone, err := zone_2_0(valid["zone"].(map[string]interface{}))
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	physicalBlockDevices, err := readBlockDeviceList(valid["physicalblockdevice_set"].([]interface{}), blockdevice_2_0)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	blockDevices, err := readBlockDeviceList(valid["blockdevice_set"].([]interface{}), blockdevice_2_0)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
@@ -420,9 +461,11 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 		statusName:    valid["status_name"].(string),
 		statusMessage: valid["status_message"].(string),
 
-		bootInterface: bootInterface,
-		interfaceSet:  interfaceSet,
-		zone:          zone,
+		bootInterface:        bootInterface,
+		interfaceSet:         interfaceSet,
+		zone:                 zone,
+		physicalBlockDevices: physicalBlockDevices,
+		blockDevices:         blockDevices,
 	}
 
 	return result, nil

@@ -65,6 +65,18 @@ func (*machineSuite) TestReadMachines(c *gc.C) {
 	id := interfaceSet[0].ID()
 	c.Assert(machine.Interface(id), jc.DeepEquals, interfaceSet[0])
 	c.Assert(machine.Interface(id+5), gc.IsNil)
+
+	blockDevices := machine.BlockDevices()
+	c.Assert(blockDevices, gc.HasLen, 1)
+	c.Assert(blockDevices[0].Name(), gc.Equals, "sda")
+
+	blockDevices = machine.PhysicalBlockDevices()
+	c.Assert(blockDevices, gc.HasLen, 1)
+	c.Assert(blockDevices[0].Name(), gc.Equals, "sda")
+
+	id = blockDevices[0].ID()
+	c.Assert(machine.PhysicalBlockDevice(id), jc.DeepEquals, blockDevices[0])
+	c.Assert(machine.PhysicalBlockDevice(id+5), gc.IsNil)
 }
 
 func (*machineSuite) TestLowVersion(c *gc.C) {
