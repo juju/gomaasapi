@@ -699,7 +699,7 @@ func (s *controllerSuite) TestAddFileReader(c *gc.C) {
 var versionResponse = `{"version": "unknown", "subversion": "", "capabilities": ["networks-management", "static-ipaddresses", "ipv6-deployment-ubuntu", "devices-management", "storage-deployment-ubuntu", "network-deployment-ubuntu"]}`
 
 type cleanup interface {
-	AddCleanup(testing.CleanupFunc)
+	AddCleanup(func(*gc.C))
 }
 
 // createTestServerController creates a controller backed on to a test server

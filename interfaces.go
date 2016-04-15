@@ -217,6 +217,10 @@ type Machine interface {
 
 	// Start the machine and install the operating system specified in the args.
 	Start(StartArgs) error
+
+	// CreateDevice creates a new Device with this Machine as the parent.
+	// The device will have one interface that is linked to the specified subnet.
+	CreateDevice(CreateMachineDeviceArgs) (Device, error)
 }
 
 // Space is a name for a collection of Subnets.

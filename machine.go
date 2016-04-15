@@ -4,7 +4,6 @@
 package gomaasapi
 
 import (
-	"encoding/base64"
 	"net/http"
 
 	"github.com/juju/errors"
@@ -195,7 +194,8 @@ func (m *machine) Devices(args DevicesArgs) ([]Device, error) {
 // StartArgs is an argument struct for passing parameters to the Machine.Start
 // method.
 type StartArgs struct {
-	UserData     []byte
+	// UserData needs to be Base64 encoded user data for cloud-init.
+	UserData     string
 	DistroSeries string
 	Kernel       string
 	Comment      string
@@ -203,12 +203,8 @@ type StartArgs struct {
 
 // Start implements Machine.
 func (m *machine) Start(args StartArgs) error {
-	var encodedUserData string
-	if args.UserData != nil {
-		encodedUserData = base64.StdEncoding.EncodeToString(args.UserData)
-	}
 	params := NewURLParams()
-	params.MaybeAdd("user_data", encodedUserData)
+	params.MaybeAdd("user_data", args.UserData)
 	params.MaybeAdd("distro_series", args.DistroSeries)
 	params.MaybeAdd("hwe_kernel", args.Kernel)
 	params.MaybeAdd("comment", args.Comment)
@@ -233,6 +229,85 @@ func (m *machine) Start(args StartArgs) error {
 	}
 	m.updateFrom(machine)
 	return nil
+}
+
+// CreateMachineDeviceArgs is an argument structure for Machine.CreateDevice.
+// All fields except Hostname are required.
+type CreateMachineDeviceArgs struct {
+	Hostname      string
+	InterfaceName string
+	MACAddress    string
+	Subnet        Subnet
+}
+
+// Validate ensures that all required values are non-emtpy.
+func (a *CreateMachineDeviceArgs) Validate() error {
+	if a.InterfaceName == "" {
+		return errors.NotValidf("missing InterfaceName")
+	}
+	if a.MACAddress == "" {
+		return errors.NotValidf("missing MACAddress")
+	}
+	if a.Subnet == nil {
+		return errors.NotValidf("missing Subnet")
+	}
+	return nil
+}
+
+// CreateDevice implements Machine
+func (m *machine) CreateDevice(args CreateMachineDeviceArgs) (_ Device, err error) {
+	if err := args.Validate(); err != nil {
+		return nil, errors.Trace(err)
+	}
+	device, err := m.controller.CreateDevice(CreateDeviceArgs{
+		Hostname:     args.Hostname,
+		MACAddresses: []string{args.MACAddress},
+		Parent:       m.SystemID(),
+	})
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+
+	defer func() {
+		// If there is an error return, at least try to delete the device we just created.
+		if err != nil {
+			if innerErr := device.Delete(); innerErr != nil {
+				logger.Warningf("could not delete device %q", device.SystemID())
+			}
+		}
+	}()
+
+	// There should be one interface created for each MAC Address, and since
+	// we only specified one, there should just be one response.
+	interfaces := device.InterfaceSet()
+	if count := len(interfaces); count != 1 {
+		err := errors.Errorf("unexpected interface count for device: %d", count)
+		return nil, NewUnexpectedError(err)
+	}
+	iface := interfaces[0]
+
+	// Now update the name and vlan of interface that was created…
+	updateArgs := UpdateInterfaceArgs{}
+	if iface.Name() != args.InterfaceName {
+		updateArgs.Name = args.InterfaceName
+	}
+	if iface.VLAN().ID() != args.Subnet.VLAN().ID() {
+		updateArgs.VLAN = iface.VLAN()
+	}
+	err = iface.Update(updateArgs)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+
+	err = iface.LinkSubnet(LinkSubnetArgs{
+		Mode:   LinkModeStatic,
+		Subnet: args.Subnet,
+	})
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+
+	return device, nil
 }
 
 func readMachine(controllerVersion version.Number, source interface{}) (*machine, error) {
