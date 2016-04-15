@@ -165,6 +165,16 @@ func (m *machine) PhysicalBlockDevices() []BlockDevice {
 	return result
 }
 
+// PhysicalBlockDevice implements Machine.
+func (m *machine) PhysicalBlockDevice(id int) BlockDevice {
+	for _, blockDevice := range m.physicalBlockDevices {
+		if blockDevice.ID() == id {
+			return blockDevice
+		}
+	}
+	return nil
+}
+
 // BlockDevices implements Machine.
 func (m *machine) BlockDevices() []BlockDevice {
 	result := make([]BlockDevice, len(m.blockDevices))

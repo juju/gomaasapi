@@ -210,7 +210,13 @@ type Machine interface {
 	// specified. If there is no match, nil is returned.
 	Interface(id int) Interface
 
+	// PhysicalBlockDevices returns all the physical block devices on the machine.
 	PhysicalBlockDevices() []BlockDevice
+	// PhysicalBlockDevice returns the physical block device for the machine
+	// that matches the id specified. If there is no match, nil is returned.
+	PhysicalBlockDevice(id int) BlockDevice
+
+	// BlockDevices returns all the physical and virtual block devices on the machine.
 	BlockDevices() []BlockDevice
 
 	Zone() Zone
