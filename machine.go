@@ -4,7 +4,6 @@
 package gomaasapi
 
 import (
-	"encoding/base64"
 	"net/http"
 
 	"github.com/juju/errors"
@@ -174,7 +173,8 @@ func (m *machine) Devices(args DevicesArgs) ([]Device, error) {
 // StartArgs is an argument struct for passing parameters to the Machine.Start
 // method.
 type StartArgs struct {
-	UserData     []byte
+	// UserData needs to be Base64 encoded user data for cloud-init.
+	UserData     string
 	DistroSeries string
 	Kernel       string
 	Comment      string
@@ -182,12 +182,8 @@ type StartArgs struct {
 
 // Start implements Machine.
 func (m *machine) Start(args StartArgs) error {
-	var encodedUserData string
-	if args.UserData != nil {
-		encodedUserData = base64.StdEncoding.EncodeToString(args.UserData)
-	}
 	params := NewURLParams()
-	params.MaybeAdd("user_data", encodedUserData)
+	params.MaybeAdd("user_data", args.UserData)
 	params.MaybeAdd("distro_series", args.DistroSeries)
 	params.MaybeAdd("hwe_kernel", args.Kernel)
 	params.MaybeAdd("comment", args.Comment)
