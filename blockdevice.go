@@ -165,8 +165,8 @@ func blockdevice_2_0(source map[string]interface{}) (*blockdevice, error) {
 		usedFor: valid["used_for"].(string),
 		tags:    convertToStringSlice(valid["tags"]),
 
-		blockSize: valid["size"].(int),
-		usedSize:  valid["size"].(int),
+		blockSize: valid["block_size"].(int),
+		usedSize:  valid["used_size"].(int),
 		size:      valid["size"].(int),
 
 		partitions: partitions,
