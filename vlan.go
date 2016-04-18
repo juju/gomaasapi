@@ -114,7 +114,7 @@ func vlan_2_0(source map[string]interface{}) (*vlan, error) {
 	fields := schema.Fields{
 		"id":           schema.ForceInt(),
 		"resource_uri": schema.String(),
-		"name":         schema.String(),
+		"name":         schema.OneOf(schema.Nil(""), schema.String()),
 		"fabric":       schema.String(),
 		"vid":          schema.ForceInt(),
 		"mtu":          schema.ForceInt(),
@@ -137,11 +137,12 @@ func vlan_2_0(source map[string]interface{}) (*vlan, error) {
 	// we care about, which is the empty string.
 	primary_rack, _ := valid["primary_rack"].(string)
 	secondary_rack, _ := valid["secondary_rack"].(string)
+	name, _ := valid["name"].(string)
 
 	result := &vlan{
 		resourceURI:   valid["resource_uri"].(string),
 		id:            valid["id"].(int),
-		name:          valid["name"].(string),
+		name:          name,
 		fabric:        valid["fabric"].(string),
 		vid:           valid["vid"].(int),
 		mtu:           valid["mtu"].(int),
