@@ -322,7 +322,7 @@ type Partition interface {
 	// UsedFor is a human readable string.
 	UsedFor() string
 	// Size is the number of bytes in the partition.
-	Size() int
+	Size() uint64
 }
 
 // BlockDevice represents an entire block device on the machine.
@@ -334,9 +334,9 @@ type BlockDevice interface {
 	UsedFor() string
 	Tags() []string
 
-	BlockSize() int
-	UsedSize() int
-	Size() int
+	BlockSize() uint64
+	UsedSize() uint64
+	Size() uint64
 
 	Partitions() []Partition
 

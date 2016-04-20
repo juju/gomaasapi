@@ -31,9 +31,9 @@ func (*blockdeviceSuite) TestReadBlockDevices(c *gc.C) {
 	c.Check(blockdevice.Path(), gc.Equals, "/dev/disk/by-dname/sda")
 	c.Check(blockdevice.UsedFor(), gc.Equals, "MBR partitioned with 1 partition")
 	c.Check(blockdevice.Tags(), jc.DeepEquals, []string{"rotary"})
-	c.Check(blockdevice.BlockSize(), gc.Equals, 4096)
-	c.Check(blockdevice.UsedSize(), gc.Equals, 8586788864)
-	c.Check(blockdevice.Size(), gc.Equals, 8589934592)
+	c.Check(blockdevice.BlockSize(), gc.Equals, uint64(4096))
+	c.Check(blockdevice.UsedSize(), gc.Equals, uint64(8586788864))
+	c.Check(blockdevice.Size(), gc.Equals, uint64(8589934592))
 
 	partitions := blockdevice.Partitions()
 	c.Assert(partitions, gc.HasLen, 1)
