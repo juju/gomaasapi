@@ -19,9 +19,9 @@ type blockdevice struct {
 	usedFor string
 	tags    []string
 
-	blockSize int
-	usedSize  int
-	size      int
+	blockSize uint64
+	usedSize  uint64
+	size      uint64
 
 	partitions []*partition
 }
@@ -57,17 +57,17 @@ func (b *blockdevice) Tags() []string {
 }
 
 // BlockSize implements BlockDevice.
-func (b *blockdevice) BlockSize() int {
+func (b *blockdevice) BlockSize() uint64 {
 	return b.blockSize
 }
 
 // UsedSize implements BlockDevice.
-func (b *blockdevice) UsedSize() int {
+func (b *blockdevice) UsedSize() uint64 {
 	return b.usedSize
 }
 
 // Size implements BlockDevice.
-func (b *blockdevice) Size() int {
+func (b *blockdevice) Size() uint64 {
 	return b.size
 }
 
@@ -135,9 +135,9 @@ func blockdevice_2_0(source map[string]interface{}) (*blockdevice, error) {
 		"used_for": schema.String(),
 		"tags":     schema.List(schema.String()),
 
-		"block_size": schema.ForceInt(),
-		"used_size":  schema.ForceInt(),
-		"size":       schema.ForceInt(),
+		"block_size": schema.ForceUint(),
+		"used_size":  schema.ForceUint(),
+		"size":       schema.ForceUint(),
 
 		"partitions": schema.List(schema.StringMap(schema.Any())),
 	}
@@ -165,9 +165,9 @@ func blockdevice_2_0(source map[string]interface{}) (*blockdevice, error) {
 		usedFor: valid["used_for"].(string),
 		tags:    convertToStringSlice(valid["tags"]),
 
-		blockSize: valid["block_size"].(int),
-		usedSize:  valid["used_size"].(int),
-		size:      valid["size"].(int),
+		blockSize: valid["block_size"].(uint64),
+		usedSize:  valid["used_size"].(uint64),
+		size:      valid["size"].(uint64),
 
 		partitions: partitions,
 	}

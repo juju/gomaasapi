@@ -29,7 +29,7 @@ func (*partitionSuite) TestReadPartitions(c *gc.C) {
 	c.Check(partition.Path(), gc.Equals, "/dev/disk/by-dname/sda-part1")
 	c.Check(partition.UUID(), gc.Equals, "6199b7c9-b66f-40f6-a238-a938a58a0adf")
 	c.Check(partition.UsedFor(), gc.Equals, "ext4 formatted filesystem mounted at /")
-	c.Check(partition.Size(), gc.Equals, 8581545984)
+	c.Check(partition.Size(), gc.Equals, uint64(8581545984))
 
 	fs := partition.FileSystem()
 	c.Assert(fs, gc.NotNil)

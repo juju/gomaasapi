@@ -17,7 +17,7 @@ type partition struct {
 	uuid string
 
 	usedFor string
-	size    int
+	size    uint64
 
 	filesystem *filesystem
 }
@@ -48,7 +48,7 @@ func (p *partition) UsedFor() string {
 }
 
 // Size implements Partition.
-func (p *partition) Size() int {
+func (p *partition) Size() uint64 {
 	return p.size
 }
 
@@ -105,7 +105,7 @@ func partition_2_0(source map[string]interface{}) (*partition, error) {
 		"uuid": schema.String(),
 
 		"used_for": schema.String(),
-		"size":     schema.ForceInt(),
+		"size":     schema.ForceUint(),
 
 		"filesystem": schema.OneOf(schema.Nil(""), schema.StringMap(schema.Any())),
 	}
@@ -132,7 +132,7 @@ func partition_2_0(source map[string]interface{}) (*partition, error) {
 		path:        valid["path"].(string),
 		uuid:        valid["uuid"].(string),
 		usedFor:     valid["used_for"].(string),
-		size:        valid["size"].(int),
+		size:        valid["size"].(uint64),
 		filesystem:  filesystem,
 	}
 	return result, nil
