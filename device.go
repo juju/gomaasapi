@@ -247,7 +247,7 @@ func device_2_0(source map[string]interface{}) (*device, error) {
 		"owner":     schema.String(),
 
 		"ip_addresses":  schema.List(schema.String()),
-		"interface_set": schema.List(schema.StringMap(schema.Any())),
+		"interface_set": schema.OneOf(schema.Nil(""), schema.List(schema.StringMap(schema.Any()))),
 		"zone":          schema.StringMap(schema.Any()),
 	}
 	checker := schema.FieldMap(fields, nil) // no defaults
@@ -259,9 +259,12 @@ func device_2_0(source map[string]interface{}) (*device, error) {
 	// From here we know that the map returned from the schema coercion
 	// contains fields of the right type.
 
-	interfaceSet, err := readInterfaceList(valid["interface_set"].([]interface{}), interface_2_0)
-	if err != nil {
-		return nil, errors.Trace(err)
+	var interfaceSet []*interface_
+	if valid["interface_set"] != nil {
+		interfaceSet, err = readInterfaceList(valid["interface_set"].([]interface{}), interface_2_0)
+		if err != nil {
+			return nil, errors.Trace(err)
+		}
 	}
 	zone, err := zone_2_0(valid["zone"].(map[string]interface{}))
 	if err != nil {
