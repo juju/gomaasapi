@@ -114,7 +114,7 @@ func subnet_2_0(source map[string]interface{}) (*subnet, error) {
 		"gateway_ip":   schema.OneOf(schema.Nil(""), schema.String()),
 		"cidr":         schema.String(),
 		"vlan":         schema.StringMap(schema.Any()),
-		"dns_servers":  schema.List(schema.String()),
+		"dns_servers":  schema.OneOf(schema.Nil(""), schema.List(schema.String())),
 	}
 	checker := schema.FieldMap(fields, nil) // no defaults
 	coerced, err := checker.Coerce(source, nil)
