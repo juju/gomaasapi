@@ -86,7 +86,7 @@ var subnetResponse = `
         "space": "space-0",
         "id": 34,
         "resource_uri": "/MAAS/api/2.0/subnets/34/",
-        "dns_servers": [],
+        "dns_servers": null,
         "cidr": "192.168.122.0/24",
         "rdns_mode": 2
     }
