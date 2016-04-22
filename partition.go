@@ -34,6 +34,9 @@ func (p *partition) Path() string {
 
 // FileSystem implements Partition.
 func (p *partition) FileSystem() FileSystem {
+	if p.filesystem == nil {
+		return nil
+	}
 	return p.filesystem
 }
 

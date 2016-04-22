@@ -19,6 +19,14 @@ type machineSuite struct {
 
 var _ = gc.Suite(&machineSuite{})
 
+func (*machineSuite) TestNilGetters(c *gc.C) {
+	var empty machine
+	c.Check(empty.Zone() == nil, jc.IsTrue)
+	c.Check(empty.PhysicalBlockDevice(0) == nil, jc.IsTrue)
+	c.Check(empty.Interface(0) == nil, jc.IsTrue)
+	c.Check(empty.BootInterface() == nil, jc.IsTrue)
+}
+
 func (*machineSuite) TestReadMachinesBadSchema(c *gc.C) {
 	_, err := readMachines(twoDotOh, "wat?")
 	c.Check(err, jc.Satisfies, IsDeserializationError)

@@ -43,6 +43,9 @@ func (s *subnet) Space() string {
 
 // VLAN implements Subnet.
 func (s *subnet) VLAN() VLAN {
+	if s.vlan == nil {
+		return nil
+	}
 	return s.vlan
 }
 

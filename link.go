@@ -31,6 +31,9 @@ func (k *link) Mode() string {
 
 // Subnet implements Link.
 func (k *link) Subnet() Subnet {
+	if k.subnet == nil {
+		return nil
+	}
 	return k.subnet
 }
 

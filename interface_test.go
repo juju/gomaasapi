@@ -19,6 +19,11 @@ type interfaceSuite struct {
 
 var _ = gc.Suite(&interfaceSuite{})
 
+func (*interfaceSuite) TestNilVLAN(c *gc.C) {
+	var empty interface_
+	c.Check(empty.VLAN() == nil, jc.IsTrue)
+}
+
 func (*interfaceSuite) TestReadInterfacesBadSchema(c *gc.C) {
 	_, err := readInterfaces(twoDotOh, "wat?")
 	c.Check(err, jc.Satisfies, IsDeserializationError)

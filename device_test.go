@@ -19,6 +19,11 @@ type deviceSuite struct {
 
 var _ = gc.Suite(&deviceSuite{})
 
+func (*deviceSuite) TestNilZone(c *gc.C) {
+	var empty device
+	c.Check(empty.Zone() == nil, jc.IsTrue)
+}
+
 func (*deviceSuite) TestReadDevicesBadSchema(c *gc.C) {
 	_, err := readDevices(twoDotOh, "wat?")
 	c.Check(err, jc.Satisfies, IsDeserializationError)
