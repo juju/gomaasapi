@@ -13,6 +13,11 @@ type subnetSuite struct{}
 
 var _ = gc.Suite(&subnetSuite{})
 
+func (*subnetSuite) TestNilVLAN(c *gc.C) {
+	var empty subnet
+	c.Check(empty.VLAN() == nil, jc.IsTrue)
+}
+
 func (*subnetSuite) TestReadSubnetsBadSchema(c *gc.C) {
 	_, err := readSubnets(twoDotOh, "wat?")
 	c.Assert(err.Error(), gc.Equals, `subnet base schema check failed: expected list, got string("wat?")`)

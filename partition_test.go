@@ -13,6 +13,11 @@ type partitionSuite struct{}
 
 var _ = gc.Suite(&partitionSuite{})
 
+func (*partitionSuite) TestNilFileSystem(c *gc.C) {
+	var empty partition
+	c.Assert(empty.FileSystem() == nil, jc.IsTrue)
+}
+
 func (*partitionSuite) TestReadPartitionsBadSchema(c *gc.C) {
 	_, err := readPartitions(twoDotOh, "wat?")
 	c.Check(err, jc.Satisfies, IsDeserializationError)

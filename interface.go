@@ -86,6 +86,9 @@ func (i *interface_) Tags() []string {
 
 // VLAN implements Interface.
 func (i *interface_) VLAN() VLAN {
+	if i.vlan == nil {
+		return nil
+	}
 	return i.vlan
 }
 

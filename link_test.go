@@ -13,6 +13,11 @@ type linkSuite struct{}
 
 var _ = gc.Suite(&linkSuite{})
 
+func (*linkSuite) TestNilSubnet(c *gc.C) {
+	var empty link
+	c.Check(empty.Subnet() == nil, jc.IsTrue)
+}
+
 func (*linkSuite) TestReadLinksBadSchema(c *gc.C) {
 	_, err := readLinks(twoDotOh, "wat?")
 	c.Check(err, jc.Satisfies, IsDeserializationError)

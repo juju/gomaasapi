@@ -62,6 +62,9 @@ func (d *device) IPAddresses() []string {
 
 // Zone implements Device.
 func (d *device) Zone() Zone {
+	if d.zone == nil {
+		return nil
+	}
 	return d.zone
 }
 

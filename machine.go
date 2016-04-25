@@ -101,11 +101,17 @@ func (m *machine) PowerState() string {
 
 // Zone implements Machine.
 func (m *machine) Zone() Zone {
+	if m.zone == nil {
+		return nil
+	}
 	return m.zone
 }
 
 // BootInterface implements Machine.
 func (m *machine) BootInterface() Interface {
+	if m.bootInterface == nil {
+		return nil
+	}
 	m.bootInterface.controller = m.controller
 	return m.bootInterface
 }
