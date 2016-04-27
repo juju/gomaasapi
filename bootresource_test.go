@@ -61,7 +61,6 @@ var bootResourcesResponse = `
         "architecture": "amd64/hwe-u",
         "type": "Synced",
         "subarches": "generic,hwe-p,hwe-q,hwe-r,hwe-s,hwe-t,hwe-u",
-        "kflavor": "generic",
         "name": "ubuntu/trusty",
         "id": 1,
         "resource_uri": "/MAAS/api/2.0/boot-resources/1/"

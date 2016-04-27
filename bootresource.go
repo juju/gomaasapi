@@ -110,7 +110,10 @@ func bootResource_2_0(source map[string]interface{}) (*bootResource, error) {
 		"subarches":    schema.String(),
 		"kflavor":      schema.String(),
 	}
-	checker := schema.FieldMap(fields, nil) // no defaults
+	defaults := schema.Defaults{
+		"kflavor": "",
+	}
+	checker := schema.FieldMap(fields, defaults)
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
 		return nil, WrapWithDeserializationError(err, "boot resource 2.0 schema check failed")
