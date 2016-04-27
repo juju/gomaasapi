@@ -308,7 +308,7 @@ func (m *machine) CreateDevice(args CreateMachineDeviceArgs) (_ Device, err erro
 		updateArgs.Name = args.InterfaceName
 	}
 	if iface.VLAN().ID() != args.Subnet.VLAN().ID() {
-		updateArgs.VLAN = iface.VLAN()
+		updateArgs.VLAN = args.Subnet.VLAN()
 	}
 	err = iface.Update(updateArgs)
 	if err != nil {

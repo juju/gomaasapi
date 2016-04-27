@@ -270,6 +270,7 @@ func (s *machineSuite) TestCreateDevice(c *gc.C) {
 	})
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(device.InterfaceSet()[0].Name(), gc.Equals, "eth4")
+	c.Assert(device.InterfaceSet()[0].VLAN().ID(), gc.Equals, subnet.VLAN().ID())
 }
 
 func (s *machineSuite) TestCreateDeviceTriesToDeleteDeviceOnError(c *gc.C) {
