@@ -23,7 +23,7 @@ func (*bootResourceSuite) TestReadBootResourcesBadSchema(c *gc.C) {
 func (*bootResourceSuite) TestReadBootResources(c *gc.C) {
 	bootResources, err := readBootResources(twoDotOh, parseJSON(c, bootResourcesResponse))
 	c.Assert(err, jc.ErrorIsNil)
-	c.Assert(bootResources, gc.HasLen, 5)
+	c.Assert(bootResources, gc.HasLen, 6)
 	trusty := bootResources[0]
 
 	subarches := set.NewStrings("generic", "hwe-p", "hwe-q", "hwe-r", "hwe-s", "hwe-t")
@@ -33,6 +33,9 @@ func (*bootResourceSuite) TestReadBootResources(c *gc.C) {
 	c.Assert(trusty.Architecture(), gc.Equals, "amd64/hwe-t")
 	c.Assert(trusty.SubArchitectures(), jc.DeepEquals, subarches)
 	c.Assert(trusty.KernelFlavor(), gc.Equals, "generic")
+
+	centos := bootResources[5]
+	c.Assert(centos.KernelFlavor(), gc.Equals, "")
 }
 
 func (*bootResourceSuite) TestLowVersion(c *gc.C) {
@@ -43,7 +46,7 @@ func (*bootResourceSuite) TestLowVersion(c *gc.C) {
 func (*bootResourceSuite) TestHighVersion(c *gc.C) {
 	bootResources, err := readBootResources(version.MustParse("2.1.9"), parseJSON(c, bootResourcesResponse))
 	c.Assert(err, jc.ErrorIsNil)
-	c.Assert(bootResources, gc.HasLen, 5)
+	c.Assert(bootResources, gc.HasLen, 6)
 }
 
 var bootResourcesResponse = `
@@ -92,6 +95,15 @@ var bootResourcesResponse = `
         "name": "ubuntu/xenial",
         "id": 2,
         "resource_uri": "/MAAS/api/2.0/boot-resources/2/"
+    },
+    {
+        "type": "Generated",
+        "architecture": "amd64/generic",
+        "resource_uri": "/MAAS/api/2.0/boot-resources/6/",
+        "name": "centos/centos7",
+        "title": "",
+        "subarches": "generic",
+        "id": 6
     }
 ]
 `
