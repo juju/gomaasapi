@@ -57,14 +57,8 @@ func filesystem2_0(source map[string]interface{}) (*filesystem, error) {
 	valid := coerced.(map[string]interface{})
 	// From here we know that the map returned from the schema coercion
 	// contains fields of the right type.
-	mount_point, ok := valid["mount_point"].(string)
-	if !ok {
-		mount_point = ""
-	}
-	label, ok := valid["label"].(string)
-	if !ok {
-		label = ""
-	}
+	mount_point, _ := valid["mount_point"].(string)
+	label, _ := valid["label"].(string)
 	result := &filesystem{
 		fstype:     valid["fstype"].(string),
 		mountPoint: mount_point,
