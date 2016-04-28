@@ -39,12 +39,17 @@ func (f *filesystem) UUID() string {
 func filesystem2_0(source map[string]interface{}) (*filesystem, error) {
 	fields := schema.Fields{
 		"fstype":      schema.String(),
-		"mount_point": schema.String(),
-		"label":       schema.String(),
+		"mount_point": schema.OneOf(schema.Nil(""), schema.String()),
+		"label":       schema.OneOf(schema.Nil(""), schema.String()),
 		"uuid":        schema.String(),
-		// TODO: mount_options when we know the type.
+		// TODO: mount_options when we know the type (note it can be
+		// nil).
 	}
-	checker := schema.FieldMap(fields, nil)
+	defaults := schema.Defaults{
+		"mount_point": "",
+		"label":       "",
+	}
+	checker := schema.FieldMap(fields, defaults)
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
 		return nil, WrapWithDeserializationError(err, "filesystem 2.0 schema check failed")
@@ -52,11 +57,12 @@ func filesystem2_0(source map[string]interface{}) (*filesystem, error) {
 	valid := coerced.(map[string]interface{})
 	// From here we know that the map returned from the schema coercion
 	// contains fields of the right type.
-
+	mount_point, _ := valid["mount_point"].(string)
+	label, _ := valid["label"].(string)
 	result := &filesystem{
 		fstype:     valid["fstype"].(string),
-		mountPoint: valid["mount_point"].(string),
-		label:      valid["label"].(string),
+		mountPoint: mount_point,
+		label:      label,
 		uuid:       valid["uuid"].(string),
 	}
 	return result, nil
