@@ -403,7 +403,9 @@ func (s *controllerSuite) TestAllocateMachineArgs(c *gc.C) {
 	}
 }
 
-func (s *controllerSuite) addAllocateResponse(c *gc.C, status int, interfaceMatches, storageMatches map[string]int) {
+type constraintMatchInfo map[string][]int
+
+func (s *controllerSuite) addAllocateResponse(c *gc.C, status int, interfaceMatches, storageMatches constraintMatchInfo) {
 	constraints := make(map[string]interface{})
 	if interfaceMatches != nil {
 		constraints["interfaces"] = interfaceMatches
@@ -426,8 +428,8 @@ func (s *controllerSuite) TestAllocateMachine(c *gc.C) {
 }
 
 func (s *controllerSuite) TestAllocateMachineInterfacesMatch(c *gc.C) {
-	s.addAllocateResponse(c, http.StatusOK, map[string]int{
-		"database": 35,
+	s.addAllocateResponse(c, http.StatusOK, constraintMatchInfo{
+		"database": []int{35, 99},
 	}, nil)
 	controller := s.getController(c)
 	_, match, err := controller.AllocateMachine(AllocateMachineArgs{
@@ -439,15 +441,17 @@ func (s *controllerSuite) TestAllocateMachineInterfacesMatch(c *gc.C) {
 	})
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(match.Interfaces, gc.HasLen, 1)
-	iface := match.Interfaces["database"]
-	c.Assert(iface.ID(), gc.Equals, 35)
+	ifaces := match.Interfaces["database"]
+	c.Assert(ifaces, gc.HasLen, 2)
+	c.Assert(ifaces[0].ID(), gc.Equals, 35)
+	c.Assert(ifaces[1].ID(), gc.Equals, 99)
 }
 
 func (s *controllerSuite) TestAllocateMachineInterfacesMatchMissing(c *gc.C) {
 	// This should never happen, but if it does it is a clear indication of a
 	// bug somewhere.
-	s.addAllocateResponse(c, http.StatusOK, map[string]int{
-		"database": 40,
+	s.addAllocateResponse(c, http.StatusOK, constraintMatchInfo{
+		"database": []int{40},
 	}, nil)
 	controller := s.getController(c)
 	_, _, err := controller.AllocateMachine(AllocateMachineArgs{
@@ -460,8 +464,8 @@ func (s *controllerSuite) TestAllocateMachineInterfacesMatchMissing(c *gc.C) {
 }
 
 func (s *controllerSuite) TestAllocateMachineStorageMatches(c *gc.C) {
-	s.addAllocateResponse(c, http.StatusOK, nil, map[string]int{
-		"root": 34,
+	s.addAllocateResponse(c, http.StatusOK, nil, constraintMatchInfo{
+		"root": []int{34, 98},
 	})
 	controller := s.getController(c)
 	_, match, err := controller.AllocateMachine(AllocateMachineArgs{
@@ -473,15 +477,17 @@ func (s *controllerSuite) TestAllocateMachineStorageMatches(c *gc.C) {
 	})
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(match.Storage, gc.HasLen, 1)
-	storage := match.Storage["root"]
-	c.Assert(storage.ID(), gc.Equals, 34)
+	storages := match.Storage["root"]
+	c.Assert(storages, gc.HasLen, 2)
+	c.Assert(storages[0].ID(), gc.Equals, 34)
+	c.Assert(storages[1].ID(), gc.Equals, 98)
 }
 
 func (s *controllerSuite) TestAllocateMachineStorageMatchMissing(c *gc.C) {
 	// This should never happen, but if it does it is a clear indication of a
 	// bug somewhere.
-	s.addAllocateResponse(c, http.StatusOK, nil, map[string]int{
-		"root": 50,
+	s.addAllocateResponse(c, http.StatusOK, nil, constraintMatchInfo{
+		"root": []int{50},
 	})
 	controller := s.getController(c)
 	_, _, err := controller.AllocateMachine(AllocateMachineArgs{
