@@ -830,37 +830,47 @@ func parseAllocateConstraintsResponse(source interface{}, machine *machine) (Con
 	}
 
 	if interfaceMatches, found := constraintsMap["interfaces"]; found {
-		matchMap := interfaceMatches.(map[string]interface{})
-		for label, values := range matchMap {
-			matches := values.([]interface{})
-			interfaces := make([]Interface, 0, len(matches))
-			for _, value := range matches {
-				id := value.(int)
+		matches := convertConstraintMatches(interfaceMatches)
+		for label, ids := range matches {
+			interfaces := make([]Interface, len(ids))
+			for index, id := range ids {
 				iface := machine.Interface(id)
 				if iface == nil {
 					return empty, NewDeserializationError("constraint match interface %q: %d does not match an interface for the machine", label, id)
 				}
-				interfaces = append(interfaces, iface)
+				interfaces[index] = iface
 			}
 			result.Interfaces[label] = interfaces
 		}
 	}
 
 	if storageMatches, found := constraintsMap["storage"]; found {
-		matchMap := storageMatches.(map[string]interface{})
-		for label, values := range matchMap {
-			matches := values.([]interface{})
-			blockDevices := make([]BlockDevice, 0, len(matches))
-			for _, value := range matches {
-				id := value.(int)
+		matches := convertConstraintMatches(storageMatches)
+		for label, ids := range matches {
+			blockDevices := make([]BlockDevice, len(ids))
+			for index, id := range ids {
 				blockDevice := machine.PhysicalBlockDevice(id)
 				if blockDevice == nil {
 					return empty, NewDeserializationError("constraint match storage %q: %d does not match a physical block device for the machine", label, id)
 				}
-				blockDevices = append(blockDevices, blockDevice)
+				blockDevices[index] = blockDevice
 			}
 			result.Storage[label] = blockDevices
 		}
 	}
 	return result, nil
+}
+
+func convertConstraintMatches(source interface{}) map[string][]int {
+	// These casts are all safe because of the schema check.
+	result := make(map[string][]int)
+	matchMap := source.(map[string]interface{})
+	for label, values := range matchMap {
+		items := values.([]interface{})
+		result[label] = make([]int, len(items))
+		for index, value := range items {
+			result[label][index] = value.(int)
+		}
+	}
+	return result
 }
