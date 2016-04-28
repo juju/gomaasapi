@@ -442,13 +442,13 @@ func (a *AllocateMachineArgs) notNetworks() string {
 //.how the allocated machine matched the storage and interfaces constraints specified.
 // The labels that were used in the constraints are the keys in the maps.
 type ConstraintMatches struct {
-	// Interface is a mapping of the constraint label specified to the Interface
-	// that matches that constraint.
-	Interfaces map[string]Interface
+	// Interface is a mapping of the constraint label specified to the Interfaces
+	// that match that constraint.
+	Interfaces map[string][]Interface
 
-	// Storage is a mapping of the constraint label specified to the BlockDevice
-	// that matches that constraint.
-	Storage map[string]BlockDevice
+	// Storage is a mapping of the constraint label specified to the BlockDevices
+	// that match that constraint.
+	Storage map[string][]BlockDevice
 }
 
 // AllocateMachine implements Controller.
@@ -807,8 +807,8 @@ func (c *controller) readAPIVersion(apiVersion version.Number) (set.Strings, ver
 func parseAllocateConstraintsResponse(source interface{}, machine *machine) (ConstraintMatches, error) {
 	var empty ConstraintMatches
 	matchFields := schema.Fields{
-		"storage":    schema.StringMap(schema.ForceInt()),
-		"interfaces": schema.StringMap(schema.ForceInt()),
+		"storage":    schema.StringMap(schema.List(schema.ForceInt())),
+		"interfaces": schema.StringMap(schema.List(schema.ForceInt())),
 	}
 	matchDefaults := schema.Defaults{
 		"storage":    schema.Omit,
@@ -825,29 +825,41 @@ func parseAllocateConstraintsResponse(source interface{}, machine *machine) (Con
 	valid := coerced.(map[string]interface{})
 	constraintsMap := valid["constraints_by_type"].(map[string]interface{})
 	result := ConstraintMatches{
-		Interfaces: make(map[string]Interface),
-		Storage:    make(map[string]BlockDevice),
+		Interfaces: make(map[string][]Interface),
+		Storage:    make(map[string][]BlockDevice),
 	}
 
 	if interfaceMatches, found := constraintsMap["interfaces"]; found {
-		for label, value := range interfaceMatches.(map[string]interface{}) {
-			id := value.(int)
-			iface := machine.Interface(id)
-			if iface == nil {
-				return empty, NewDeserializationError("constraint match interface %q: %d does not match an interface for the machine", label, id)
+		matchMap := interfaceMatches.(map[string]interface{})
+		for label, values := range matchMap {
+			matches := values.([]interface{})
+			interfaces := make([]Interface, 0, len(matches))
+			for _, value := range matches {
+				id := value.(int)
+				iface := machine.Interface(id)
+				if iface == nil {
+					return empty, NewDeserializationError("constraint match interface %q: %d does not match an interface for the machine", label, id)
+				}
+				interfaces = append(interfaces, iface)
 			}
-			result.Interfaces[label] = iface
+			result.Interfaces[label] = interfaces
 		}
 	}
 
 	if storageMatches, found := constraintsMap["storage"]; found {
-		for label, value := range storageMatches.(map[string]interface{}) {
-			id := value.(int)
-			blockDevice := machine.PhysicalBlockDevice(id)
-			if blockDevice == nil {
-				return empty, NewDeserializationError("constraint match storage %q: %d does not match a physical block device for the machine", label, id)
+		matchMap := storageMatches.(map[string]interface{})
+		for label, values := range matchMap {
+			matches := values.([]interface{})
+			blockDevices := make([]BlockDevice, 0, len(matches))
+			for _, value := range matches {
+				id := value.(int)
+				blockDevice := machine.PhysicalBlockDevice(id)
+				if blockDevice == nil {
+					return empty, NewDeserializationError("constraint match storage %q: %d does not match a physical block device for the machine", label, id)
+				}
+				blockDevices = append(blockDevices, blockDevice)
 			}
-			result.Storage[label] = blockDevice
+			result.Storage[label] = blockDevices
 		}
 	}
 	return result, nil

@@ -69,18 +69,20 @@ func (*machineSuite) TestReadMachines(c *gc.C) {
 	c.Check(bootInterface.Name(), gc.Equals, "eth0")
 
 	interfaceSet := machine.InterfaceSet()
-	c.Assert(interfaceSet, gc.HasLen, 1)
+	c.Assert(interfaceSet, gc.HasLen, 2)
 	id := interfaceSet[0].ID()
 	c.Assert(machine.Interface(id), jc.DeepEquals, interfaceSet[0])
 	c.Assert(machine.Interface(id+5), gc.IsNil)
 
 	blockDevices := machine.BlockDevices()
-	c.Assert(blockDevices, gc.HasLen, 1)
+	c.Assert(blockDevices, gc.HasLen, 2)
 	c.Assert(blockDevices[0].Name(), gc.Equals, "sda")
+	c.Assert(blockDevices[1].Name(), gc.Equals, "sdb")
 
 	blockDevices = machine.PhysicalBlockDevices()
-	c.Assert(blockDevices, gc.HasLen, 1)
+	c.Assert(blockDevices, gc.HasLen, 2)
 	c.Assert(blockDevices[0].Name(), gc.Equals, "sda")
+	c.Assert(blockDevices[1].Name(), gc.Equals, "sdb")
 
 	id = blockDevices[0].ID()
 	c.Assert(machine.PhysicalBlockDevice(id), jc.DeepEquals, blockDevices[0])
@@ -360,6 +362,46 @@ const (
                 "tags": [
                     "rotary"
                 ]
+            },
+            {
+                "path": "/dev/disk/by-dname/sdb",
+                "name": "sdb",
+                "used_for": "MBR partitioned with 1 partition",
+                "partitions": [
+                    {
+                        "bootable": false,
+                        "id": 101,
+                        "path": "/dev/disk/by-dname/sdb-part1",
+                        "filesystem": {
+                            "fstype": "ext4",
+                            "mount_point": "/home",
+                            "label": "home",
+                            "mount_options": null,
+                            "uuid": "fcd7745e-f1b5-4f5d-9575-9b0bb796b753"
+                        },
+                        "type": "partition",
+                        "resource_uri": "/MAAS/api/2.0/nodes/4y3ha3/blockdevices/98/partition/101",
+                        "uuid": "6199b7c9-b66f-40f6-a238-a938a58a0ae0",
+                        "used_for": "ext4 formatted filesystem mounted at /home",
+                        "size": 8581545984
+                    }
+                ],
+                "filesystem": null,
+                "id_path": "/dev/disk/by-id/ata-QEMU_HARDDISK_QM00002",
+                "resource_uri": "/MAAS/api/2.0/nodes/4y3ha3/blockdevices/98/",
+                "id": 98,
+                "serial": "QM00002",
+                "type": "physical",
+                "block_size": 4096,
+                "used_size": 8586788864,
+                "available_size": 0,
+                "partition_table_type": "MBR",
+                "uuid": null,
+                "size": 8589934592,
+                "model": "QEMU HARDDISK",
+                "tags": [
+                    "rotary"
+                ]
             }
         ],
         "interface_set": [
@@ -391,6 +433,59 @@ const (
                     {
                         "id": 82,
                         "ip_address": "192.168.100.4",
+                        "subnet": {
+                            "resource_uri": "/MAAS/api/2.0/subnets/1/",
+                            "id": 1,
+                            "rdns_mode": 2,
+                            "vlan": {
+                                "resource_uri": "/MAAS/api/2.0/vlans/1/",
+                                "id": 1,
+                                "secondary_rack": null,
+                                "mtu": 1500,
+                                "primary_rack": "4y3h7n",
+                                "name": "untagged",
+                                "fabric": "fabric-0",
+                                "dhcp_on": true,
+                                "vid": 0
+                            },
+                            "dns_servers": [],
+                            "space": "space-0",
+                            "name": "192.168.100.0/24",
+                            "gateway_ip": "192.168.100.1",
+                            "cidr": "192.168.100.0/24"
+                        },
+                        "mode": "auto"
+                    }
+                ]
+            },
+            {
+                "effective_mtu": 1500,
+                "mac_address": "52:54:00:55:b6:81",
+                "children": [],
+                "discovered": [],
+                "params": "",
+                "vlan": {
+                    "resource_uri": "/MAAS/api/2.0/vlans/1/",
+                    "id": 1,
+                    "secondary_rack": null,
+                    "mtu": 1500,
+                    "primary_rack": "4y3h7n",
+                    "name": "untagged",
+                    "fabric": "fabric-0",
+                    "dhcp_on": true,
+                    "vid": 0
+                },
+                "name": "eth0",
+                "enabled": true,
+                "parents": [],
+                "id": 99,
+                "type": "physical",
+                "resource_uri": "/MAAS/api/2.0/nodes/4y3ha3/interfaces/99/",
+                "tags": [],
+                "links": [
+                    {
+                        "id": 83,
+                        "ip_address": "192.168.100.5",
                         "subnet": {
                             "resource_uri": "/MAAS/api/2.0/subnets/1/",
                             "id": 1,
@@ -525,6 +620,46 @@ const (
                 "uuid": null,
                 "size": 8589934592,
                 "model": "QEMU HARDDISK"
+            },
+            {
+                "path": "/dev/disk/by-dname/sdb",
+                "name": "sdb",
+                "used_for": "MBR partitioned with 1 partition",
+                "partitions": [
+                    {
+                        "bootable": false,
+                        "id": 101,
+                        "path": "/dev/disk/by-dname/sdb-part1",
+                        "filesystem": {
+                            "fstype": "ext4",
+                            "mount_point": "/home",
+                            "label": "home",
+                            "mount_options": null,
+                            "uuid": "fcd7745e-f1b5-4f5d-9575-9b0bb796b753"
+                        },
+                        "type": "partition",
+                        "resource_uri": "/MAAS/api/2.0/nodes/4y3ha3/blockdevices/98/partition/101",
+                        "uuid": "6199b7c9-b66f-40f6-a238-a938a58a0ae0",
+                        "used_for": "ext4 formatted filesystem mounted at /home",
+                        "size": 8581545984
+                    }
+                ],
+                "filesystem": null,
+                "id_path": "/dev/disk/by-id/ata-QEMU_HARDDISK_QM00002",
+                "resource_uri": "/MAAS/api/2.0/nodes/4y3ha3/blockdevices/98/",
+                "id": 98,
+                "serial": "QM00002",
+                "type": "physical",
+                "block_size": 4096,
+                "used_size": 8586788864,
+                "available_size": 0,
+                "partition_table_type": "MBR",
+                "uuid": null,
+                "size": 8589934592,
+                "model": "QEMU HARDDISK",
+                "tags": [
+                    "rotary"
+                ]
             }
         ],
         "zone": {
