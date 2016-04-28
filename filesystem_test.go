@@ -27,6 +27,21 @@ func (*filesystemSuite) TestParse2_0(c *gc.C) {
 	c.Check(fs.UUID(), gc.Equals, "fake-uuid")
 }
 
+func (*filesystemSuite) TestParse2_Defaults(c *gc.C) {
+	source := map[string]interface{}{
+		"fstype":      "ext4",
+		"mount_point": nil,
+		"label":       nil,
+		"uuid":        "fake-uuid",
+	}
+	fs, err := filesystem2_0(source)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Check(fs.Type(), gc.Equals, "ext4")
+	c.Check(fs.MountPoint(), gc.Equals, "")
+	c.Check(fs.Label(), gc.Equals, "")
+	c.Check(fs.UUID(), gc.Equals, "fake-uuid")
+}
+
 func (*filesystemSuite) TestParse2_0BadSchema(c *gc.C) {
 	source := map[string]interface{}{
 		"mount_point": "/",
