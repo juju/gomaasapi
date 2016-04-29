@@ -82,7 +82,7 @@ var blockdevicesResponse = `
         "id_path": "/dev/disk/by-id/ata-QEMU_HARDDISK_QM00001",
         "resource_uri": "/MAAS/api/2.0/nodes/4y3ha3/blockdevices/34/",
         "id": 34,
-        "serial": "QM00001",
+        "serial": null,
         "type": "physical",
         "block_size": 4096,
         "used_size": 8586788864,
@@ -90,7 +90,7 @@ var blockdevicesResponse = `
         "partition_table_type": "MBR",
         "uuid": null,
         "size": 8589934592,
-        "model": "QEMU HARDDISK",
+        "model": null,
         "tags": [
             "rotary"
         ]
