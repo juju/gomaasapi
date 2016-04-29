@@ -130,7 +130,7 @@ func blockdevice_2_0(source map[string]interface{}) (*blockdevice, error) {
 
 		"id":       schema.ForceInt(),
 		"name":     schema.String(),
-		"model":    schema.String(),
+		"model":    schema.OneOf(schema.Nil(""), schema.String()),
 		"path":     schema.String(),
 		"used_for": schema.String(),
 		"tags":     schema.List(schema.String()),
@@ -155,12 +155,13 @@ func blockdevice_2_0(source map[string]interface{}) (*blockdevice, error) {
 		return nil, errors.Trace(err)
 	}
 
+	model, _ := valid["model"].(string)
 	result := &blockdevice{
 		resourceURI: valid["resource_uri"].(string),
 
 		id:      valid["id"].(int),
 		name:    valid["name"].(string),
-		model:   valid["model"].(string),
+		model:   model,
 		path:    valid["path"].(string),
 		usedFor: valid["used_for"].(string),
 		tags:    convertToStringSlice(valid["tags"]),
