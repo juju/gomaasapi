@@ -386,13 +386,16 @@ func interface_2_0(source map[string]interface{}) (*interface_, error) {
 		"vlan":  schema.StringMap(schema.Any()),
 		"links": schema.List(schema.StringMap(schema.Any())),
 
-		"mac_address":   schema.String(),
+		"mac_address":   schema.OneOf(schema.Nil(""), schema.String()),
 		"effective_mtu": schema.ForceInt(),
 
 		"parents":  schema.List(schema.String()),
 		"children": schema.List(schema.String()),
 	}
-	checker := schema.FieldMap(fields, nil) // no defaults
+	defaults := schema.Defaults{
+		"mac_address": "",
+	}
+	checker := schema.FieldMap(fields, defaults)
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
 		return nil, WrapWithDeserializationError(err, "interface 2.0 schema check failed")
@@ -409,7 +412,7 @@ func interface_2_0(source map[string]interface{}) (*interface_, error) {
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
-
+	macAddress, _ := valid["mac_address"].(string)
 	result := &interface_{
 		resourceURI: valid["resource_uri"].(string),
 
@@ -422,7 +425,7 @@ func interface_2_0(source map[string]interface{}) (*interface_, error) {
 		vlan:  vlan,
 		links: links,
 
-		macAddress:   valid["mac_address"].(string),
+		macAddress:   macAddress,
 		effectiveMTU: valid["effective_mtu"].(int),
 
 		parents:  convertToStringSlice(valid["parents"]),

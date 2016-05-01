@@ -246,14 +246,18 @@ func device_2_0(source map[string]interface{}) (*device, error) {
 		"system_id": schema.String(),
 		"hostname":  schema.String(),
 		"fqdn":      schema.String(),
-		"parent":    schema.String(),
-		"owner":     schema.String(),
+		"parent":    schema.OneOf(schema.Nil(""), schema.String()),
+		"owner":     schema.OneOf(schema.Nil(""), schema.String()),
 
 		"ip_addresses":  schema.List(schema.String()),
 		"interface_set": schema.List(schema.StringMap(schema.Any())),
 		"zone":          schema.StringMap(schema.Any()),
 	}
-	checker := schema.FieldMap(fields, nil) // no defaults
+	defaults := schema.Defaults{
+		"owner":  "",
+		"parent": "",
+	}
+	checker := schema.FieldMap(fields, defaults)
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
 		return nil, WrapWithDeserializationError(err, "device 2.0 schema check failed")
@@ -270,15 +274,16 @@ func device_2_0(source map[string]interface{}) (*device, error) {
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
-
+	owner, _ := valid["owner"].(string)
+	parent, _ := valid["parent"].(string)
 	result := &device{
 		resourceURI: valid["resource_uri"].(string),
 
 		systemID: valid["system_id"].(string),
 		hostname: valid["hostname"].(string),
 		fqdn:     valid["fqdn"].(string),
-		parent:   valid["parent"].(string),
-		owner:    valid["owner"].(string),
+		parent:   parent,
+		owner:    owner,
 
 		ipAddresses:  convertToStringSlice(valid["ip_addresses"]),
 		interfaceSet: interfaceSet,

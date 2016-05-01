@@ -73,6 +73,14 @@ func (s *interfaceSuite) TestReadInterface(c *gc.C) {
 	s.checkInterface(c, result)
 }
 
+func (s *interfaceSuite) TestReadInterfaceNilMAC(c *gc.C) {
+	json := parseJSON(c, interfaceResponse)
+	json.(map[string]interface{})["mac_address"] = nil
+	result, err := readInterface(twoDotOh, json)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(result.MACAddress(), gc.Equals, "")
+}
+
 func (*interfaceSuite) TestLowVersion(c *gc.C) {
 	_, err := readInterfaces(version.MustParse("1.9.0"), parseJSON(c, interfacesResponse))
 	c.Assert(err, jc.Satisfies, IsUnsupportedVersionError)

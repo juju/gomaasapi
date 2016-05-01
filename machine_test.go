@@ -89,6 +89,16 @@ func (*machineSuite) TestReadMachines(c *gc.C) {
 	c.Assert(machine.PhysicalBlockDevice(id+5), gc.IsNil)
 }
 
+func (*machineSuite) TestReadMachinesNilArch(c *gc.C) {
+	json := parseJSON(c, machinesResponse)
+	json.([]interface{})[0].(map[string]interface{})["architecture"] = nil
+	machines, err := readMachines(twoDotOh, json)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(machines, gc.HasLen, 3)
+	machine := machines[0]
+	c.Check(machine.Architecture(), gc.Equals, "")
+}
+
 func (*machineSuite) TestLowVersion(c *gc.C) {
 	_, err := readMachines(version.MustParse("1.9.0"), parseJSON(c, machinesResponse))
 	c.Assert(err, jc.Satisfies, IsUnsupportedVersionError)

@@ -402,7 +402,7 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 
 		"osystem":       schema.String(),
 		"distro_series": schema.String(),
-		"architecture":  schema.String(),
+		"architecture":  schema.OneOf(schema.Nil(""), schema.String()),
 		"memory":        schema.ForceInt(),
 		"cpu_count":     schema.ForceInt(),
 
@@ -418,7 +418,10 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 		"physicalblockdevice_set": schema.List(schema.StringMap(schema.Any())),
 		"blockdevice_set":         schema.List(schema.StringMap(schema.Any())),
 	}
-	checker := schema.FieldMap(fields, nil) // no defaults
+	defaults := schema.Defaults{
+		"architecture": "",
+	}
+	checker := schema.FieldMap(fields, defaults)
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
 		return nil, WrapWithDeserializationError(err, "machine 2.0 schema check failed")
@@ -447,7 +450,7 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
-
+	architecture, _ := valid["architecture"].(string)
 	result := &machine{
 		resourceURI: valid["resource_uri"].(string),
 
@@ -458,7 +461,7 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 
 		operatingSystem: valid["osystem"].(string),
 		distroSeries:    valid["distro_series"].(string),
-		architecture:    valid["architecture"].(string),
+		architecture:    architecture,
 		memory:          valid["memory"].(int),
 		cpuCount:        valid["cpu_count"].(int),
 
