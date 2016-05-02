@@ -45,6 +45,20 @@ func (*deviceSuite) TestReadDevices(c *gc.C) {
 	c.Check(zone.Name(), gc.Equals, "default")
 }
 
+func (*deviceSuite) TestReadDevicesNils(c *gc.C) {
+	json := parseJSON(c, devicesResponse)
+	deviceMap := json.([]interface{})[0].(map[string]interface{})
+	deviceMap["owner"] = nil
+	deviceMap["parent"] = nil
+	devices, err := readDevices(twoDotOh, json)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(devices, gc.HasLen, 1)
+
+	device := devices[0]
+	c.Check(device.Owner(), gc.Equals, "")
+	c.Check(device.Parent(), gc.Equals, "")
+}
+
 func (*deviceSuite) TestLowVersion(c *gc.C) {
 	_, err := readDevices(version.MustParse("1.9.0"), parseJSON(c, devicesResponse))
 	c.Assert(err, jc.Satisfies, IsUnsupportedVersionError)

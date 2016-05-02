@@ -42,6 +42,16 @@ func (*partitionSuite) TestReadPartitions(c *gc.C) {
 	c.Assert(fs.MountPoint(), gc.Equals, "/")
 }
 
+func (*partitionSuite) TestReadPartitionsNilUUID(c *gc.C) {
+	json := parseJSON(c, partitionsResponse)
+	json.([]interface{})[0].(map[string]interface{})["uuid"] = nil
+	partitions, err := readPartitions(twoDotOh, json)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(partitions, gc.HasLen, 1)
+	partition := partitions[0]
+	c.Check(partition.UUID(), gc.Equals, "")
+}
+
 func (*partitionSuite) TestLowVersion(c *gc.C) {
 	_, err := readPartitions(version.MustParse("1.9.0"), parseJSON(c, partitionsResponse))
 	c.Assert(err, jc.Satisfies, IsUnsupportedVersionError)

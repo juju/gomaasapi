@@ -105,14 +105,17 @@ func partition_2_0(source map[string]interface{}) (*partition, error) {
 
 		"id":   schema.ForceInt(),
 		"path": schema.String(),
-		"uuid": schema.String(),
+		"uuid": schema.OneOf(schema.Nil(""), schema.String()),
 
 		"used_for": schema.String(),
 		"size":     schema.ForceUint(),
 
 		"filesystem": schema.OneOf(schema.Nil(""), schema.StringMap(schema.Any())),
 	}
-	checker := schema.FieldMap(fields, nil)
+	defaults := schema.Defaults{
+		"uuid": "",
+	}
+	checker := schema.FieldMap(fields, defaults)
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
 		return nil, WrapWithDeserializationError(err, "partition 2.0 schema check failed")
@@ -128,12 +131,12 @@ func partition_2_0(source map[string]interface{}) (*partition, error) {
 			return nil, errors.Trace(err)
 		}
 	}
-
+	uuid, _ := valid["uuid"].(string)
 	result := &partition{
 		resourceURI: valid["resource_uri"].(string),
 		id:          valid["id"].(int),
 		path:        valid["path"].(string),
-		uuid:        valid["uuid"].(string),
+		uuid:        uuid,
 		usedFor:     valid["used_for"].(string),
 		size:        valid["size"].(uint64),
 		filesystem:  filesystem,
