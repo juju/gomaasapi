@@ -77,7 +77,6 @@ var bootResourcesResponse = `
     {
         "architecture": "amd64/hwe-w",
         "type": "Synced",
-        "subarches": "generic,hwe-p,hwe-q,hwe-r,hwe-s,hwe-t,hwe-u,hwe-v,hwe-w",
         "kflavor": "generic",
         "name": "ubuntu/trusty",
         "id": 4,

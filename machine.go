@@ -409,9 +409,9 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 		"ip_addresses":   schema.List(schema.String()),
 		"power_state":    schema.String(),
 		"status_name":    schema.String(),
-		"status_message": schema.String(),
+		"status_message": schema.OneOf(schema.Nil(""), schema.String()),
 
-		"boot_interface": schema.StringMap(schema.Any()),
+		"boot_interface": schema.OneOf(schema.Nil(""), schema.StringMap(schema.Any())),
 		"interface_set":  schema.List(schema.StringMap(schema.Any())),
 		"zone":           schema.StringMap(schema.Any()),
 
@@ -430,10 +430,14 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 	// From here we know that the map returned from the schema coercion
 	// contains fields of the right type.
 
-	bootInterface, err := interface_2_0(valid["boot_interface"].(map[string]interface{}))
-	if err != nil {
-		return nil, errors.Trace(err)
+	var bootInterface *interface_
+	if ifaceMap, ok := valid["boot_interface"].(map[string]interface{}); ok {
+		bootInterface, err = interface_2_0(ifaceMap)
+		if err != nil {
+			return nil, errors.Trace(err)
+		}
 	}
+
 	interfaceSet, err := readInterfaceList(valid["interface_set"].([]interface{}), interface_2_0)
 	if err != nil {
 		return nil, errors.Trace(err)
@@ -451,6 +455,7 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 		return nil, errors.Trace(err)
 	}
 	architecture, _ := valid["architecture"].(string)
+	statusMessage, _ := valid["status_message"].(string)
 	result := &machine{
 		resourceURI: valid["resource_uri"].(string),
 
@@ -468,7 +473,7 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 		ipAddresses:   convertToStringSlice(valid["ip_addresses"]),
 		powerState:    valid["power_state"].(string),
 		statusName:    valid["status_name"].(string),
-		statusMessage: valid["status_message"].(string),
+		statusMessage: statusMessage,
 
 		bootInterface:        bootInterface,
 		interfaceSet:         interfaceSet,

@@ -111,7 +111,8 @@ func bootResource_2_0(source map[string]interface{}) (*bootResource, error) {
 		"kflavor":      schema.String(),
 	}
 	defaults := schema.Defaults{
-		"kflavor": "",
+		"subarches": "",
+		"kflavor":   "",
 	}
 	checker := schema.FieldMap(fields, defaults)
 	coerced, err := checker.Coerce(source, nil)

@@ -381,9 +381,9 @@ func interface_2_0(source map[string]interface{}) (*interface_, error) {
 		"name":    schema.String(),
 		"type":    schema.String(),
 		"enabled": schema.Bool(),
-		"tags":    schema.List(schema.String()),
+		"tags":    schema.OneOf(schema.Nil(""), schema.List(schema.String())),
 
-		"vlan":  schema.StringMap(schema.Any()),
+		"vlan":  schema.OneOf(schema.Nil(""), schema.StringMap(schema.Any())),
 		"links": schema.List(schema.StringMap(schema.Any())),
 
 		"mac_address":   schema.OneOf(schema.Nil(""), schema.String()),
@@ -404,10 +404,15 @@ func interface_2_0(source map[string]interface{}) (*interface_, error) {
 	// From here we know that the map returned from the schema coercion
 	// contains fields of the right type.
 
-	vlan, err := vlan_2_0(valid["vlan"].(map[string]interface{}))
-	if err != nil {
-		return nil, errors.Trace(err)
+	var vlan *vlan
+	// If it's not an attribute map then we know it's nil from the schema check.
+	if vlanMap, ok := valid["vlan"].(map[string]interface{}); ok {
+		vlan, err = vlan_2_0(vlanMap)
+		if err != nil {
+			return nil, errors.Trace(err)
+		}
 	}
+
 	links, err := readLinkList(valid["links"].([]interface{}), link_2_0)
 	if err != nil {
 		return nil, errors.Trace(err)
