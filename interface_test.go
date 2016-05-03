@@ -38,6 +38,15 @@ func (*interfaceSuite) TestReadInterfacesBadSchema(c *gc.C) {
 	c.Assert(err, gc.ErrorMatches, `interface 0: interface 2.0 schema check failed: .*`)
 }
 
+func (*interfaceSuite) TestReadInterfacesNulls(c *gc.C) {
+	iface, err := readInterface(twoDotOh, parseJSON(c, interfaceNullsResponse))
+	c.Assert(err, jc.ErrorIsNil)
+
+	c.Check(iface.MACAddress(), gc.Equals, "")
+	c.Check(iface.Tags(), jc.DeepEquals, []string{})
+	c.Check(iface.VLAN(), gc.IsNil)
+}
+
 func (s *interfaceSuite) checkInterface(c *gc.C, iface *interface_) {
 	c.Check(iface.ID(), gc.Equals, 40)
 	c.Check(iface.Name(), gc.Equals, "eth0")
@@ -410,6 +419,50 @@ const (
     "type": "physical",
     "resource_uri": "/MAAS/api/2.0/nodes/4y3ha6/interfaces/40/",
     "tags": ["foo", "bar"],
+    "links": [
+        {
+            "id": 69,
+            "mode": "auto",
+            "subnet": {
+                "resource_uri": "/MAAS/api/2.0/subnets/1/",
+                "id": 1,
+                "rdns_mode": 2,
+                "vlan": {
+                    "resource_uri": "/MAAS/api/2.0/vlans/1/",
+                    "id": 1,
+                    "secondary_rack": null,
+                    "mtu": 1500,
+                    "primary_rack": "4y3h7n",
+                    "name": "untagged",
+                    "fabric": "fabric-0",
+                    "dhcp_on": true,
+                    "vid": 0
+                },
+                "dns_servers": [],
+                "space": "space-0",
+                "name": "192.168.100.0/24",
+                "gateway_ip": "192.168.100.1",
+                "cidr": "192.168.100.0/24"
+            }
+        }
+    ]
+}
+`
+	interfaceNullsResponse = `
+{
+    "effective_mtu": 1500,
+    "mac_address": null,
+    "children": ["eth0.1", "eth0.2"],
+    "discovered": [],
+    "params": "some params",
+    "vlan": null,
+    "name": "eth0",
+    "enabled": true,
+    "parents": ["bond0"],
+    "id": 40,
+    "type": "physical",
+    "resource_uri": "/MAAS/api/2.0/nodes/4y3ha6/interfaces/40/",
+    "tags": null,
     "links": [
         {
             "id": 69,
