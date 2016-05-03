@@ -89,14 +89,19 @@ func (*machineSuite) TestReadMachines(c *gc.C) {
 	c.Assert(machine.PhysicalBlockDevice(id+5), gc.IsNil)
 }
 
-func (*machineSuite) TestReadMachinesNilArch(c *gc.C) {
+func (*machineSuite) TestReadMachinesNilValues(c *gc.C) {
 	json := parseJSON(c, machinesResponse)
-	json.([]interface{})[0].(map[string]interface{})["architecture"] = nil
+	data := json.([]interface{})[0].(map[string]interface{})
+	data["architecture"] = nil
+	data["status_message"] = nil
+	data["boot_interface"] = nil
 	machines, err := readMachines(twoDotOh, json)
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(machines, gc.HasLen, 3)
 	machine := machines[0]
 	c.Check(machine.Architecture(), gc.Equals, "")
+	c.Check(machine.StatusMessage(), gc.Equals, "")
+	c.Check(machine.BootInterface(), gc.IsNil)
 }
 
 func (*machineSuite) TestLowVersion(c *gc.C) {
