@@ -406,8 +406,8 @@ func interface_2_0(source map[string]interface{}) (*interface_, error) {
 
 	var vlan *vlan
 	// If it's not an attribute map then we know it's nil from the schema check.
-	if vlan_map, ok := valid["vlan"].(map[string]interface{}); ok {
-		vlan, err = vlan_2_0(vlan_map)
+	if vlanMap, ok := valid["vlan"].(map[string]interface{}); ok {
+		vlan, err = vlan_2_0(vlanMap)
 		if err != nil {
 			return nil, errors.Trace(err)
 		}
