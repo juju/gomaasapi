@@ -95,7 +95,7 @@ type TestServer struct {
 	versionJSON string
 
 	// devices is a map of device UUIDs to devices.
-	devices map[string]*testDevice
+	devices map[string]*TestDevice
 
 	subnets        map[uint]TestSubnet
 	subnetNameToID map[string]uint
@@ -107,7 +107,7 @@ type TestServer struct {
 	nextVLAN       int
 }
 
-type testDevice struct {
+type TestDevice struct {
 	IPAddresses []string
 	SystemId    string
 	MACAddress  string
@@ -227,7 +227,7 @@ func (server *TestServer) Clear() {
 	server.nodegroupsInterfaces = make(map[string][]JSONObject)
 	server.zones = make(map[string]JSONObject)
 	server.versionJSON = `{"capabilities": ["networks-management","static-ipaddresses","devices-management","network-deployment-ubuntu"]}`
-	server.devices = make(map[string]*testDevice)
+	server.devices = make(map[string]*TestDevice)
 	server.subnets = make(map[uint]TestSubnet)
 	server.subnetNameToID = make(map[string]uint)
 	server.nextSubnet = 1
@@ -542,6 +542,14 @@ func (server *TestServer) AddZone(name, description string) {
 	server.zones[name] = obj
 }
 
+func (server *TestServer) AddDevice(device *TestDevice) {
+	server.devices[device.SystemId] = device
+}
+
+func (server *TestServer) Devices() map[string]*TestDevice {
+	return server.devices
+}
+
 // NewTestServer starts and returns a new MAAS test server. The caller should call Close when finished, to shut it down.
 func NewTestServer(version string) *TestServer {
 	server := &TestServer{version: version}
@@ -655,7 +663,7 @@ func devicesTopLevelHandler(server *TestServer, w http.ResponseWriter, r *http.R
 	}
 }
 
-func macMatches(device *testDevice, macs []string, hasMac bool) bool {
+func macMatches(device *TestDevice, macs []string, hasMac bool) bool {
 	if !hasMac {
 		return true
 	}
@@ -714,7 +722,7 @@ const (
 }`
 )
 
-func renderDevice(device *testDevice) string {
+func renderDevice(device *TestDevice) string {
 	t := template.New("Device template")
 	t = t.Funcs(templateFuncs)
 	t, err := t.Parse(deviceTemplate)
@@ -756,7 +764,7 @@ func newDeviceHandler(server *TestServer, w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	device := &testDevice{
+	device := &TestDevice{
 		MACAddress: mac,
 		APIVersion: server.version,
 		Parent:     parent,
