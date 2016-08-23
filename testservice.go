@@ -108,11 +108,11 @@ type TestServer struct {
 }
 
 type TestDevice struct {
-	IPAddresses []string
-	SystemId    string
-	MACAddress  string
-	Parent      string
-	Hostname    string
+	IPAddresses  []string
+	SystemId     string
+	MACAddresses []string
+	Parent       string
+	Hostname     string
 
 	// Not part of the device definition but used by the template.
 	APIVersion string
@@ -663,11 +663,8 @@ func devicesTopLevelHandler(server *TestServer, w http.ResponseWriter, r *http.R
 	}
 }
 
-func macMatches(device *TestDevice, macs []string, hasMac bool) bool {
-	if !hasMac {
-		return true
-	}
-	return contains(macs, device.MACAddress)
+func macMatches(mac string, device *TestDevice) bool {
+	return contains(device.MACAddresses, mac)
 }
 
 // deviceListingHandler handles requests for '/devices/'.
@@ -676,13 +673,25 @@ func deviceListingHandler(server *TestServer, w http.ResponseWriter, r *http.Req
 	checkError(err)
 	// TODO(mfoord): support filtering by hostname and id
 	macs, hasMac := values["mac_address"]
-	var matchedDevices []string
-	for _, device := range server.devices {
-		if macMatches(device, macs, hasMac) {
-			matchedDevices = append(matchedDevices, renderDevice(device))
+	var matchedDevices []*TestDevice
+	if !hasMac {
+		for _, device := range server.devices {
+			matchedDevices = append(matchedDevices, device)
+		}
+	} else {
+		for _, mac := range macs {
+			for _, device := range server.devices {
+				if macMatches(mac, device) {
+					matchedDevices = append(matchedDevices, device)
+				}
+			}
 		}
 	}
-	json := fmt.Sprintf("[%v]", strings.Join(matchedDevices, ", "))
+	deviceChunks := make([]string, len(matchedDevices))
+	for i := range matchedDevices {
+		deviceChunks[i] = renderDevice(matchedDevices[i])
+	}
+	json := fmt.Sprintf("[%v]", strings.Join(deviceChunks, ", "))
 
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, json)
@@ -696,16 +705,31 @@ var templateFuncs = template.FuncMap{
 		}
 		return strings.Join(pieces, ", ")
 	},
+	"last": func(items []string) []string {
+		if len(items) == 0 {
+			return []string{}
+		}
+		return items[len(items)-1:]
+	},
+	"allButLast": func(items []string) []string {
+		if len(items) < 2 {
+			return []string{}
+		}
+		return items[0 : len(items)-1]
+	},
 }
 
 const (
 	// The json template for generating new devices.
 	// TODO(mfoord): set resource_uri in MAC addresses
 	deviceTemplate = `{
-	"macaddress_set": [
+	"macaddress_set": [{{range .MACAddresses | allButLast}}
 	    {
-		"mac_address": "{{.MACAddress}}"
-	    }
+		"mac_address": "{{.}}"
+	    },{{end}}{{range .MACAddresses | last}}
+	    {
+		"mac_address": "{{.}}"
+	    }{{end}}
 	],
 	"zone": {
 	    "resource_uri": "/MAAS/api/{{.APIVersion}}/zones/default/",
@@ -741,6 +765,23 @@ func getValue(values url.Values, value string) (string, bool) {
 	return result[0], true
 }
 
+func getValues(values url.Values, key string) ([]string, bool) {
+	result, hasResult := values[key]
+	if !hasResult {
+		return nil, false
+	}
+	var output []string
+	for _, val := range result {
+		if val != "" {
+			output = append(output, val)
+		}
+	}
+	if len(output) == 0 {
+		return nil, false
+	}
+	return output, true
+}
+
 // newDeviceHandler creates, stores and returns new devices.
 func newDeviceHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
@@ -753,23 +794,23 @@ func newDeviceHandler(server *TestServer, w http.ResponseWriter, r *http.Request
 	systemId := fmt.Sprintf("node-%v", uuid)
 	// At least one MAC address must be specified.
 	// TODO(mfoord) we only support a single MAC in the test server.
-	mac, hasMac := getValue(values, "mac_addresses")
+	macs, hasMacs := getValues(values, "mac_addresses")
 
 	// hostname and parent are optional.
 	// TODO(mfoord): we require both to be set in the test server.
 	hostname, hasHostname := getValue(values, "hostname")
 	parent, hasParent := getValue(values, "parent")
-	if !hasHostname || !hasMac || !hasParent {
+	if !hasHostname || !hasMacs || !hasParent {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	device := &TestDevice{
-		MACAddress: mac,
-		APIVersion: server.version,
-		Parent:     parent,
-		Hostname:   hostname,
-		SystemId:   systemId,
+		MACAddresses: macs,
+		APIVersion:   server.version,
+		Parent:       parent,
+		Hostname:     hostname,
+		SystemId:     systemId,
 	}
 
 	deviceJSON := renderDevice(device)

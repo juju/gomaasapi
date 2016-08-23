@@ -66,10 +66,12 @@ func (suite *TestServerSuite) TestSetVersionJSON(c *C) {
 	c.Assert(string(content), Equals, capabilities)
 }
 
-func (suite *TestServerSuite) createDevice(c *C, mac, hostname, parent string) string {
+func (suite *TestServerSuite) createDevice(c *C, macs, hostname, parent string) string {
 	devicesURL := fmt.Sprintf("/api/%s/devices/", suite.server.version) + "?op=new"
 	values := url.Values{}
-	values.Add("mac_addresses", mac)
+	for _, mac := range strings.Split(macs, ",") {
+		values.Add("mac_addresses", mac)
+	}
 	values.Add("hostname", hostname)
 	values.Add("parent", parent)
 	result := suite.post(c, devicesURL, values)
@@ -110,15 +112,19 @@ func (suite *TestServerSuite) get(c *C, url string) JSONObject {
 	return result
 }
 
-func checkDevice(c *C, device map[string]JSONObject, mac, hostname, parent string) {
+func checkDevice(c *C, device map[string]JSONObject, macs, hostname, parent string) {
+	macSlice := strings.Split(macs, ",")
 	macArray, err := device["macaddress_set"].GetArray()
 	c.Assert(err, IsNil)
-	c.Assert(macArray, HasLen, 1)
-	macMap, err := macArray[0].GetMap()
-	c.Assert(err, IsNil)
+	c.Assert(macArray, HasLen, len(macSlice))
 
-	actualMac := getString(c, macMap, "mac_address")
-	c.Assert(actualMac, Equals, mac)
+	for i := range macArray {
+		macMap, err := macArray[i].GetMap()
+		c.Assert(err, IsNil)
+
+		actualMac := getString(c, macMap, "mac_address")
+		c.Check(actualMac, Equals, macSlice[i])
+	}
 
 	actualParent := getString(c, device, "parent")
 	c.Assert(actualParent, Equals, parent)
@@ -205,6 +211,18 @@ func (suite *TestServerSuite) TestGetDevice(c *C) {
 	c.Assert(actualId, Equals, systemId)
 }
 
+func (suite *TestServerSuite) TestGetDeviceWithMultipleMacs(c *C) {
+	systemId := suite.createDevice(c, "foo,boo", "bar", "baz")
+	deviceURL := fmt.Sprintf("/api/%v/devices/%v/", suite.server.version, systemId)
+
+	result := suite.get(c, deviceURL)
+	resultMap, err := result.GetMap()
+	c.Assert(err, IsNil)
+	checkDevice(c, resultMap, "foo,boo", "bar", "baz")
+	actualId, err := resultMap["system_id"].GetString()
+	c.Assert(actualId, Equals, systemId)
+}
+
 func (suite *TestServerSuite) TestDevicesList(c *C) {
 	firstId := suite.createDevice(c, "foo", "bar", "baz")
 	c.Assert(firstId, Not(Equals), "")
@@ -250,6 +268,27 @@ func (suite *TestServerSuite) TestDevicesListMacFiltering(c *C) {
 	deviceMap, err := devicesArray[0].GetMap()
 	c.Assert(err, IsNil)
 	checkDevice(c, deviceMap, "foo", "bar", "baz")
+}
+
+func (suite *TestServerSuite) TestDevicesListMacFilteringMultipleAddresses(c *C) {
+	firstId := suite.createDevice(c, "foo,boo", "bar", "baz")
+	c.Assert(firstId, Not(Equals), "")
+	secondId := suite.createDevice(c, "bam,boom", "bing", "bong")
+	c.Assert(secondId, Not(Equals), "")
+
+	op := "?op=list&mac_address=foo&mac_address=boo"
+	devicesURL := fmt.Sprintf("/api/%s/devices/", suite.server.version) + op
+	result := suite.get(c, devicesURL)
+
+	devicesArray, err := result.GetArray()
+	c.Assert(err, IsNil)
+	c.Assert(devicesArray, HasLen, 2)
+	deviceMap, err := devicesArray[0].GetMap()
+	c.Assert(err, IsNil)
+	checkDevice(c, deviceMap, "foo,boo", "bar", "baz")
+	deviceMap, err = devicesArray[1].GetMap()
+	c.Assert(err, IsNil)
+	checkDevice(c, deviceMap, "foo,boo", "bar", "baz")
 }
 
 func (suite *TestServerSuite) TestDeviceClaimStickyIPRequiresAddress(c *C) {
