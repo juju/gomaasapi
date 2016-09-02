@@ -177,6 +177,8 @@ type Device interface {
 
 // Machine represents a physical machine.
 type Machine interface {
+	OwnerDataHolder
+
 	SystemID() string
 	Hostname() string
 	FQDN() string
@@ -342,4 +344,19 @@ type BlockDevice interface {
 
 	// There are some other attributes for block devices, but we can
 	// expose them on an as needed basis.
+}
+
+// OwnerDataHolder represents any MAAS object that can store key/value
+// data.
+type OwnerDataHolder interface {
+	// OwnerData returns a copy of the key/value data stored for this
+	// object.
+	OwnerData() map[string]string
+
+	// SetOwnerData updates the key/value data stored for this object
+	// with the values passed in. Existing keys that aren't specified
+	// in the map passed in will be left in place; to clear a key set
+	// its value to "". All owner data is cleared when the object is
+	// released.
+	SetOwnerData(map[string]string) error
 }

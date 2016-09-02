@@ -252,6 +252,21 @@ type MachinesArgs struct {
 	Domain       string
 	Zone         string
 	AgentName    string
+	Tags         map[string]string
+}
+
+func (a *MachinesArgs) Validate() error {
+	hasTags := len(a.Tags) > 0
+	hasOtherFields := len(a.Hostnames) > 0 ||
+		len(a.MACAddresses) > 0 ||
+		len(a.SystemIDs) > 0 ||
+		a.Domain != "" ||
+		a.Zone != "" ||
+		a.AgentName != ""
+	if hasTags && hasOtherFields {
+		return errors.NotSupportedf("searching by tags with other filters")
+	}
+	return nil
 }
 
 // Machines implements Controller.

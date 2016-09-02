@@ -264,6 +264,18 @@ func (s *controllerSuite) TestMachinesArgs(c *gc.C) {
 	c.Assert(request.URL.Query(), gc.HasLen, 6)
 }
 
+func (s *controllerSuite) TestMachinesArgsValidate(c *gc.C) {
+	args := MachinesArgs{
+		Hostnames: []string{"helpful-bear"},
+		Tags: map[string]string{
+			"juju-model":         "aaa-bbb",
+			"juju-is-controller": "true",
+		},
+	}
+	err := args.Validate()
+	c.Assert(err, gc.ErrorMatches, "searching by tags with other filters not supported")
+}
+
 func (s *controllerSuite) TestStorageSpec(c *gc.C) {
 	for i, test := range []struct {
 		spec StorageSpec

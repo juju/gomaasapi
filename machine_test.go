@@ -52,6 +52,10 @@ func (*machineSuite) TestReadMachines(c *gc.C) {
 	c.Check(machine.Hostname(), gc.Equals, "untasted-markita")
 	c.Check(machine.FQDN(), gc.Equals, "untasted-markita.maas")
 	c.Check(machine.Tags(), jc.DeepEquals, []string{"virtual", "magic"})
+	c.Check(machine.OwnerData(), jc.DeepEquals, map[string]string{
+		"fez":            "phil fish",
+		"frog-fractions": "jim crawford",
+	})
 
 	c.Check(machine.IPAddresses(), jc.DeepEquals, []string{"192.168.100.4"})
 	c.Check(machine.Memory(), gc.Equals, 1024)
@@ -124,6 +128,7 @@ func (s *machineSuite) getServerAndMachine(c *gc.C) (*SimpleTestServer, *machine
 	c.Assert(err, jc.ErrorIsNil)
 	c.Check(machines, gc.HasLen, 1)
 	machine := machines[0].(*machine)
+	server.ResetRequests()
 	return server, machine
 }
 
@@ -313,6 +318,13 @@ func (s *machineSuite) TestCreateDeviceTriesToDeleteDeviceOnError(c *gc.C) {
 	request := server.LastRequest()
 	c.Assert(request.Method, gc.Equals, "DELETE")
 	c.Assert(request.RequestURI, gc.Equals, "/MAAS/api/2.0/devices/4y3haf/")
+}
+
+func (s *machineSuite) TestOwnerDataCopies(c *gc.C) {
+	machine := machine{ownerData: make(map[string]string)}
+	ownerData := machine.OwnerData()
+	ownerData["sad"] = "children"
+	c.Assert(machine.OwnerData(), gc.DeepEquals, map[string]string{})
 }
 
 const (
@@ -590,7 +602,7 @@ const (
         "power_type": "virsh",
         "distro_series": "trusty",
         "tag_names": [
-            "virtual", "magic"
+           "virtual", "magic"
         ],
         "disable_ipv4": false,
         "status_message": "From 'Deploying' to 'Deployed'",
@@ -694,9 +706,72 @@ const (
             "resource_record_count": 0,
             "ttl": null,
             "authoritative": true
+        },
+        "owner_data": {
+            "fez": "phil fish",
+            "frog-fractions": "jim crawford"
         }
     }
 `
+
+	createDeviceResponse = `
+{
+	"zone": {
+		"description": "",
+		"resource_uri": "/MAAS/api/2.0/zones/default/",
+		"name": "default"
+	},
+	"domain": {
+		"resource_record_count": 0,
+		"resource_uri": "/MAAS/api/2.0/domains/0/",
+		"authoritative": true,
+		"name": "maas",
+		"ttl": null,
+		"id": 0
+	},
+	"node_type_name": "Device",
+	"address_ttl": null,
+	"hostname": "furnacelike-brittney",
+	"node_type": 1,
+	"resource_uri": "/MAAS/api/2.0/devices/4y3haf/",
+	"ip_addresses": ["192.168.100.11"],
+	"owner": "thumper",
+	"tag_names": [],
+	"fqdn": "furnacelike-brittney.maas",
+	"system_id": "4y3haf",
+	"parent": "4y3ha3",
+	"interface_set": [
+		{
+			"resource_uri": "/MAAS/api/2.0/nodes/4y3haf/interfaces/48/",
+			"type": "physical",
+			"mac_address": "78:f0:f1:16:a7:46",
+			"params": "",
+			"discovered": null,
+			"effective_mtu": 1500,
+			"id": 48,
+			"children": [],
+			"links": [],
+			"name": "eth0",
+			"vlan": {
+				"secondary_rack": null,
+				"dhcp_on": true,
+				"fabric": "fabric-0",
+				"mtu": 1500,
+				"primary_rack": "4y3h7n",
+				"resource_uri": "/MAAS/api/2.0/vlans/1/",
+				"external_dhcp": null,
+				"name": "untagged",
+				"id": 1,
+				"vid": 0
+			},
+			"tags": [],
+			"parents": [],
+			"enabled": true
+		}
+	]
+}
+`
+
 	machinesResponse = "[" + machineResponse + `,
     {
         "netboot": true,
@@ -938,6 +1013,10 @@ const (
             "resource_record_count": 0,
             "ttl": null,
             "authoritative": true
+        },
+        "owner_data": {
+            "braid": "jonathan blow",
+            "frog-fractions": "jim crawford"
         }
     },
     {
@@ -1180,66 +1259,12 @@ const (
             "resource_record_count": 0,
             "ttl": null,
             "authoritative": true
+        },
+        "owner_data": {
+            "braid": "jonathan blow",
+            "fez": "phil fish"
         }
     }
 ]
-`
-
-	createDeviceResponse = `
-{
-	"zone": {
-		"description": "",
-		"resource_uri": "/MAAS/api/2.0/zones/default/",
-		"name": "default"
-	},
-	"domain": {
-		"resource_record_count": 0,
-		"resource_uri": "/MAAS/api/2.0/domains/0/",
-		"authoritative": true,
-		"name": "maas",
-		"ttl": null,
-		"id": 0
-	},
-	"node_type_name": "Device",
-	"address_ttl": null,
-	"hostname": "furnacelike-brittney",
-	"node_type": 1,
-	"resource_uri": "/MAAS/api/2.0/devices/4y3haf/",
-	"ip_addresses": ["192.168.100.11"],
-	"owner": "thumper",
-	"tag_names": [],
-	"fqdn": "furnacelike-brittney.maas",
-	"system_id": "4y3haf",
-	"parent": "4y3ha3",
-	"interface_set": [
-		{
-			"resource_uri": "/MAAS/api/2.0/nodes/4y3haf/interfaces/48/",
-			"type": "physical",
-			"mac_address": "78:f0:f1:16:a7:46",
-			"params": "",
-			"discovered": null,
-			"effective_mtu": 1500,
-			"id": 48,
-			"children": [],
-			"links": [],
-			"name": "eth0",
-			"vlan": {
-				"secondary_rack": null,
-				"dhcp_on": true,
-				"fabric": "fabric-0",
-				"mtu": 1500,
-				"primary_rack": "4y3h7n",
-				"resource_uri": "/MAAS/api/2.0/vlans/1/",
-				"external_dhcp": null,
-				"name": "untagged",
-				"id": 1,
-				"vid": 0
-			},
-			"tags": [],
-			"parents": [],
-			"enabled": true
-		}
-	]
-}
 `
 )
