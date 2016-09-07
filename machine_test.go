@@ -6,6 +6,7 @@ package gomaasapi
 import (
 	"net/http"
 
+	"fmt"
 	"github.com/juju/errors"
 	"github.com/juju/testing"
 	jc "github.com/juju/testing/checkers"
@@ -327,8 +328,28 @@ func (s *machineSuite) TestOwnerDataCopies(c *gc.C) {
 	c.Assert(machine.OwnerData(), gc.DeepEquals, map[string]string{})
 }
 
+func (s *machineSuite) TestSetOwnerData(c *gc.C) {
+	server, machine := s.getServerAndMachine(c)
+	server.AddPostResponse(machine.resourceURI+"?op=set-owner-data", 200, machineWithOwnerData(`{"returned": "data"}`))
+	err := machine.SetOwnerData(map[string]string{
+		"draco": "malfoy",
+		"empty": "", // Check that empty strings get passed along.
+	})
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(machine.OwnerData(), gc.DeepEquals, map[string]string{"returned": "data"})
+	form := server.LastRequest().PostForm
+	// Looking at the map directly so we can tell the difference
+	// between no value and an explicit empty string.
+	c.Check(form["draco"], gc.DeepEquals, []string{"malfoy"})
+	c.Check(form["empty"], gc.DeepEquals, []string{""})
+}
+
+func machineWithOwnerData(data string) string {
+	return fmt.Sprintf(machineOwnerDataTemplate, data)
+}
+
 const (
-	machineResponse = `
+	machineOwnerDataTemplate = `
 	{
         "netboot": false,
         "system_id": "4y3ha3",
@@ -707,10 +728,7 @@ const (
             "ttl": null,
             "authoritative": true
         },
-        "owner_data": {
-            "fez": "phil fish",
-            "frog-fractions": "jim crawford"
-        }
+        "owner_data": %s
     }
 `
 
@@ -771,6 +789,14 @@ const (
 	]
 }
 `
+)
+
+var (
+	machineResponse = machineWithOwnerData(`{
+            "fez": "phil fish",
+            "frog-fractions": "jim crawford"
+        }
+`)
 
 	machinesResponse = "[" + machineResponse + `,
     {

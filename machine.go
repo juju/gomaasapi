@@ -9,6 +9,7 @@ import (
 	"github.com/juju/errors"
 	"github.com/juju/schema"
 	"github.com/juju/version"
+	"net/url"
 )
 
 type machine struct {
@@ -340,6 +341,19 @@ func (m *machine) OwnerData() map[string]string {
 
 // SetOwnerData implements OwnerDataHolder.
 func (m *machine) SetOwnerData(ownerData map[string]string) error {
+	params := make(url.Values)
+	for key, value := range ownerData {
+		params.Add(key, value)
+	}
+	result, err := m.controller.post(m.resourceURI, "set-owner-data", params)
+	if err != nil {
+		return errors.Trace(err)
+	}
+	machine, err := readMachine(m.controller.apiVersion, result)
+	if err != nil {
+		return errors.Trace(err)
+	}
+	m.updateFrom(machine)
 	return nil
 }
 
