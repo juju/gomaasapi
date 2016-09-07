@@ -246,6 +246,44 @@ func (s *controllerSuite) TestMachinesFilter(c *gc.C) {
 	c.Assert(machines[0].Hostname(), gc.Equals, "untasted-markita")
 }
 
+func (s *controllerSuite) TestMachinesFilterWithOwnerData(c *gc.C) {
+	controller := s.getController(c)
+	machines, err := controller.Machines(MachinesArgs{
+		Hostnames: []string{"untasted-markita"},
+		OwnerData: map[string]string{
+			"fez": "jim crawford",
+		},
+	})
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(machines, gc.HasLen, 0)
+}
+
+func (s *controllerSuite) TestMachinesFilterWithOwnerData_MultipleMatches(c *gc.C) {
+	controller := s.getController(c)
+	machines, err := controller.Machines(MachinesArgs{
+		OwnerData: map[string]string{
+			"braid": "jonathan blow",
+		},
+	})
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(machines, gc.HasLen, 2)
+	c.Assert(machines[0].Hostname(), gc.Equals, "lowlier-glady")
+	c.Assert(machines[1].Hostname(), gc.Equals, "icier-nina")
+}
+
+func (s *controllerSuite) TestMachinesFilterWithOwnerData_RequiresAllMatch(c *gc.C) {
+	controller := s.getController(c)
+	machines, err := controller.Machines(MachinesArgs{
+		OwnerData: map[string]string{
+			"braid":          "jonathan blow",
+			"frog-fractions": "jim crawford",
+		},
+	})
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(machines, gc.HasLen, 1)
+	c.Assert(machines[0].Hostname(), gc.Equals, "lowlier-glady")
+}
+
 func (s *controllerSuite) TestMachinesArgs(c *gc.C) {
 	controller := s.getController(c)
 	// This will fail with a 404 due to the test server not having something  at
@@ -262,18 +300,6 @@ func (s *controllerSuite) TestMachinesArgs(c *gc.C) {
 	request := s.server.LastRequest()
 	// There should be one entry in the form values for each of the args.
 	c.Assert(request.URL.Query(), gc.HasLen, 6)
-}
-
-func (s *controllerSuite) TestMachinesArgsValidate(c *gc.C) {
-	args := MachinesArgs{
-		Hostnames: []string{"helpful-bear"},
-		Tags: map[string]string{
-			"juju-model":         "aaa-bbb",
-			"juju-is-controller": "true",
-		},
-	}
-	err := args.Validate()
-	c.Assert(err, gc.ErrorMatches, "searching by tags with other filters not supported")
 }
 
 func (s *controllerSuite) TestStorageSpec(c *gc.C) {
