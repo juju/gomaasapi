@@ -158,7 +158,7 @@ func (s *SimpleTestServer) RequestCount() int {
 }
 
 func (s *SimpleTestServer) ResetRequests() {
-	s.requests = []*http.Request{}
+	s.requests = nil
 }
 
 func (s *SimpleTestServer) handler(writer http.ResponseWriter, request *http.Request) {

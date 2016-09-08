@@ -534,6 +534,8 @@ func convertToStringMap(field interface{}) map[string]string {
 	if field == nil {
 		return nil
 	}
+	// This function is only called after a schema Coerce, so it's
+	// safe.
 	fieldMap := field.(map[string]interface{})
 	result := make(map[string]string)
 	for key, value := range fieldMap {
