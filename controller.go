@@ -252,6 +252,7 @@ type MachinesArgs struct {
 	Domain       string
 	Zone         string
 	AgentName    string
+	OwnerData    map[string]string
 }
 
 // Machines implements Controller.
@@ -263,6 +264,8 @@ func (c *controller) Machines(args MachinesArgs) ([]Machine, error) {
 	params.MaybeAdd("domain", args.Domain)
 	params.MaybeAdd("zone", args.Zone)
 	params.MaybeAdd("agent_name", args.AgentName)
+	// At the moment the MAAS API doesn't support filtering by owner
+	// data so we do that ourselves below.
 	source, err := c.getQuery("machines", params.Values)
 	if err != nil {
 		return nil, NewUnexpectedError(err)
@@ -274,9 +277,20 @@ func (c *controller) Machines(args MachinesArgs) ([]Machine, error) {
 	var result []Machine
 	for _, m := range machines {
 		m.controller = c
-		result = append(result, m)
+		if ownerDataMatches(m.ownerData, args.OwnerData) {
+			result = append(result, m)
+		}
 	}
 	return result, nil
+}
+
+func ownerDataMatches(ownerData, filter map[string]string) bool {
+	for key, value := range filter {
+		if ownerData[key] != value {
+			return false
+		}
+	}
+	return true
 }
 
 // StorageSpec represents one element of storage constraints necessary

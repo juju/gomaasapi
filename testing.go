@@ -145,8 +145,20 @@ func (s *SimpleTestServer) LastRequest() *http.Request {
 	return s.requests[pos]
 }
 
+func (s *SimpleTestServer) LastNRequests(n int) []*http.Request {
+	start := len(s.requests) - n
+	if start < 0 {
+		start = 0
+	}
+	return s.requests[start:]
+}
+
 func (s *SimpleTestServer) RequestCount() int {
 	return len(s.requests)
+}
+
+func (s *SimpleTestServer) ResetRequests() {
+	s.requests = nil
 }
 
 func (s *SimpleTestServer) handler(writer http.ResponseWriter, request *http.Request) {

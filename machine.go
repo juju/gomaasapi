@@ -9,6 +9,7 @@ import (
 	"github.com/juju/errors"
 	"github.com/juju/schema"
 	"github.com/juju/version"
+	"net/url"
 )
 
 type machine struct {
@@ -16,10 +17,11 @@ type machine struct {
 
 	resourceURI string
 
-	systemID string
-	hostname string
-	fqdn     string
-	tags     []string
+	systemID  string
+	hostname  string
+	fqdn      string
+	tags      []string
+	ownerData map[string]string
 
 	operatingSystem string
 	distroSeries    string
@@ -57,6 +59,8 @@ func (m *machine) updateFrom(other *machine) {
 	m.statusName = other.statusName
 	m.statusMessage = other.statusMessage
 	m.zone = other.zone
+	m.tags = other.tags
+	m.ownerData = other.ownerData
 }
 
 // SystemID implements Machine.
@@ -326,6 +330,33 @@ func (m *machine) CreateDevice(args CreateMachineDeviceArgs) (_ Device, err erro
 	return device, nil
 }
 
+// OwnerData implements OwnerDataHolder.
+func (m *machine) OwnerData() map[string]string {
+	result := make(map[string]string)
+	for key, value := range m.ownerData {
+		result[key] = value
+	}
+	return result
+}
+
+// SetOwnerData implements OwnerDataHolder.
+func (m *machine) SetOwnerData(ownerData map[string]string) error {
+	params := make(url.Values)
+	for key, value := range ownerData {
+		params.Add(key, value)
+	}
+	result, err := m.controller.post(m.resourceURI, "set-owner-data", params)
+	if err != nil {
+		return errors.Trace(err)
+	}
+	machine, err := readMachine(m.controller.apiVersion, result)
+	if err != nil {
+		return errors.Trace(err)
+	}
+	m.updateFrom(machine)
+	return nil
+}
+
 func readMachine(controllerVersion version.Number, source interface{}) (*machine, error) {
 	readFunc, err := getMachineDeserializationFunc(controllerVersion)
 	if err != nil {
@@ -395,10 +426,11 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 	fields := schema.Fields{
 		"resource_uri": schema.String(),
 
-		"system_id": schema.String(),
-		"hostname":  schema.String(),
-		"fqdn":      schema.String(),
-		"tag_names": schema.List(schema.String()),
+		"system_id":  schema.String(),
+		"hostname":   schema.String(),
+		"fqdn":       schema.String(),
+		"tag_names":  schema.List(schema.String()),
+		"owner_data": schema.StringMap(schema.String()),
 
 		"osystem":       schema.String(),
 		"distro_series": schema.String(),
@@ -459,10 +491,11 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 	result := &machine{
 		resourceURI: valid["resource_uri"].(string),
 
-		systemID: valid["system_id"].(string),
-		hostname: valid["hostname"].(string),
-		fqdn:     valid["fqdn"].(string),
-		tags:     convertToStringSlice(valid["tag_names"]),
+		systemID:  valid["system_id"].(string),
+		hostname:  valid["hostname"].(string),
+		fqdn:      valid["fqdn"].(string),
+		tags:      convertToStringSlice(valid["tag_names"]),
+		ownerData: convertToStringMap(valid["owner_data"]),
 
 		operatingSystem: valid["osystem"].(string),
 		distroSeries:    valid["distro_series"].(string),
@@ -493,6 +526,20 @@ func convertToStringSlice(field interface{}) []string {
 	result := make([]string, len(fieldSlice))
 	for i, value := range fieldSlice {
 		result[i] = value.(string)
+	}
+	return result
+}
+
+func convertToStringMap(field interface{}) map[string]string {
+	if field == nil {
+		return nil
+	}
+	// This function is only called after a schema Coerce, so it's
+	// safe.
+	fieldMap := field.(map[string]interface{})
+	result := make(map[string]string)
+	for key, value := range fieldMap {
+		result[key] = value.(string)
 	}
 	return result
 }
