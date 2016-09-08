@@ -330,7 +330,7 @@ func (s *machineSuite) TestOwnerDataCopies(c *gc.C) {
 
 func (s *machineSuite) TestSetOwnerData(c *gc.C) {
 	server, machine := s.getServerAndMachine(c)
-	server.AddPostResponse(machine.resourceURI+"?op=set-owner-data", 200, machineWithOwnerData(`{"returned": "data"}`))
+	server.AddPostResponse(machine.resourceURI+"?op=set_owner_data", 200, machineWithOwnerData(`{"returned": "data"}`))
 	err := machine.SetOwnerData(map[string]string{
 		"draco": "malfoy",
 		"empty": "", // Check that empty strings get passed along.

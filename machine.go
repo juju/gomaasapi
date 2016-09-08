@@ -345,7 +345,7 @@ func (m *machine) SetOwnerData(ownerData map[string]string) error {
 	for key, value := range ownerData {
 		params.Add(key, value)
 	}
-	result, err := m.controller.post(m.resourceURI, "set-owner-data", params)
+	result, err := m.controller.post(m.resourceURI, "set_owner_data", params)
 	if err != nil {
 		return errors.Trace(err)
 	}
