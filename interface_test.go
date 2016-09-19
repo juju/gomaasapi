@@ -152,11 +152,21 @@ func (s *interfaceSuite) TestDeleteUnknown(c *gc.C) {
 
 type fakeSubnet struct {
 	Subnet
-	id int
+	id   int
+	cidr string
+	vlan VLAN
 }
 
 func (f *fakeSubnet) ID() int {
 	return f.id
+}
+
+func (f *fakeSubnet) CIDR() string {
+	return f.cidr
+}
+
+func (f *fakeSubnet) VLAN() VLAN {
+	return f.vlan
 }
 
 func (s *interfaceSuite) TestLinkSubnetArgs(c *gc.C) {

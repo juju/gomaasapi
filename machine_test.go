@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"fmt"
+
 	"github.com/juju/errors"
 	"github.com/juju/testing"
 	jc "github.com/juju/testing/checkers"
@@ -236,20 +237,34 @@ func (s *machineSuite) TestCreateMachineDeviceArgsValidate(c *gc.C) {
 		args: CreateMachineDeviceArgs{
 			InterfaceName: "eth1",
 			MACAddress:    "something",
+			Subnet: &fakeSubnet{
+				cidr: "1.2.3.4/5",
+				vlan: &fakeVLAN{id: 42},
+			},
+			VLAN: &fakeVLAN{id: 10},
 		},
-		errText: `missing Subnet not valid`,
-	}, {
-		args: CreateMachineDeviceArgs{
-			InterfaceName: "eth1",
-			MACAddress:    "something",
-			Subnet:        &fakeSubnet{},
-		},
+		errText: `given subnet "1.2.3.4/5" on VLAN 42 does not match given VLAN 10`,
 	}, {
 		args: CreateMachineDeviceArgs{
 			Hostname:      "is-optional",
 			InterfaceName: "eth1",
 			MACAddress:    "something",
+			Subnet:        nil,
+			VLAN:          &fakeVLAN{},
+		},
+	}, {
+		args: CreateMachineDeviceArgs{
+			InterfaceName: "eth1",
+			MACAddress:    "something",
 			Subnet:        &fakeSubnet{},
+			VLAN:          nil,
+		},
+	}, {
+		args: CreateMachineDeviceArgs{
+			InterfaceName: "eth1",
+			MACAddress:    "something",
+			Subnet:        nil,
+			VLAN:          nil,
 		},
 	}} {
 		c.Logf("test %d", i)
@@ -290,10 +305,64 @@ func (s *machineSuite) TestCreateDevice(c *gc.C) {
 		InterfaceName: "eth4",
 		MACAddress:    "fake-mac-address",
 		Subnet:        subnet,
+		VLAN:          subnet.VLAN(),
 	})
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(device.InterfaceSet()[0].Name(), gc.Equals, "eth4")
 	c.Assert(device.InterfaceSet()[0].VLAN().ID(), gc.Equals, subnet.VLAN().ID())
+}
+
+func (s *machineSuite) TestCreateDeviceWithoutSubnetOrVLAN(c *gc.C) {
+	server, machine := s.getServerAndMachine(c)
+	// The createDeviceResponse returns a single interface with the name "eth0".
+	server.AddPostResponse("/api/2.0/devices/?op=", http.StatusOK, createDeviceResponse)
+	updateInterfaceResponse := updateJSONMap(c, interfaceResponse, map[string]interface{}{
+		"name":         "eth4",
+		"links":        []interface{}{},
+		"resource_uri": "/MAAS/api/2.0/nodes/4y3haf/interfaces/48/",
+	})
+	server.AddPutResponse("/MAAS/api/2.0/nodes/4y3haf/interfaces/48/", http.StatusOK, updateInterfaceResponse)
+	device, err := machine.CreateDevice(CreateMachineDeviceArgs{
+		InterfaceName: "eth4",
+		MACAddress:    "fake-mac-address",
+		Subnet:        nil,
+		VLAN:          nil,
+	})
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(device.InterfaceSet()[0].Name(), gc.Equals, "eth4")
+	// No specifc subnet or VLAN should be set.
+	c.Assert(device.InterfaceSet()[0].VLAN().ID(), gc.Equals, 1) // set in interfaceResponse
+	c.Assert(device.InterfaceSet()[0].Links(), gc.HasLen, 0)     // set above
+}
+
+func (s *machineSuite) TestCreateDeviceWithVLANOnly(c *gc.C) {
+	server, machine := s.getServerAndMachine(c)
+	// The createDeviceResponse returns a single interface with the name "eth0".
+	server.AddPostResponse("/api/2.0/devices/?op=", http.StatusOK, createDeviceResponse)
+	updateInterfaceResponse := updateJSONMap(c, interfaceResponse, map[string]interface{}{
+		"name": "eth4",
+		"vlan": map[string]interface{}{
+			"id":           42,
+			"resource_uri": "/MAAS/api/2.0/vlans/42/",
+			"vid":          1234,
+			"fabric":       "live",
+			"dhcp_on":      false,
+			"mtu":          9001,
+		},
+		"links":        []interface{}{},
+		"resource_uri": "/MAAS/api/2.0/nodes/4y3haf/interfaces/48/",
+	})
+	server.AddPutResponse("/MAAS/api/2.0/nodes/4y3haf/interfaces/48/", http.StatusOK, updateInterfaceResponse)
+	device, err := machine.CreateDevice(CreateMachineDeviceArgs{
+		InterfaceName: "eth4",
+		MACAddress:    "fake-mac-address",
+		Subnet:        nil,
+		VLAN:          &fakeVLAN{id: 42},
+	})
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(device.InterfaceSet()[0].Name(), gc.Equals, "eth4")
+	// VLAN should be set.
+	c.Assert(device.InterfaceSet()[0].VLAN().ID(), gc.Equals, 42)
 }
 
 func (s *machineSuite) TestCreateDeviceTriesToDeleteDeviceOnError(c *gc.C) {

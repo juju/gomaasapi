@@ -4,12 +4,14 @@
 package gomaasapi
 
 import (
+	"fmt"
 	"net/http"
+
+	"net/url"
 
 	"github.com/juju/errors"
 	"github.com/juju/schema"
 	"github.com/juju/version"
-	"net/url"
 )
 
 type machine struct {
@@ -252,12 +254,15 @@ func (m *machine) Start(args StartArgs) error {
 }
 
 // CreateMachineDeviceArgs is an argument structure for Machine.CreateDevice.
-// All fields except Hostname are required.
+// Only InterfaceName and MACAddress fields are required, the others are only
+// used if set. If Subnet and VLAN are both set, Subnet.VLAN() must match the
+// given VLAN. On failure, returns an error satisfying errors.IsNotValid().
 type CreateMachineDeviceArgs struct {
 	Hostname      string
 	InterfaceName string
 	MACAddress    string
 	Subnet        Subnet
+	VLAN          VLAN
 }
 
 // Validate ensures that all required values are non-emtpy.
@@ -265,12 +270,19 @@ func (a *CreateMachineDeviceArgs) Validate() error {
 	if a.InterfaceName == "" {
 		return errors.NotValidf("missing InterfaceName")
 	}
+
 	if a.MACAddress == "" {
 		return errors.NotValidf("missing MACAddress")
 	}
-	if a.Subnet == nil {
-		return errors.NotValidf("missing Subnet")
+
+	if a.Subnet != nil && a.VLAN != nil && a.Subnet.VLAN() != a.VLAN {
+		msg := fmt.Sprintf(
+			"given subnet %q on VLAN %d does not match given VLAN %d",
+			a.Subnet.CIDR(), a.Subnet.VLAN().ID(), a.VLAN.ID(),
+		)
+		return errors.NewNotValid(nil, msg)
 	}
+
 	return nil
 }
 
@@ -288,46 +300,75 @@ func (m *machine) CreateDevice(args CreateMachineDeviceArgs) (_ Device, err erro
 		return nil, errors.Trace(err)
 	}
 
-	defer func() {
+	defer func(err *error) {
 		// If there is an error return, at least try to delete the device we just created.
-		if err != nil {
+		if *err != nil {
 			if innerErr := device.Delete(); innerErr != nil {
 				logger.Warningf("could not delete device %q", device.SystemID())
 			}
 		}
-	}()
+	}(&err)
 
-	// There should be one interface created for each MAC Address, and since
-	// we only specified one, there should just be one response.
+	// Update the VLAN to use for the interface, if given.
+	vlanToUse := args.VLAN
+	if vlanToUse == nil && args.Subnet != nil {
+		vlanToUse = args.Subnet.VLAN()
+	}
+
+	// There should be one interface created for each MAC Address, and since we
+	// only specified one, there should just be one response.
 	interfaces := device.InterfaceSet()
 	if count := len(interfaces); count != 1 {
 		err := errors.Errorf("unexpected interface count for device: %d", count)
 		return nil, NewUnexpectedError(err)
 	}
 	iface := interfaces[0]
+	nameToUse := args.InterfaceName
 
-	// Now update the name and vlan of interface that was created…
-	updateArgs := UpdateInterfaceArgs{}
-	if iface.Name() != args.InterfaceName {
-		updateArgs.Name = args.InterfaceName
-	}
-	if iface.VLAN().ID() != args.Subnet.VLAN().ID() {
-		updateArgs.VLAN = args.Subnet.VLAN()
-	}
-	err = iface.Update(updateArgs)
-	if err != nil {
+	if err := m.updateDeviceInterface(iface, nameToUse, vlanToUse); err != nil {
 		return nil, errors.Trace(err)
 	}
 
-	err = iface.LinkSubnet(LinkSubnetArgs{
-		Mode:   LinkModeStatic,
-		Subnet: args.Subnet,
-	})
-	if err != nil {
+	if args.Subnet == nil {
+		// Nothing further to update.
+		return device, nil
+	}
+
+	if err := m.linkDeviceInterfaceToSubnet(iface, args.Subnet); err != nil {
 		return nil, errors.Trace(err)
 	}
 
 	return device, nil
+}
+
+func (m *machine) updateDeviceInterface(iface Interface, nameToUse string, vlanToUse VLAN) error {
+	updateArgs := UpdateInterfaceArgs{}
+	if iface.Name() != nameToUse {
+		updateArgs.Name = nameToUse
+	}
+	if vlanToUse != nil && iface.VLAN().ID() != vlanToUse.ID() {
+		updateArgs.VLAN = vlanToUse
+	}
+
+	if err := iface.Update(updateArgs); err != nil {
+		return errors.Annotatef(err, "updating device interface %q failed", iface.Name())
+	}
+
+	return nil
+}
+
+func (m *machine) linkDeviceInterfaceToSubnet(iface Interface, subnetToUse Subnet) error {
+	err := iface.LinkSubnet(LinkSubnetArgs{
+		Mode:   LinkModeStatic,
+		Subnet: subnetToUse,
+	})
+	if err != nil {
+		return errors.Annotatef(
+			err, "linking device interface %q to subnet %q failed",
+			iface.Name(), subnetToUse.CIDR())
+	}
+
+	return nil
 }
 
 // OwnerData implements OwnerDataHolder.
