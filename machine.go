@@ -342,10 +342,9 @@ func (m *machine) CreateDevice(args CreateMachineDeviceArgs) (_ Device, err erro
 
 func (m *machine) updateDeviceInterface(iface Interface, nameToUse string, vlanToUse VLAN) error {
 	updateArgs := UpdateInterfaceArgs{}
-	if iface.Name() != nameToUse {
-		updateArgs.Name = nameToUse
-	}
-	if vlanToUse != nil && iface.VLAN().ID() != vlanToUse.ID() {
+	updateArgs.Name = nameToUse
+
+	if vlanToUse != nil {
 		updateArgs.VLAN = vlanToUse
 	}
 
