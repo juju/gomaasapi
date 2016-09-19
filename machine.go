@@ -6,7 +6,6 @@ package gomaasapi
 import (
 	"fmt"
 	"net/http"
-
 	"net/url"
 
 	"github.com/juju/errors"

@@ -4,9 +4,8 @@
 package gomaasapi
 
 import (
-	"net/http"
-
 	"fmt"
+	"net/http"
 
 	"github.com/juju/errors"
 	"github.com/juju/testing"
