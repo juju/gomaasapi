@@ -444,12 +444,12 @@ func (a *AllocateMachineArgs) interfaces() string {
 	return strings.Join(values, ";")
 }
 
-func (a *AllocateMachineArgs) notNetworks() string {
+func (a *AllocateMachineArgs) notSubnets() []string {
 	var values []string
 	for _, v := range a.NotSpace {
 		values = append(values, "space:"+v)
 	}
-	return strings.Join(values, ",")
+	return values
 }
 
 // ConstraintMatches provides a way for the caller of AllocateMachine to determine
@@ -480,7 +480,7 @@ func (c *controller) AllocateMachine(args AllocateMachineArgs) (Machine, Constra
 	params.MaybeAddMany("not_tags", args.NotTags)
 	params.MaybeAdd("storage", args.storage())
 	params.MaybeAdd("interfaces", args.interfaces())
-	params.MaybeAdd("not_networks", args.notNetworks())
+	params.MaybeAddMany("not_subnets", args.notSubnets())
 	params.MaybeAdd("zone", args.Zone)
 	params.MaybeAddMany("not_in_zone", args.NotInZone)
 	params.MaybeAdd("agent_name", args.AgentName)
