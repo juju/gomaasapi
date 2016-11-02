@@ -370,11 +370,11 @@ func (s *controllerSuite) TestInterfaceSpec(c *gc.C) {
 
 func (s *controllerSuite) TestAllocateMachineArgs(c *gc.C) {
 	for i, test := range []struct {
-		args        AllocateMachineArgs
-		err         string
-		storage     string
-		interfaces  string
-		notNetworks string
+		args       AllocateMachineArgs
+		err        string
+		storage    string
+		interfaces string
+		notSubnets []string
 	}{{
 		args: AllocateMachineArgs{},
 	}, {
@@ -425,7 +425,12 @@ func (s *controllerSuite) TestAllocateMachineArgs(c *gc.C) {
 		args: AllocateMachineArgs{
 			NotSpace: []string{"foo"},
 		},
-		notNetworks: "space:foo",
+		notSubnets: []string{"space:foo"},
+	}, {
+		args: AllocateMachineArgs{
+			NotSpace: []string{"foo", "bar"},
+		},
+		notSubnets: []string{"space:foo", "space:bar"},
 	}} {
 		c.Logf("test %d", i)
 		err := test.args.Validate()
@@ -433,7 +438,7 @@ func (s *controllerSuite) TestAllocateMachineArgs(c *gc.C) {
 			c.Check(err, jc.ErrorIsNil)
 			c.Check(test.args.storage(), gc.Equals, test.storage)
 			c.Check(test.args.interfaces(), gc.Equals, test.interfaces)
-			c.Check(test.args.notNetworks(), gc.Equals, test.notNetworks)
+			c.Check(test.args.notSubnets(), jc.DeepEquals, test.notSubnets)
 		} else {
 			c.Check(err, jc.Satisfies, errors.IsNotValid)
 			c.Check(err.Error(), gc.Equals, test.err)
@@ -568,7 +573,7 @@ func (s *controllerSuite) TestAllocateMachineArgsForm(c *gc.C) {
 	// Positive space check.
 	c.Assert(form.Get("interfaces"), gc.Equals, "default:space=magic")
 	// Negative space check.
-	c.Assert(form.Get("not_networks"), gc.Equals, "space:special")
+	c.Assert(form.Get("not_subnets"), gc.Equals, "space:special")
 }
 
 func (s *controllerSuite) TestAllocateMachineNoMatch(c *gc.C) {
