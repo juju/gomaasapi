@@ -95,10 +95,10 @@ func staticRoute_2_0(source map[string]interface{}) (*staticRoute, error) {
 	fields := schema.Fields{
 		"resource_uri": schema.String(),
 		"id":           schema.ForceInt(),
-		"source":         schema.StringMap(schema.Any()),
-		"destination":      schema.StringMap(schema.Any()),
-		"gateway_ip":           schema.String(),
-		"metric":		schema.ForceInt(),
+		"source":       schema.StringMap(schema.Any()),
+		"destination":  schema.StringMap(schema.Any()),
+		"gateway_ip":   schema.String(),
+		"metric":       schema.ForceInt(),
 	}
 	checker := schema.FieldMap(fields, nil) // no defaults
 	coerced, err := checker.Coerce(source, nil)
@@ -124,9 +124,9 @@ func staticRoute_2_0(source map[string]interface{}) (*staticRoute, error) {
 	result := &staticRoute{
 		resourceURI: valid["resource_uri"].(string),
 		id:          valid["id"].(int),
-		gatewayIP: valid["gateway_ip"].(string),
-		metric: valid["metric"].(int),
-		source: subnets[0],
+		gatewayIP:   valid["gateway_ip"].(string),
+		metric:      valid["metric"].(int),
+		source:      subnets[0],
 		destination: subnets[1],
 	}
 	return result, nil
