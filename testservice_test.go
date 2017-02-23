@@ -738,6 +738,17 @@ func defaultSubnet() CreateSubnet {
 	return s
 }
 
+func extraSubnet() CreateSubnet {
+	var s CreateSubnet
+	s.DNSServers = []string{"192.168.1.2"}
+	s.Name = "maas-all-192"
+	s.Space = "space-0"
+	s.GatewayIP = ""
+	s.CIDR = "192.168.0.0/16"
+	s.ID = 2
+	return s
+}
+
 func newSubnetOnSpace(space string, id uint) CreateSubnet {
 	var s CreateSubnet
 	s.DNSServers = []string{fmt.Sprintf("192.168.%v.2", id)}
@@ -761,6 +772,15 @@ func spaceJSON(space CreateSpace) *bytes.Buffer {
 func subnetJSON(subnet CreateSubnet) *bytes.Buffer {
 	var out bytes.Buffer
 	err := json.NewEncoder(&out).Encode(subnet)
+	if err != nil {
+		panic(err)
+	}
+	return &out
+}
+
+func staticRouteJSON(staticRoute CreateStaticRoute) *bytes.Buffer {
+	var out bytes.Buffer
+	err := json.NewEncoder(&out).Encode(staticRoute)
 	if err != nil {
 		panic(err)
 	}
@@ -1069,6 +1089,48 @@ func (suite *TestServerSuite) TestSubnetsInNodes(c *C) {
 	c.Check(i.Links, HasLen, 1)
 	c.Check(i.Links[0].ID, Equals, uint(1))
 	c.Check(i.Links[0].Subnet.Name, Equals, "maas-eth0")
+}
+
+func (suite *TestServerSuite) TestStaticRoutesNotFoundWhenEmpty(c *C) {
+	staticRoutesURL := getStaticRoutesEndpoint(suite.server.version)
+	resp, err := http.Get(suite.server.Server.URL + staticRoutesURL)
+
+	c.Check(err, IsNil)
+	c.Check(resp.StatusCode, Equals, http.StatusNotFound)
+}
+
+func (suite *TestServerSuite) TestStaticRoutesWithOp(c *C) {
+	staticRouteURL := getStaticRoutesEndpoint(suite.server.version)
+	resp, err := http.Get(suite.server.Server.URL + staticRouteURL + "?op=list")
+
+	c.Check(err, IsNil)
+	c.Check(resp.StatusCode, Equals, http.StatusBadRequest)
+}
+
+func (suite *TestServerSuite) TestStaticRoutesSubnetsFilledIn(c *C) {
+	subnetSource := suite.server.NewSubnet(subnetJSON(defaultSubnet()))
+	subnetDestination := suite.server.NewSubnet(subnetJSON(extraSubnet()))
+	suite.server.NewStaticRoute(staticRouteJSON(CreateStaticRoute{
+		SourceCIDR:      subnetSource.CIDR,
+		DestinationCIDR: subnetDestination.CIDR,
+		GatewayIP:       subnetSource.GatewayIP,
+		Metric:          100,
+	}))
+	staticRoutesURL := getStaticRoutesEndpoint(suite.server.version)
+	resp, err := http.Get(suite.server.Server.URL + staticRoutesURL)
+
+	c.Check(err, IsNil)
+	c.Assert(resp.StatusCode, Equals, http.StatusOK)
+
+	var staticRoutes []TestStaticRoute
+	decoder := json.NewDecoder(resp.Body)
+	err = decoder.Decode(&staticRoutes)
+	c.Assert(err, IsNil)
+	c.Assert(staticRoutes, HasLen, 1)
+	c.Assert(staticRoutes[0].Source, NotNil)
+	c.Assert(staticRoutes[0].Source, DeepEquals, *subnetSource)
+	c.Assert(staticRoutes[0].Destination, NotNil)
+	c.Assert(staticRoutes[0].Destination, DeepEquals, *subnetDestination)
 }
 
 type IPSuite struct {
