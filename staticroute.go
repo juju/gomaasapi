@@ -10,9 +10,6 @@ import (
 )
 
 type staticRoute struct {
-	// Add the controller in when we need to do things with the staticRoute.
-	// controller Controller
-
 	resourceURI string
 
 	id          int

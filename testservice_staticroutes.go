@@ -89,8 +89,13 @@ func staticRoutesHandler(server *TestServer, w http.ResponseWriter, r *http.Requ
 		}
 		checkError(err)
 	case "POST":
+		w.WriteHeader(http.StatusNotImplemented)
+		// TODO(jam) 2017-02-23 we could probably wire this into creating a new
+		// static route if we need the support.
 		//server.NewStaticRoute(r.Body)
 	case "PUT":
+		w.WriteHeader(http.StatusNotImplemented)
+		// TODO(jam): 2017-02-23 if we wanted to implement this, something like:
 		//server.UpdateStaticRoute(r.Body)
 	case "DELETE":
 		delete(server.staticRoutes, ID)
@@ -116,7 +121,7 @@ func decodePostedStaticRoute(staticRouteJSON io.Reader) CreateStaticRoute {
 	return postedStaticRoute
 }
 
-// NewStaticRoute creates a Static Route in the test server
+// NewStaticRoute creates a Static Route in the test server.
 func (server *TestServer) NewStaticRoute(staticRouteJSON io.Reader) *TestStaticRoute {
 	postedStaticRoute := decodePostedStaticRoute(staticRouteJSON)
 	// TODO(jam): 2017-02-03 Validate that sourceSubnet and destinationSubnet really do exist

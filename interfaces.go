@@ -264,9 +264,9 @@ type StaticRoute interface {
 	// inside Source should use GatewayIP to reach Destination addresses.)
 	Source() Subnet
 	// Destination is the subnet that a machine wants to send packets to. We
-	// want to configure a route to that subnet via GatewayIP
+	// want to configure a route to that subnet via GatewayIP.
 	Destination() Subnet
-	// GatewayIP is the IPAddress of the
+	// GatewayIP is the IPAddress to direct traffic to.
 	GatewayIP() string
 	// Metric is the routing metric that determines whether this route will
 	// take precedence over similar routes (there may be a route for 10/8, but
