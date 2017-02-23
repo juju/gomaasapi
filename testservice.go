@@ -97,15 +97,15 @@ type TestServer struct {
 	// devices is a map of device UUIDs to devices.
 	devices map[string]*TestDevice
 
-	subnets        map[uint]TestSubnet
-	subnetNameToID map[string]uint
-	nextSubnet     uint
-	spaces         map[uint]*TestSpace
-	spaceNameToID  map[string]uint
-	nextSpace      uint
-	vlans          map[int]TestVLAN
-	nextVLAN       int
-	staticRoutes   map[uint]*TestStaticRoute
+	subnets         map[uint]TestSubnet
+	subnetNameToID  map[string]uint
+	nextSubnet      uint
+	spaces          map[uint]*TestSpace
+	spaceNameToID   map[string]uint
+	nextSpace       uint
+	vlans           map[int]TestVLAN
+	nextVLAN        int
+	staticRoutes    map[uint]*TestStaticRoute
 	nextStaticRoute uint
 }
 
