@@ -49,6 +49,7 @@ func (s *controllerSuite) SetUpTest(c *gc.C) {
 	server.AddGetResponse("/api/2.0/machines/", http.StatusOK, machinesResponse)
 	server.AddGetResponse("/api/2.0/machines/?hostname=untasted-markita", http.StatusOK, "["+machineResponse+"]")
 	server.AddGetResponse("/api/2.0/spaces/", http.StatusOK, spacesResponse)
+	server.AddGetResponse("/api/2.0/static-routes/", http.StatusOK, staticRoutesResponse)
 	server.AddGetResponse("/api/2.0/users/?op=whoami", http.StatusOK, `"captain awesome"`)
 	server.AddGetResponse("/api/2.0/version/", http.StatusOK, versionResponse)
 	server.AddGetResponse("/api/2.0/zones/", http.StatusOK, zoneResponse)
@@ -220,6 +221,13 @@ func (s *controllerSuite) TestSpaces(c *gc.C) {
 	spaces, err := controller.Spaces()
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(spaces, gc.HasLen, 1)
+}
+
+func (s *controllerSuite) TestStaticRoutes(c *gc.C) {
+	controller := s.getController(c)
+	staticRoutes, err := controller.StaticRoutes()
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(staticRoutes, gc.HasLen, 1)
 }
 
 func (s *controllerSuite) TestZones(c *gc.C) {

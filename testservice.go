@@ -97,14 +97,16 @@ type TestServer struct {
 	// devices is a map of device UUIDs to devices.
 	devices map[string]*TestDevice
 
-	subnets        map[uint]TestSubnet
-	subnetNameToID map[string]uint
-	nextSubnet     uint
-	spaces         map[uint]*TestSpace
-	spaceNameToID  map[string]uint
-	nextSpace      uint
-	vlans          map[int]TestVLAN
-	nextVLAN       int
+	subnets         map[uint]TestSubnet
+	subnetNameToID  map[string]uint
+	nextSubnet      uint
+	spaces          map[uint]*TestSpace
+	spaceNameToID   map[string]uint
+	nextSpace       uint
+	vlans           map[int]TestVLAN
+	nextVLAN        int
+	staticRoutes    map[uint]*TestStaticRoute
+	nextStaticRoute uint
 }
 
 type TestDevice struct {
@@ -236,6 +238,8 @@ func (server *TestServer) Clear() {
 	server.nextSpace = 1
 	server.vlans = make(map[int]TestVLAN)
 	server.nextVLAN = 1
+	server.staticRoutes = make(map[uint]*TestStaticRoute)
+	server.nextStaticRoute = 1
 }
 
 // SetVersionJSON sets the JSON response (capabilities) returned from the
@@ -605,6 +609,11 @@ func NewTestServer(version string) *TestServer {
 	spacesURL := getSpacesEndpoint(server.version)
 	serveMux.HandleFunc(spacesURL, func(w http.ResponseWriter, r *http.Request) {
 		spacesHandler(server, w, r)
+	})
+
+	staticRoutesURL := getStaticRoutesEndpoint(server.version)
+	serveMux.HandleFunc(staticRoutesURL, func(w http.ResponseWriter, r *http.Request) {
+		staticRoutesHandler(server, w, r)
 	})
 
 	vlansURL := getVLANsEndpoint(server.version)
