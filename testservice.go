@@ -1790,18 +1790,18 @@ func tagHandler(server *TestServer, w http.ResponseWriter, r *http.Request, name
 	case "GET":
 		switch operation {
 		case "node":
+			var convertedNodes = []map[string]JSONObject{}
 			for systemID, node := range server.nodes {
-				var convertedNodes = []map[string]JSONObject{}
 				for _, nodetag := range server.tagsPerNode[systemID] {
 					if name == nodetag {
 						convertedNodes = append(convertedNodes, node.GetMap())
 					}
 				}
-				res, err := json.MarshalIndent(convertedNodes, "", "  ")
-				checkError(err)
-				w.WriteHeader(http.StatusOK)
-				fmt.Fprint(w, string(res))
 			}
+			res, err := json.MarshalIndent(convertedNodes, "", "  ")
+			checkError(err)
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprint(w, string(res))
 		default:
 			res, err := json.MarshalIndent(server.tags[name], "", "  ")
 			checkError(err)
