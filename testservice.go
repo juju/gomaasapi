@@ -82,8 +82,10 @@ type TestServer struct {
 	ipAddressesPerNetwork       map[string][]string
 	version                     string
 	macAddressesPerNetwork      map[string]map[string]JSONObject
+	tagsPerNode                 map[string][]string
 	nodeDetails                 map[string]string
 	zones                       map[string]JSONObject
+	tags                        map[string]JSONObject
 	// bootImages is a map of nodegroup UUIDs to boot-image objects.
 	bootImages map[string][]JSONObject
 	// nodegroupsInterfaces is a map of nodegroup UUIDs to interface
@@ -209,6 +211,19 @@ func getZonesEndpoint(version string) string {
 	return fmt.Sprintf("/api/%s/zones/", version)
 }
 
+func getTagsEndpoint(version string) string {
+	return fmt.Sprintf("/api/%s/tags/", version)
+}
+
+func getTagURL(version, tag_name string) string {
+	return fmt.Sprintf("/api/%s/tags/%s/", version, tag_name)
+}
+
+func getTagURLRE(version string) *regexp.Regexp {
+	reString := fmt.Sprintf("^/api/%s/tags/([^/]*)/$", regexp.QuoteMeta(version))
+	return regexp.MustCompile(reString)
+}
+
 // Clear clears all the fake data stored and recorded by the test server
 // (nodes, recorded operations, etc.).
 func (server *TestServer) Clear() {
@@ -223,11 +238,13 @@ func (server *TestServer) Clear() {
 	server.networks = make(map[string]MAASObject)
 	server.networksPerNode = make(map[string][]string)
 	server.ipAddressesPerNetwork = make(map[string][]string)
+	server.tagsPerNode = make(map[string][]string)
 	server.macAddressesPerNetwork = make(map[string]map[string]JSONObject)
 	server.nodeDetails = make(map[string]string)
 	server.bootImages = make(map[string][]JSONObject)
 	server.nodegroupsInterfaces = make(map[string][]JSONObject)
 	server.zones = make(map[string]JSONObject)
+	server.tags = make(map[string]JSONObject)
 	server.versionJSON = `{"capabilities": ["networks-management","static-ipaddresses","devices-management","network-deployment-ubuntu"]}`
 	server.devices = make(map[string]*TestDevice)
 	server.subnets = make(map[uint]TestSubnet)
@@ -546,6 +563,17 @@ func (server *TestServer) AddZone(name, description string) {
 	server.zones[name] = obj
 }
 
+// AddTah adds a tag to the server.
+func (server *TestServer) AddTag(name, comment string) {
+	attrs := map[string]interface{}{
+		"name":      name,
+		"comment":   comment,
+		resourceURI: getTagURL(server.version, name),
+	}
+	obj := maasify(server.client, attrs)
+	server.tags[name] = obj
+}
+
 func (server *TestServer) AddDevice(device *TestDevice) {
 	server.devices[device.SystemId] = device
 }
@@ -599,6 +627,12 @@ func NewTestServer(version string) *TestServer {
 	zonesURL := getZonesEndpoint(server.version)
 	serveMux.HandleFunc(zonesURL, func(w http.ResponseWriter, r *http.Request) {
 		zonesHandler(server, w, r)
+	})
+
+	// Register handler for '/api/<version>/zones/*'.
+	tagsURL := getTagsEndpoint(server.version)
+	serveMux.HandleFunc(tagsURL, func(w http.ResponseWriter, r *http.Request) {
+		tagsHandler(server, w, r)
 	})
 
 	subnetsURL := getSubnetsEndpoint(server.version)
@@ -1015,7 +1049,7 @@ func findFreeNode(server *TestServer, filter url.Values) *MAASObject {
 	for systemID, node := range server.Nodes() {
 		_, present := server.OwnedNodes()[systemID]
 		if !present {
-			var agentName, nodeName, zoneName, mem, cpuCores, arch string
+			var agentName, nodeName, zoneName, tagName, mem, cpuCores, arch string
 			for k := range filter {
 				switch k {
 				case "agent_name":
@@ -1024,6 +1058,8 @@ func findFreeNode(server *TestServer, filter url.Values) *MAASObject {
 					nodeName = filter.Get(k)
 				case "zone":
 					zoneName = filter.Get(k)
+				case "tags":
+					tagName = filter.Get(k)
 				case "mem":
 					mem = filter.Get(k)
 				case "arch":
@@ -1036,6 +1072,9 @@ func findFreeNode(server *TestServer, filter url.Values) *MAASObject {
 				continue
 			}
 			if zoneName != "" && !matchField(node, "zone", zoneName) {
+				continue
+			}
+			if tagName != "" && !matchField(node, "tag_names", tagName) {
 				continue
 			}
 			if mem != "" && !matchNumericField(node, "memory", mem) {
@@ -1678,4 +1717,159 @@ func zonesHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
 	checkError(err)
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, string(res))
+}
+
+// tagsHandler handles requests for '/api/<version>/tags/'.
+func tagsHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
+	tagURLRE := getTagURLRE(server.version)
+	tagURLMatch := tagURLRE.FindStringSubmatch(r.URL.Path)
+	tagsURL := getTagsEndpoint(server.version)
+	err := r.ParseForm()
+	checkError(err)
+	values := r.PostForm
+	names, hasName := getValues(values, "name")
+	quary, err := url.ParseQuery(r.URL.RawQuery)
+	checkError(err)
+	op := quary.Get("op")
+	if r.URL.Path == tagsURL {
+		if r.Method == "GET" {
+			tags := make([]JSONObject, 0, len(server.zones))
+			for _, tag := range server.tags {
+				tags = append(tags, tag)
+			}
+			res, err := json.MarshalIndent(tags, "", "  ")
+			checkError(err)
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprint(w, string(res))
+		} else if r.Method == "POST" && hasName {
+			if op == "" || op == "new" {
+				for _, name := range names {
+					newTagHandler(server, w, r, name, values)
+				}
+			} else {
+				w.WriteHeader(http.StatusBadRequest)
+			}
+		} else {
+			w.WriteHeader(http.StatusBadRequest)
+		}
+	} else if tagURLMatch != nil {
+		// Request for a single tag
+		tagHandler(server, w, r, tagURLMatch[1], op, values)
+	} else {
+		http.NotFoundHandler().ServeHTTP(w, r)
+	}
+}
+
+// newTagHandler creates, stores and returns new tag.
+func newTagHandler(server *TestServer, w http.ResponseWriter, r *http.Request, name string, values url.Values) {
+	comment, hascomment := getValue(values, "comment")
+	var attrs map[string]interface{}
+	if hascomment {
+		attrs = map[string]interface{}{
+			"name":      name,
+			"comment":   comment,
+			resourceURI: getTagURL(server.version, name),
+		}
+	} else {
+		attrs = map[string]interface{}{
+			"name":      name,
+			resourceURI: getTagURL(server.version, name),
+		}
+	}
+	obj := maasify(server.client, attrs)
+	server.tags[name] = obj
+	res, err := json.MarshalIndent(obj, "", "  ")
+	checkError(err)
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprint(w, res)
+}
+
+// tagHandler handles requests for '/api/<version>/tag/<name>/'.
+func tagHandler(server *TestServer, w http.ResponseWriter, r *http.Request, name string, operation string, values url.Values) {
+	switch r.Method {
+	case "GET":
+		switch operation {
+		case "node":
+			var convertedNodes = []map[string]JSONObject{}
+			for systemID, node := range server.nodes {
+				for _, nodetag := range server.tagsPerNode[systemID] {
+					if name == nodetag {
+						convertedNodes = append(convertedNodes, node.GetMap())
+					}
+				}
+			}
+			res, err := json.MarshalIndent(convertedNodes, "", "  ")
+			checkError(err)
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprint(w, string(res))
+		default:
+			res, err := json.MarshalIndent(server.tags[name], "", "  ")
+			checkError(err)
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprint(w, string(res))
+		}
+	case "POST":
+		if operation == "update_nodes" {
+			addNodes, hasAdd := getValues(values, "add")
+			delNodes, hasRemove := getValues(values, "remove")
+			addremovecount := map[string]int{"add": len(addNodes), "remove": len(delNodes)}
+			if !hasAdd && !hasRemove {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			for _, systemID := range addNodes {
+				_, ok := server.nodes[systemID]
+				if !ok {
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				var newTags []string
+				for _, tag := range server.tagsPerNode[systemID] {
+					if tag != name {
+						newTags = append(newTags, tag)
+					}
+				}
+				server.tagsPerNode[systemID] = append(newTags, name)
+				newTagsObj := make([]JSONObject, len(server.tagsPerNode[systemID]))
+				for i, tagsofnode := range server.tagsPerNode[systemID] {
+					newTagsObj[i] = server.tags[tagsofnode]
+				}
+				tagNamesObj := JSONObject{
+					value: newTagsObj,
+				}
+				server.nodes[systemID].values["tag_names"] = tagNamesObj
+			}
+			for _, systemID := range delNodes {
+				_, ok := server.nodes[systemID]
+				if !ok {
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				var newTags []string
+				for _, tag := range server.tagsPerNode[systemID] {
+					if tag != name {
+						newTags = append(newTags, tag)
+					}
+				}
+				server.tagsPerNode[systemID] = newTags
+				newTagsObj := make([]JSONObject, len(server.tagsPerNode[systemID]))
+				for i, tagsofnode := range server.tagsPerNode[systemID] {
+					newTagsObj[i] = server.tags[tagsofnode]
+				}
+				tagNamesObj := JSONObject{
+					value: newTagsObj,
+				}
+				server.nodes[systemID].values["tag_names"] = tagNamesObj
+			}
+			res, err := json.MarshalIndent(addremovecount, "", "  ")
+			checkError(err)
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprint(w, string(res))
+		}
+	case "PUT":
+		newTagHandler(server, w, r, name, values)
+	case "DELETE":
+		delete(server.tags, name)
+		w.WriteHeader(http.StatusOK)
+	}
 }

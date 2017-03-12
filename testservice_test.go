@@ -1920,6 +1920,36 @@ func (suite *TestMAASObjectSuite) TestListZones(c *C) {
 	c.Assert(m, DeepEquals, expected)
 }
 
+func (suite *TestMAASObjectSuite) TestListTags(c *C) {
+	expected := map[string]string{
+		"tag0": "Develop",
+		"tag1": "Lack01",
+	}
+	for name, comment := range expected {
+		suite.TestMAASObject.TestServer.AddTag(name, comment)
+	}
+
+	result, err := suite.TestMAASObject.GetSubObject("tags").CallGet("", nil)
+	c.Assert(err, IsNil)
+	c.Assert(result, NotNil)
+
+	list, err := result.GetArray()
+	c.Assert(err, IsNil)
+	c.Assert(list, HasLen, len(expected))
+
+	m := make(map[string]string)
+	for _, item := range list {
+		itemMap, err := item.GetMap()
+		c.Assert(err, IsNil)
+		name, err := itemMap["name"].GetString()
+		c.Assert(err, IsNil)
+		comment, err := itemMap["comment"].GetString()
+		c.Assert(err, IsNil)
+		m[name] = comment
+	}
+	c.Assert(m, DeepEquals, expected)
+}
+
 func (suite *TestMAASObjectSuite) TestAcquireNodeZone(c *C) {
 	suite.TestMAASObject.TestServer.AddZone("z0", "rox")
 	suite.TestMAASObject.TestServer.AddZone("z1", "sux")
@@ -1999,6 +2029,19 @@ func (suite *TestMAASObjectSuite) TestAcquireFilterArch(c *C) {
 	c.Assert(err, IsNil)
 	arch, _ := acquiredNode.GetField("architecture")
 	c.Assert(arch, Equals, "arm/generic")
+}
+
+func (suite *TestMAASObjectSuite) TestAcquireFilterTag(c *C) {
+	suite.TestMAASObject.TestServer.NewNode(`{"system_id": "n0", "tag_names": "Develop"}`)
+	suite.TestMAASObject.TestServer.NewNode(`{"system_id": "n1", "tag_names": "GPU"}`)
+	nodeListing := suite.TestMAASObject.GetSubObject("nodes")
+	jsonResponse, err := nodeListing.CallPost("acquire", url.Values{"tags": []string{"GPU"}})
+	c.Assert(err, IsNil)
+	acquiredNode, err := jsonResponse.GetMAASObject()
+	c.Assert(err, IsNil)
+	fmt.Printf("%v\n", acquiredNode)
+	tag, _ := acquiredNode.GetField("tag_names")
+	c.Assert(tag, Equals, "GPU")
 }
 
 func (suite *TestMAASObjectSuite) TestDeploymentStatus(c *C) {
