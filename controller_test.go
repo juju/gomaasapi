@@ -136,7 +136,7 @@ func (s *controllerSuite) TestBootResources(c *gc.C) {
 	controller := s.getController(c)
 	resources, err := controller.BootResources()
 	c.Assert(err, jc.ErrorIsNil)
-	c.Assert(resources, gc.HasLen, 5)
+	c.Assert(resources, gc.HasLen, 6)
 }
 
 func (s *controllerSuite) TestDevices(c *gc.C) {

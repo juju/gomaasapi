@@ -108,7 +108,7 @@ func bootResource_2_0(source map[string]interface{}) (*bootResource, error) {
 		"type":         schema.String(),
 		"architecture": schema.String(),
 		"subarches":    schema.String(),
-		"kflavor":      schema.String(),
+		"kflavor":      schema.OneOf(schema.Nil(""), schema.String()),
 	}
 	defaults := schema.Defaults{
 		"subarches": "",
@@ -122,6 +122,10 @@ func bootResource_2_0(source map[string]interface{}) (*bootResource, error) {
 	valid := coerced.(map[string]interface{})
 	// From here we know that the map returned from the schema coercion
 	// contains fields of the right type.
+	var kflavor string
+	if valid["kflavor"] != nil {
+		kflavor = valid["kflavor"].(string)
+	}
 
 	result := &bootResource{
 		resourceURI:  valid["resource_uri"].(string),
@@ -130,7 +134,7 @@ func bootResource_2_0(source map[string]interface{}) (*bootResource, error) {
 		type_:        valid["type"].(string),
 		architecture: valid["architecture"].(string),
 		subArches:    valid["subarches"].(string),
-		kernelFlavor: valid["kflavor"].(string),
+		kernelFlavor: kflavor,
 	}
 	return result, nil
 }
