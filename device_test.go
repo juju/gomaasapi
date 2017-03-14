@@ -40,6 +40,23 @@ func (*deviceSuite) TestReadDevices(c *gc.C) {
 	c.Check(device.Hostname(), gc.Equals, "furnacelike-brittney")
 	c.Check(device.FQDN(), gc.Equals, "furnacelike-brittney.maas")
 	c.Check(device.IPAddresses(), jc.DeepEquals, []string{"192.168.100.11"})
+	c.Check(device.InterfaceSet(), gc.HasLen, 2)
+	zone := device.Zone()
+	c.Check(zone, gc.NotNil)
+	c.Check(zone.Name(), gc.Equals, "default")
+}
+
+func (*deviceSuite) TestReadDevicesNoInterfaceSet(c *gc.C) {
+	devices, err := readDevices(twoDotOh, parseJSON(c, noInterfacesDevicesResponse))
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(devices, gc.HasLen, 1)
+
+	device := devices[0]
+	c.Check(device.SystemID(), gc.Equals, "4y3h7t")
+	c.Check(device.Hostname(), gc.Equals, "pericarpic-leslee")
+	c.Check(device.FQDN(), gc.Equals, "pericarpic-leslee.maas")
+	c.Check(device.IPAddresses(), gc.DeepEquals, []string{})
+	c.Check(device.InterfaceSet(), gc.DeepEquals, []Interface{})
 	zone := device.Zone()
 	c.Check(zone, gc.NotNil)
 	c.Check(zone.Name(), gc.Equals, "default")
@@ -317,4 +334,37 @@ const (
     }
     `
 	devicesResponse = "[" + deviceResponse + "]"
+
+	noInterfacesDevicesResponse = `
+    [{
+        "node_type": 1,
+        "node_type_name": "Device",
+        "zone": {
+            "resource_uri": "/MAAS/api/2.0/zones/default/",
+            "name": "default",
+            "description": ""
+        },
+        "fqdn": "pericarpic-leslee.maas",
+        "hostname": "pericarpic-leslee",
+        "ip_addresses": [],
+        "macaddress_set": [
+            {
+                "mac_address": "00:16:3e:ab:0f:54"
+            }
+        ],
+        "tag_names": [],
+        "domain": {
+            "resource_record_count": 2,
+            "ttl": null,
+            "id": 0,
+            "authoritative": true,
+            "resource_uri": "/MAAS/api/2.0/domains/0/",
+            "name": "maas"
+        },
+        "owner": "admin",
+        "resource_uri": "/MAAS/api/2.0/devices/4y3h7t/",
+        "system_id": "4y3h7t",
+        "parent": "4y3h7p"
+    }]
+    `
 )
