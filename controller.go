@@ -44,47 +44,85 @@ type ControllerArgs struct {
 	APIKey  string
 }
 
-// NewController creates an authenticated client to the MAAS API, and checks
-// the capabilities of the server.
+// NewController creates an authenticated client to the MAAS API, and
+// checks the capabilities of the server. If the BaseURL specified
+// includes the API version, that version of the API will be used,
+// otherwise the controller will use the highest supported version
+// available.
 //
 // If the APIKey is not valid, a NotValid error is returned.
 // If the credentials are incorrect, a PermissionError is returned.
 func NewController(args ControllerArgs) (Controller, error) {
+	base, apiVersion, includesVersion := splitVersionedURL(args.BaseURL)
+	if includesVersion {
+		if !supportedVersion(apiVersion) {
+			return nil, NewUnsupportedVersionError("version %s", apiVersion)
+		}
+		return newControllerWithVersion(base, apiVersion, args.APIKey)
+	}
+	return newControllerUnknownVersion(args)
+}
+
+func supportedVersion(value string) bool {
+	for _, version := range supportedAPIVersions {
+		if value == version {
+			return true
+		}
+	}
+	return false
+}
+
+func newControllerWithVersion(baseURL, apiVersion, apiKey string) (Controller, error) {
+	major, minor, err := version.ParseMajorMinor(apiVersion)
+	// We should not get an error here. See the test.
+	if err != nil {
+		return nil, errors.Errorf("bad version defined in supported versions: %q", apiVersion)
+	}
+	client, err := NewAuthenticatedClient(AddAPIVersionToURL(baseURL, apiVersion), apiKey)
+	if err != nil {
+		// If the credentials aren't valid, return now.
+		if errors.IsNotValid(err) {
+			return nil, errors.Trace(err)
+		}
+		// Any other error attempting to create the authenticated client
+		// is an unexpected error and return now.
+		return nil, NewUnexpectedError(err)
+	}
+	controllerVersion := version.Number{
+		Major: major,
+		Minor: minor,
+	}
+	controller := &controller{client: client, apiVersion: controllerVersion}
+	// The controllerVersion returned from the function will include any patch version.
+	controller.capabilities, err = controller.readAPIVersionInfo()
+	if err != nil {
+		logger.Debugf("read version failed: %#v", err)
+		return nil, NewBadVersionInfoError(err)
+	}
+
+	if err := controller.checkCreds(); err != nil {
+		return nil, errors.Trace(err)
+	}
+	return controller, nil
+}
+
+func newControllerUnknownVersion(args ControllerArgs) (Controller, error) {
 	// For now we don't need to test multiple versions. It is expected that at
 	// some time in the future, we will try the most up to date version and then
 	// work our way backwards.
 	for _, apiVersion := range supportedAPIVersions {
-		major, minor, err := version.ParseMajorMinor(apiVersion)
-		// We should not get an error here. See the test.
-		if err != nil {
-			return nil, errors.Errorf("bad version defined in supported versions: %q", apiVersion)
-		}
-		client, err := NewAuthenticatedClient(AddAPIVersionToURL(args.BaseURL, apiVersion), args.APIKey)
-		if err != nil {
-			// If the credentials aren't valid, return now.
-			if errors.IsNotValid(err) {
-				return nil, errors.Trace(err)
-			}
-			// Any other error attempting to create the authenticated client
-			// is an unexpected error and return now.
-			return nil, NewUnexpectedError(err)
-		}
-		controllerVersion := version.Number{
-			Major: major,
-			Minor: minor,
-		}
-		controller := &controller{client: client, apiVersion: controllerVersion}
-		// The controllerVersion returned from the function will include any patch version.
-		controller.capabilities, err = controller.readAPIVersionInfo()
-		if err != nil {
-			logger.Debugf("read version failed: %#v", err)
+		controller, err := newControllerWithVersion(args.BaseURL, apiVersion, args.APIKey)
+		switch {
+		case err == nil:
+			return controller, nil
+		case IsBadVersionInfoError(err):
+			// TODO(babbageclunk): this is bad - it treats transient
+			// network errors the same as version mismatches. See
+			// lp:1667095
 			continue
-		}
-
-		if err := controller.checkCreds(); err != nil {
+		default:
 			return nil, errors.Trace(err)
 		}
-		return controller, nil
 	}
 
 	return nil, NewUnsupportedVersionError("controller at %s does not support any of %s", args.BaseURL, supportedAPIVersions)

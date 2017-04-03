@@ -311,7 +311,20 @@ func (suite *ClientSuite) TestNewAuthenticatedClientFailsIfInvalidKey(c *gc.C) {
 }
 
 func (suite *ClientSuite) TestAddAPIVersionToURL(c *gc.C) {
-	apiurl := AddAPIVersionToURL("http://example.com/MAAS", "1.0")
-	expectedURL := "http://example.com/MAAS/api/1.0/"
-	c.Assert(expectedURL, jc.DeepEquals, apiurl)
+	addVersion := AddAPIVersionToURL
+	c.Assert(addVersion("http://example.com/MAAS", "1.0"), gc.Equals, "http://example.com/MAAS/api/1.0/")
+	c.Assert(addVersion("http://example.com/MAAS/", "2.0"), gc.Equals, "http://example.com/MAAS/api/2.0/")
+}
+
+func (suite *ClientSuite) TestSplitVersionedURL(c *gc.C) {
+	check := func(url, expectedBase, expectedVersion string, expectedResult bool) {
+		base, version, ok := splitVersionedURL(url)
+		c.Check(ok, gc.Equals, expectedResult)
+		c.Check(base, gc.Equals, expectedBase)
+		c.Check(version, gc.Equals, expectedVersion)
+	}
+	check("http://maas.server/MAAS", "http://maas.server/MAAS", "", false)
+	check("http://maas.server/MAAS/api/3.0", "http://maas.server/MAAS/", "3.0", true)
+	check("http://maas.server/MAAS/api/3.0/", "http://maas.server/MAAS/", "3.0", true)
+	check("http://maas.server/MAAS/api/maas", "http://maas.server/MAAS/api/maas", "", false)
 }
