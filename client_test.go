@@ -128,7 +128,7 @@ func (suite *ClientSuite) TestClientdispatchRequestSignsRequest(c *gc.C) {
 	expectedResult := "expected:result"
 	server := newSingleServingServer(URI, expectedResult, http.StatusOK)
 	defer server.Close()
-	client, err := NewAuthenticatedClient(server.URL, "the:api:key", "1.0")
+	client, err := NewAuthenticatedClient(server.URL, "the:api:key")
 	c.Assert(err, jc.ErrorIsNil)
 	request, err := http.NewRequest("GET", server.URL+URI, nil)
 	c.Assert(err, jc.ErrorIsNil)
@@ -277,7 +277,7 @@ func (suite *ClientSuite) TestNewAnonymousClientEnsuresTrailingSlash(c *gc.C) {
 }
 
 func (suite *ClientSuite) TestNewAuthenticatedClientEnsuresTrailingSlash(c *gc.C) {
-	client, err := NewAuthenticatedClient("http://example.com/", "a:b:c", "1.0")
+	client, err := NewAuthenticatedClient("http://example.com/api/1.0", "a:b:c")
 	c.Assert(err, jc.ErrorIsNil)
 	expectedURL, err := url.Parse("http://example.com/api/1.0/")
 	c.Assert(err, jc.ErrorIsNil)
@@ -293,7 +293,7 @@ func (suite *ClientSuite) TestNewAuthenticatedClientParsesApiKey(c *gc.C) {
 	keyElements := []string{consumerKey, tokenKey, tokenSecret}
 	apiKey := strings.Join(keyElements, ":")
 
-	client, err := NewAuthenticatedClient("http://example.com/", apiKey, "1.0")
+	client, err := NewAuthenticatedClient("http://example.com/api/1.0/", apiKey)
 
 	c.Assert(err, jc.ErrorIsNil)
 	signer := client.Signer.(*plainTextOAuthSigner)
@@ -303,17 +303,15 @@ func (suite *ClientSuite) TestNewAuthenticatedClientParsesApiKey(c *gc.C) {
 }
 
 func (suite *ClientSuite) TestNewAuthenticatedClientFailsIfInvalidKey(c *gc.C) {
-	client, err := NewAuthenticatedClient("", "invalid-key", "1.0")
+	client, err := NewAuthenticatedClient("", "invalid-key")
 
 	c.Check(err, gc.ErrorMatches, "invalid API key.*")
 	c.Check(client, gc.IsNil)
 
 }
 
-func (suite *ClientSuite) TestcomposeAPIURLReturnsURL(c *gc.C) {
-	apiurl, err := composeAPIURL("http://example.com/MAAS", "1.0")
-	c.Assert(err, jc.ErrorIsNil)
-	expectedURL, err := url.Parse("http://example.com/MAAS/api/1.0/")
-	c.Assert(err, jc.ErrorIsNil)
+func (suite *ClientSuite) TestAddAPIVersionToURL(c *gc.C) {
+	apiurl := AddAPIVersionToURL("http://example.com/MAAS", "1.0")
+	expectedURL := "http://example.com/MAAS/api/1.0/"
 	c.Assert(expectedURL, jc.DeepEquals, apiurl)
 }

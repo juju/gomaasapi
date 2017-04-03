@@ -59,7 +59,7 @@ func NewController(args ControllerArgs) (Controller, error) {
 		if err != nil {
 			return nil, errors.Errorf("bad version defined in supported versions: %q", apiVersion)
 		}
-		client, err := NewAuthenticatedClient(args.BaseURL, args.APIKey, apiVersion)
+		client, err := NewAuthenticatedClient(AddAPIVersionToURL(args.BaseURL, apiVersion), args.APIKey)
 		if err != nil {
 			// If the credentials aren't valid, return now.
 			if errors.IsNotValid(err) {
@@ -73,9 +73,9 @@ func NewController(args ControllerArgs) (Controller, error) {
 			Major: major,
 			Minor: minor,
 		}
-		controller := &controller{client: client}
+		controller := &controller{client: client, apiVersion: controllerVersion}
 		// The controllerVersion returned from the function will include any patch version.
-		controller.capabilities, controller.apiVersion, err = controller.readAPIVersion(controllerVersion)
+		controller.capabilities, err = controller.readAPIVersionInfo()
 		if err != nil {
 			logger.Debugf("read version failed: %#v", err)
 			continue
@@ -805,10 +805,10 @@ func nextRequestID() int64 {
 	return atomic.AddInt64(&requestNumber, 1)
 }
 
-func (c *controller) readAPIVersion(apiVersion version.Number) (set.Strings, version.Number, error) {
+func (c *controller) readAPIVersionInfo() (set.Strings, error) {
 	parsed, err := c.get("version")
 	if err != nil {
-		return nil, apiVersion, errors.Trace(err)
+		return nil, errors.Trace(err)
 	}
 
 	// As we care about other fields, add them.
@@ -818,7 +818,7 @@ func (c *controller) readAPIVersion(apiVersion version.Number) (set.Strings, ver
 	checker := schema.FieldMap(fields, nil) // no defaults
 	coerced, err := checker.Coerce(parsed, nil)
 	if err != nil {
-		return nil, apiVersion, WrapWithDeserializationError(err, "version response")
+		return nil, WrapWithDeserializationError(err, "version response")
 	}
 	// For now, we don't append any subversion, but as it becomes used, we
 	// should parse and check.
@@ -832,7 +832,7 @@ func (c *controller) readAPIVersion(apiVersion version.Number) (set.Strings, ver
 		capabilities.Add(value.(string))
 	}
 
-	return capabilities, apiVersion, nil
+	return capabilities, nil
 }
 
 func parseAllocateConstraintsResponse(source interface{}, machine *machine) (ConstraintMatches, error) {
