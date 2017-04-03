@@ -132,6 +132,36 @@ func (s *controllerSuite) TestNewControllerUnexpected(c *gc.C) {
 	c.Assert(err, jc.Satisfies, IsUnexpectedError)
 }
 
+func (s *controllerSuite) TestNewControllerKnownVersion(c *gc.C) {
+	// Using a server URL including the version should work.
+	officialController, err := NewController(ControllerArgs{
+		BaseURL: s.server.URL + "/api/2.0/",
+		APIKey:  "fake:as:key",
+	})
+	c.Assert(err, jc.ErrorIsNil)
+	rawController, ok := officialController.(*controller)
+	c.Assert(ok, jc.IsTrue)
+	c.Assert(rawController.apiVersion, gc.Equals, version.Number{
+		Major: 2,
+		Minor: 0,
+	})
+}
+
+func (s *controllerSuite) TestNewControllerUnsupportedVersionSpecified(c *gc.C) {
+	// Ensure the server would actually respond to the version if it
+	// was asked.
+	s.server.AddGetResponse("/api/3.0/users/?op=whoami", http.StatusOK, `"captain awesome"`)
+	s.server.AddGetResponse("/api/3.0/version/", http.StatusOK, versionResponse)
+	// Using a server URL including a version that isn't in the known
+	// set should be denied.
+	controller, err := NewController(ControllerArgs{
+		BaseURL: s.server.URL + "/api/3.0/",
+		APIKey:  "fake:as:key",
+	})
+	c.Assert(controller, gc.IsNil)
+	c.Assert(err, jc.Satisfies, IsUnsupportedVersionError)
+}
+
 func (s *controllerSuite) TestBootResources(c *gc.C) {
 	controller := s.getController(c)
 	resources, err := controller.BootResources()

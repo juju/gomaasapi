@@ -50,7 +50,8 @@ func main() {
 	getParams()
 
 	// Create API server endpoint.
-	authClient, err := gomaasapi.NewAuthenticatedClient(apiURL, apiKey, apiVersion)
+	authClient, err := gomaasapi.NewAuthenticatedClient(
+		gomaasapi.AddAPIVersionToURL(apiURL, apiVersion), apiKey)
 	checkError(err)
 	maas := gomaasapi.NewMAAS(*authClient)
 
