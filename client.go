@@ -276,11 +276,12 @@ func AddAPIVersionToURL(BaseURL, apiVersion string) string {
 
 var apiVersionPattern = regexp.MustCompile(`^(?P<base>.*/)api/(?P<version>\d+\.\d+)/?$`)
 
-//splitVersionedURL splits a versioned API URL (like
-//http://maas.server/MAAS/api/2.0/) into a base URL
-//(http://maas.server/MAAS/) and API version (2.0). If the URL doesn't
-//include a version component the bool return value will be false.
-func splitVersionedURL(url string) (string, string, bool) {
+// SplitVersionedURL splits a versioned API URL (like
+// http://maas.server/MAAS/api/2.0/) into a base URL
+// (http://maas.server/MAAS/) and API version (2.0). If the URL
+// doesn't include a version component the bool return value will be
+// false.
+func SplitVersionedURL(url string) (string, string, bool) {
 	if !apiVersionPattern.MatchString(url) {
 		return url, "", false
 	}

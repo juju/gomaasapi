@@ -318,7 +318,7 @@ func (suite *ClientSuite) TestAddAPIVersionToURL(c *gc.C) {
 
 func (suite *ClientSuite) TestSplitVersionedURL(c *gc.C) {
 	check := func(url, expectedBase, expectedVersion string, expectedResult bool) {
-		base, version, ok := splitVersionedURL(url)
+		base, version, ok := SplitVersionedURL(url)
 		c.Check(ok, gc.Equals, expectedResult)
 		c.Check(base, gc.Equals, expectedBase)
 		c.Check(version, gc.Equals, expectedVersion)
