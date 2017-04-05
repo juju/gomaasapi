@@ -65,25 +65,12 @@ func IsUnsupportedVersionError(err error) bool {
 	return ok
 }
 
-// BadVersionInfoError is more specific than UnsupportedVersionError -
-// it means that we couldn't read the version info endpoint, so the
-// API version is probably wrong. Used in version selection when
-// creating a controller.
-type BadVersionInfoError struct {
-	errors.Err
-}
-
-// NewBadVersionInfoError constructs a new BadVersionInfoError and sets the location.
-func NewBadVersionInfoError(err error) error {
-	uerr := &BadVersionInfoError{Err: errors.NewErr("bad version info: %v", err)}
+// WrapWithUnsupportedVersionError constructs a new
+// UnsupportedVersionError wrapping the passed error.
+func WrapWithUnsupportedVersionError(err error) error {
+	uerr := &UnsupportedVersionError{Err: errors.NewErr("unsupported version: %v", err)}
 	uerr.SetLocation(1)
 	return errors.Wrap(err, uerr)
-}
-
-// IsBadVersionInfoError returns true if err is an BadVersionInfoError.
-func IsBadVersionInfoError(err error) bool {
-	_, ok := errors.Cause(err).(*BadVersionInfoError)
-	return ok
 }
 
 // DeserializationError types are returned when the returned JSON data from
