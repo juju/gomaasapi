@@ -162,6 +162,63 @@ func (s *controllerSuite) TestNewControllerUnsupportedVersionSpecified(c *gc.C) 
 	c.Assert(err, jc.Satisfies, IsUnsupportedVersionError)
 }
 
+func (s *controllerSuite) TestNewControllerNotHidingErrors(c *gc.C) {
+	// We should only treat 404 and 410 as "this version isn't
+	// supported". Other errors should be returned up the stack
+	// unchanged, so we don't confuse transient network errors with
+	// version mismatches. lp:1667095
+	server := NewSimpleServer()
+	server.AddGetResponse("/api/2.0/users/?op=whoami", http.StatusOK, "underwater woman")
+	server.AddGetResponse("/api/2.0/version/", http.StatusInternalServerError, "kablooey")
+	server.Start()
+	defer server.Close()
+
+	controller, err := NewController(ControllerArgs{
+		BaseURL: server.URL,
+		APIKey:  "fake:as:key",
+	})
+	c.Assert(controller, gc.IsNil)
+	c.Assert(err, gc.ErrorMatches, `ServerError: 500 Internal Server Error \(kablooey\)`)
+}
+
+func (s *controllerSuite) TestNewController410(c *gc.C) {
+	// We should only treat 404 and 410 as "this version isn't
+	// supported". Other errors should be returned up the stack
+	// unchanged, so we don't confuse transient network errors with
+	// version mismatches. lp:1667095
+	server := NewSimpleServer()
+	server.AddGetResponse("/api/2.0/users/?op=whoami", http.StatusOK, "the answer to all your prayers")
+	server.AddGetResponse("/api/2.0/version/", http.StatusGone, "cya")
+	server.Start()
+	defer server.Close()
+
+	controller, err := NewController(ControllerArgs{
+		BaseURL: server.URL,
+		APIKey:  "fake:as:key",
+	})
+	c.Assert(controller, gc.IsNil)
+	c.Assert(err, jc.Satisfies, IsUnsupportedVersionError)
+}
+
+func (s *controllerSuite) TestNewController404(c *gc.C) {
+	// We should only treat 404 and 410 as "this version isn't
+	// supported". Other errors should be returned up the stack
+	// unchanged, so we don't confuse transient network errors with
+	// version mismatches. lp:1667095
+	server := NewSimpleServer()
+	server.AddGetResponse("/api/2.0/users/?op=whoami", http.StatusOK, "the answer to all your prayers")
+	server.AddGetResponse("/api/2.0/version/", http.StatusNotFound, "huh?")
+	server.Start()
+	defer server.Close()
+
+	controller, err := NewController(ControllerArgs{
+		BaseURL: server.URL,
+		APIKey:  "fake:as:key",
+	})
+	c.Assert(controller, gc.IsNil)
+	c.Assert(err, jc.Satisfies, IsUnsupportedVersionError)
+}
+
 func (s *controllerSuite) TestBootResources(c *gc.C) {
 	controller := s.getController(c)
 	resources, err := controller.BootResources()

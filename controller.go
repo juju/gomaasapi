@@ -93,11 +93,10 @@ func newControllerWithVersion(baseURL, apiVersion, apiKey string) (Controller, e
 		Minor: minor,
 	}
 	controller := &controller{client: client, apiVersion: controllerVersion}
-	// The controllerVersion returned from the function will include any patch version.
 	controller.capabilities, err = controller.readAPIVersionInfo()
 	if err != nil {
 		logger.Debugf("read version failed: %#v", err)
-		return nil, NewBadVersionInfoError(err)
+		return nil, errors.Trace(err)
 	}
 
 	if err := controller.checkCreds(); err != nil {
@@ -115,10 +114,8 @@ func newControllerUnknownVersion(args ControllerArgs) (Controller, error) {
 		switch {
 		case err == nil:
 			return controller, nil
-		case IsBadVersionInfoError(err):
-			// TODO(babbageclunk): this is bad - it treats transient
-			// network errors the same as version mismatches. See
-			// lp:1667095
+		case IsUnsupportedVersionError(err):
+			// This will only come back from readAPIVersionInfo for 410/404.
 			continue
 		default:
 			return nil, errors.Trace(err)
@@ -843,9 +840,22 @@ func nextRequestID() int64 {
 	return atomic.AddInt64(&requestNumber, 1)
 }
 
+func indicatesUnsupportedVersion(err error) bool {
+	if err == nil {
+		return false
+	}
+	if serverErr, ok := errors.Cause(err).(ServerError); ok {
+		code := serverErr.StatusCode
+		return code == http.StatusNotFound || code == http.StatusGone
+	}
+	return false
+}
+
 func (c *controller) readAPIVersionInfo() (set.Strings, error) {
 	parsed, err := c.get("version")
-	if err != nil {
+	if indicatesUnsupportedVersion(err) {
+		return nil, WrapWithUnsupportedVersionError(err)
+	} else if err != nil {
 		return nil, errors.Trace(err)
 	}
 

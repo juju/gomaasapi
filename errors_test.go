@@ -29,19 +29,20 @@ func (*errorTypesSuite) TestUnexpectedError(c *gc.C) {
 	c.Assert(err.Error(), gc.Equals, "unexpected: wat")
 }
 
-func (*errorTypesSuite) TestNewBadVersionInfoError(c *gc.C) {
-	err := errors.New("wat")
-	err = NewBadVersionInfoError(err)
-	c.Assert(err, gc.NotNil)
-	c.Assert(err, jc.Satisfies, IsBadVersionInfoError)
-	c.Assert(err.Error(), gc.Equals, "bad version info: wat")
-}
-
 func (*errorTypesSuite) TestUnsupportedVersionError(c *gc.C) {
 	err := NewUnsupportedVersionError("foo %d", 42)
 	c.Assert(err, gc.NotNil)
 	c.Assert(err, jc.Satisfies, IsUnsupportedVersionError)
 	c.Assert(err.Error(), gc.Equals, "foo 42")
+}
+
+func (*errorTypesSuite) TestWrapWithUnsupportedVersionError(c *gc.C) {
+	err := WrapWithUnsupportedVersionError(errors.New("bad"))
+	c.Assert(err, gc.NotNil)
+	c.Assert(err, jc.Satisfies, IsUnsupportedVersionError)
+	c.Assert(err.Error(), gc.Equals, "unsupported version: bad")
+	stack := errors.ErrorStack(err)
+	c.Assert(strings.Split(stack, "\n"), gc.HasLen, 2)
 }
 
 func (*errorTypesSuite) TestDeserializationError(c *gc.C) {
