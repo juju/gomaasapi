@@ -219,6 +219,25 @@ func (s *controllerSuite) TestNewController404(c *gc.C) {
 	c.Assert(err, jc.Satisfies, IsUnsupportedVersionError)
 }
 
+func (s *controllerSuite) TestNewControllerWith194Bug(c *gc.C) {
+	// 1.9.4 has a bug where if you ask for /api/2.0/version/ without
+	// being logged in (rather than OAuth connection) it redirects you
+	// to the login page. This is fixed in 1.9.5, but we should work
+	// around it anyway. https://bugs.launchpad.net/maas/+bug/1583715
+	server := NewSimpleServer()
+	server.AddGetResponse("/api/2.0/users/?op=whoami", http.StatusOK, "the answer to all your prayers")
+	server.AddGetResponse("/api/2.0/version/", http.StatusOK, "<html><head>")
+	server.Start()
+	defer server.Close()
+
+	controller, err := NewController(ControllerArgs{
+		BaseURL: server.URL,
+		APIKey:  "fake:as:key",
+	})
+	c.Assert(controller, gc.IsNil)
+	c.Assert(err, jc.Satisfies, IsUnsupportedVersionError)
+}
+
 func (s *controllerSuite) TestBootResources(c *gc.C) {
 	controller := s.getController(c)
 	resources, err := controller.BootResources()
