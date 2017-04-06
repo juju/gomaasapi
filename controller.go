@@ -848,6 +848,13 @@ func indicatesUnsupportedVersion(err error) bool {
 		code := serverErr.StatusCode
 		return code == http.StatusNotFound || code == http.StatusGone
 	}
+	// Workaround for bug in MAAS 1.9.4 - instead of a 404 we get a
+	// redirect to the HTML login page, which doesn't parse as JSON.
+	// https://bugs.launchpad.net/maas/+bug/1583715
+	if syntaxErr, ok := errors.Cause(err).(*json.SyntaxError); ok {
+		message := "invalid character '<' looking for beginning of value"
+		return syntaxErr.Offset == 1 && syntaxErr.Error() == message
+	}
 	return false
 }
 
