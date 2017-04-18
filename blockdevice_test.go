@@ -29,6 +29,7 @@ func (*blockdeviceSuite) TestReadBlockDevices(c *gc.C) {
 	c.Check(blockdevice.Name(), gc.Equals, "sda")
 	c.Check(blockdevice.Model(), gc.Equals, "QEMU HARDDISK")
 	c.Check(blockdevice.Path(), gc.Equals, "/dev/disk/by-dname/sda")
+	c.Check(blockdevice.IDPath(), gc.Equals, "/dev/disk/by-id/ata-QEMU_HARDDISK_QM00001")
 	c.Check(blockdevice.UsedFor(), gc.Equals, "MBR partitioned with 1 partition")
 	c.Check(blockdevice.Tags(), jc.DeepEquals, []string{"rotary"})
 	c.Check(blockdevice.BlockSize(), gc.Equals, uint64(4096))
@@ -49,6 +50,7 @@ func (*blockdeviceSuite) TestReadBlockDevicesWithNulls(c *gc.C) {
 	blockdevice := blockdevices[0]
 
 	c.Check(blockdevice.Model(), gc.Equals, "")
+	c.Check(blockdevice.IDPath(), gc.Equals, "")
 }
 
 func (*blockdeviceSuite) TestLowVersion(c *gc.C) {
