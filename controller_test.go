@@ -663,6 +663,7 @@ func (s *controllerSuite) TestAllocateMachineArgsForm(c *gc.C) {
 	// Create an arg structure that sets all the values.
 	args := AllocateMachineArgs{
 		Hostname:     "foobar",
+		SystemId:     "some_id",
 		Architecture: "amd64",
 		MinCPUCount:  42,
 		MinMemory:    20000,
@@ -683,7 +684,7 @@ func (s *controllerSuite) TestAllocateMachineArgsForm(c *gc.C) {
 	request := s.server.LastRequest()
 	// There should be one entry in the form values for each of the args.
 	form := request.PostForm
-	c.Assert(form, gc.HasLen, 14)
+	c.Assert(form, gc.HasLen, 15)
 	// Positive space check.
 	c.Assert(form.Get("interfaces"), gc.Equals, "default:space=magic")
 	// Negative space check.
