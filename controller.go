@@ -425,6 +425,7 @@ func (a *InterfaceSpec) String() string {
 // AllocateMachineArgs is an argument struct for passing args into Machine.Allocate.
 type AllocateMachineArgs struct {
 	Hostname     string
+	SystemId     string
 	Architecture string
 	MinCPUCount  int
 	// MinMemory represented in MB.
@@ -525,6 +526,7 @@ func (c *controller) AllocateMachine(args AllocateMachineArgs) (Machine, Constra
 	var matches ConstraintMatches
 	params := NewURLParams()
 	params.MaybeAdd("name", args.Hostname)
+	params.MaybeAdd("system_id", args.SystemId)
 	params.MaybeAdd("arch", args.Architecture)
 	params.MaybeAddInt("cpu_count", args.MinCPUCount)
 	params.MaybeAddInt("mem", args.MinMemory)
