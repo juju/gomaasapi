@@ -223,6 +223,9 @@ type Machine interface {
 
 	// BlockDevices returns all the physical and virtual block devices on the machine.
 	BlockDevices() []BlockDevice
+	// BlockDevice returns the block device for the machine that matches the
+	// id specified. If there is no match, nil is returned.
+	BlockDevice(id int) BlockDevice
 
 	Zone() Zone
 

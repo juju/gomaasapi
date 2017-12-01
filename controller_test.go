@@ -640,6 +640,21 @@ func (s *controllerSuite) TestAllocateMachineStorageMatches(c *gc.C) {
 	c.Assert(storages[1].ID(), gc.Equals, 98)
 }
 
+func (s *controllerSuite) TestAllocateMachineStorageLogicalMatches(c *gc.C) {
+	s.server.AddPostResponse("/api/2.0/machines/?op=allocate", http.StatusOK, machineResponse)
+	controller := s.getController(c)
+	machine, matches, err := controller.AllocateMachine(AllocateMachineArgs{
+		Storage: []StorageSpec{{
+			Tags: []string{"raid0"},
+		}},
+	})
+	c.Assert(err, jc.ErrorIsNil)
+	var virtualDeviceID = 23
+
+	//matches storage must contain the "raid0" virtual block device
+	c.Assert(matches.Storage["0"][0], gc.Equals, machine.BlockDevice(virtualDeviceID))
+}
+
 func (s *controllerSuite) TestAllocateMachineStorageMatchMissing(c *gc.C) {
 	// This should never happen, but if it does it is a clear indication of a
 	// bug somewhere.
