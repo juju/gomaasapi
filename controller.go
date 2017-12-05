@@ -937,9 +937,9 @@ func parseAllocateConstraintsResponse(source interface{}, machine *machine) (Con
 		for label, ids := range matches {
 			blockDevices := make([]BlockDevice, len(ids))
 			for index, id := range ids {
-				blockDevice := machine.PhysicalBlockDevice(id)
+				blockDevice := machine.BlockDevice(id)
 				if blockDevice == nil {
-					return empty, NewDeserializationError("constraint match storage %q: %d does not match a physical block device for the machine", label, id)
+					return empty, NewDeserializationError("constraint match storage %q: %d does not match a block device for the machine", label, id)
 				}
 				blockDevices[index] = blockDevice
 			}

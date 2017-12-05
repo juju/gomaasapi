@@ -80,9 +80,10 @@ func (*machineSuite) TestReadMachines(c *gc.C) {
 	c.Assert(machine.Interface(id+5), gc.IsNil)
 
 	blockDevices := machine.BlockDevices()
-	c.Assert(blockDevices, gc.HasLen, 2)
+	c.Assert(blockDevices, gc.HasLen, 3)
 	c.Assert(blockDevices[0].Name(), gc.Equals, "sda")
 	c.Assert(blockDevices[1].Name(), gc.Equals, "sdb")
+	c.Assert(blockDevices[2].Name(), gc.Equals, "md0")
 
 	blockDevices = machine.PhysicalBlockDevices()
 	c.Assert(blockDevices, gc.HasLen, 2)
@@ -420,11 +421,17 @@ const (
 	machineOwnerDataTemplate = `
 	{
         "netboot": false,
+        "constraints_by_type": {
+          "storage": {
+              "0": [
+                  23
+              ]
+          }
+         },
         "system_id": "4y3ha3",
         "ip_addresses": [
             "192.168.100.4"
         ],
-        "virtualblockdevice_set": [],
         "memory": 1024,
         "cpu_count": 1,
         "hwe_kernel": "hwe-t",
@@ -438,6 +445,32 @@ const (
         ],
         "special_filesystems": [],
         "status": 6,
+        "virtualblockdevice_set": [
+            {
+                "block_size": 512,
+                "serial": null,
+                "path": "/dev/disk/by-dname/md0",
+                "system_id": "xc3e6q",
+                "available_size": 256599130112,
+                "size": 256599130112,
+                "uuid": "b76de3fd-d05f-4a3f-b515-189de53d6c03",
+                "tags": [
+                    "raid0"
+                ],
+                "used_size": 0,
+                "name": "md0",
+                "type": "virtual",
+                "filesystem": null,
+                "used_for": "Unused",
+                "partitions": [],
+                "id": 23,
+                "partition_table_type": null,
+                "model": null,
+                "id_path": null,
+                "resource_uri": "/MAAS/api/2.0/nodes/xc3e6q/blockdevices/23/"
+            }
+         ],
+
         "physicalblockdevice_set": [
             {
                 "path": "/dev/disk/by-dname/sda",
@@ -776,6 +809,29 @@ const (
                 "tags": [
                     "rotary"
                 ]
+            },
+            {
+                "tags": [
+                    "raid0"
+                ],
+                "used_size": 0,
+                "path": "/dev/disk/by-dname/md0",
+                "serial": null,
+                "available_size": 256599130112,
+                "system_id": "xc3e6q",
+                "uuid": "b76de3fd-d05f-4a3f-b515-189de53d6c03",
+                "block_size": 512,
+                "size": 256599130112,
+                "type": "virtual",
+                "filesystem": null,
+                "used_for": "Unused",
+                "partitions": [],
+                "id": 23,
+                "name": "md0",
+                "partition_table_type": null,
+                "model": null,
+                "id_path": null,
+                "resource_uri": "/MAAS/api/2.0/nodes/xc3e6q/blockdevices/23/"
             }
         ],
         "zone": {
