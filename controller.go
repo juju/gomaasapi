@@ -14,10 +14,10 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/juju/collections/set"
 	"github.com/juju/errors"
 	"github.com/juju/loggo"
 	"github.com/juju/schema"
-	"github.com/juju/utils/set"
 	"github.com/juju/version"
 )
 
