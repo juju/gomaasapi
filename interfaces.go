@@ -3,7 +3,7 @@
 
 package gomaasapi
 
-import "github.com/juju/utils/set"
+import "github.com/juju/collections/set"
 
 const (
 	// Capability constants.
