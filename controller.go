@@ -221,6 +221,23 @@ func (c *controller) Zones() ([]Zone, error) {
 	return result, nil
 }
 
+// Domains implements Controller
+func (c *controller) Domains() ([]Domain, error) {
+	source, err := c.get("domains")
+	if err != nil {
+		return nil, NewUnexpectedError(err)
+	}
+	domains, err := readDomains(c.apiVersion, source)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	var result []Domain
+	for _, domain := range domains {
+		result = append(result, domain)
+	}
+	return result, nil
+}
+
 // DevicesArgs is a argument struct for selecting Devices.
 // Only devices that match the specified criteria are returned.
 type DevicesArgs struct {
