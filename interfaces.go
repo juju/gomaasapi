@@ -66,6 +66,9 @@ type Controller interface {
 	// file without sending the content of the file, we can return a File
 	// instance here too.
 	AddFile(AddFileArgs) error
+
+	// Returns the DNS Domain Managed By MAAS
+	Domains() ([]Domain, error)
 }
 
 // File represents a file stored in the MAAS controller.
@@ -140,6 +143,11 @@ type VLAN interface {
 type Zone interface {
 	Name() string
 	Description() string
+}
+
+type Domain interface {
+	// The name of the Domain
+	Name() string
 }
 
 // BootResource is the bomb... find something to say here.
