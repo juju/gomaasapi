@@ -1,5 +1,5 @@
 // Copyright 2018 Canonical Ltd.
-// Licensed under the AGPLv3, see LICENCE file for details.
+// Licensed under the LGPLv3, see LICENCE file for details.
 
 package gomaasapi
 
@@ -18,7 +18,7 @@ type domain struct {
 	name                string
 }
 
-// implements Domain
+// Name implements Domain interface
 func (domain *domain) Name() string {
 	return domain.name
 }

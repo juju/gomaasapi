@@ -146,6 +146,7 @@ type Zone interface {
 }
 
 type Domain interface {
+	// The name of the Domain
 	Name() string
 }
 
