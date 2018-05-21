@@ -12,7 +12,7 @@ import (
 type domain struct {
 	authoritative       bool
 	resourceRecordCount int
-	ttl                 int
+	ttl                 *int
 	resourceURI         string
 	id                  int
 	name                string
@@ -49,9 +49,11 @@ func domain_(source map[string]interface{}) (*domain, error) {
 	}
 	valid := coerced.(map[string]interface{})
 
-	// ttl live is going to be the zero value if it is null. Thus the time
-	// to live will be zero. Would rather user's check for zero or for nil?
-	ttl, _ := valid["ttl"].(int)
+	var ttl *int = nil
+	if valid["ttl"] != nil {
+		i := valid["ttl"].(int)
+		ttl = &i
+	}
 
 	result := &domain{
 		authoritative:       valid["authoritative"].(bool),
