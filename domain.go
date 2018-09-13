@@ -37,10 +37,10 @@ func domain_(source map[string]interface{}) (*domain, error) {
 	fields := schema.Fields{
 		"authoritative":         schema.Bool(),
 		"resource_record_count": schema.ForceInt(),
-		"ttl":          schema.OneOf(schema.Nil("null"), schema.ForceInt()),
-		"resource_uri": schema.String(),
-		"id":           schema.ForceInt(),
-		"name":         schema.String(),
+		"ttl":                   schema.OneOf(schema.Nil("null"), schema.ForceInt()),
+		"resource_uri":          schema.String(),
+		"id":                    schema.ForceInt(),
+		"name":                  schema.String(),
 	}
 	checker := schema.FieldMap(fields, nil) // no defaults
 	coerced, err := checker.Coerce(source, nil)

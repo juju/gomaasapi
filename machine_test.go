@@ -425,6 +425,9 @@ const (
           "storage": {
               "0": [
                   23
+              ],
+              "1": [
+                  "partition:1"
               ]
           }
          },

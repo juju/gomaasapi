@@ -644,15 +644,23 @@ func (s *controllerSuite) TestAllocateMachineStorageLogicalMatches(c *gc.C) {
 	s.server.AddPostResponse("/api/2.0/machines/?op=allocate", http.StatusOK, machineResponse)
 	controller := s.getController(c)
 	machine, matches, err := controller.AllocateMachine(AllocateMachineArgs{
-		Storage: []StorageSpec{{
-			Tags: []string{"raid0"},
-		}},
+		Storage: []StorageSpec{
+			{
+				Tags: []string{"raid0"},
+			},
+			{
+				Tags: []string{"partition"},
+			},
+		},
 	})
 	c.Assert(err, jc.ErrorIsNil)
 	var virtualDeviceID = 23
+	var partitionID = 1
 
 	//matches storage must contain the "raid0" virtual block device
 	c.Assert(matches.Storage["0"][0], gc.Equals, machine.BlockDevice(virtualDeviceID))
+	//matches storage must contain the partition from physical block device
+	c.Assert(matches.Storage["1"][0], gc.Equals, machine.Partition(partitionID))
 }
 
 func (s *controllerSuite) TestAllocateMachineStorageMatchMissing(c *gc.C) {
