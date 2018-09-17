@@ -123,7 +123,6 @@ func partition_2_0(source map[string]interface{}) (*partition, error) {
 		"filesystem": schema.OneOf(schema.Nil(""), schema.StringMap(schema.Any())),
 	}
 	defaults := schema.Defaults{
-		"uuid": "",
 		"tags": []string{},
 	}
 	checker := schema.FieldMap(fields, defaults)
@@ -136,12 +135,12 @@ func partition_2_0(source map[string]interface{}) (*partition, error) {
 	// contains fields of the right type.
 
 	var filesystem *filesystem
-	if fsSource := valid["filesystem"]; fsSource != nil {
-		filesystem, err = filesystem2_0(fsSource.(map[string]interface{}))
-		if err != nil {
+	if fsSource, ok := valid["filesystem"].(map[string]interface{}); ok {
+		if filesystem, err = filesystem2_0(fsSource); err != nil {
 			return nil, errors.Trace(err)
 		}
 	}
+
 	uuid, _ := valid["uuid"].(string)
 	result := &partition{
 		resourceURI: valid["resource_uri"].(string),

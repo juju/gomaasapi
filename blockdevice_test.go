@@ -57,6 +57,7 @@ func (*blockdeviceSuite) TestReadBlockDevicesWithNulls(c *gc.C) {
 
 	c.Check(blockdevice.Model(), gc.Equals, "")
 	c.Check(blockdevice.IDPath(), gc.Equals, "")
+	c.Check(blockdevice.FileSystem(), gc.IsNil)
 }
 
 func (*blockdeviceSuite) TestLowVersion(c *gc.C) {

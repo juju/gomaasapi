@@ -91,9 +91,6 @@ func (b *blockdevice) Size() uint64 {
 
 // FileSystem implements BlockDevice.
 func (b *blockdevice) FileSystem() FileSystem {
-	if b.filesystem == nil {
-		return nil
-	}
 	return b.filesystem
 }
 
@@ -170,9 +167,7 @@ func blockdevice_2_0(source map[string]interface{}) (*blockdevice, error) {
 		"filesystem": schema.OneOf(schema.Nil(""), schema.StringMap(schema.Any())),
 		"partitions": schema.List(schema.StringMap(schema.Any())),
 	}
-	defaults := schema.Defaults{
-		"uuid": "",
-	}
+	defaults := schema.Defaults{}
 	checker := schema.FieldMap(fields, defaults)
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
@@ -183,9 +178,8 @@ func blockdevice_2_0(source map[string]interface{}) (*blockdevice, error) {
 	// contains fields of the right type.
 
 	var filesystem *filesystem
-	if fsSource := valid["filesystem"]; fsSource != nil {
-		filesystem, err = filesystem2_0(fsSource.(map[string]interface{}))
-		if err != nil {
+	if fsSource, ok := valid["filesystem"].(map[string]interface{}); ok {
+		if filesystem, err = filesystem2_0(fsSource); err != nil {
 			return nil, errors.Trace(err)
 		}
 	}
