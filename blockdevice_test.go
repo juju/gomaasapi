@@ -30,6 +30,7 @@ func (*blockdeviceSuite) TestReadBlockDevices(c *gc.C) {
 	c.Check(blockdevice.Model(), gc.Equals, "QEMU HARDDISK")
 	c.Check(blockdevice.Path(), gc.Equals, "/dev/disk/by-dname/sda")
 	c.Check(blockdevice.IDPath(), gc.Equals, "/dev/disk/by-id/ata-QEMU_HARDDISK_QM00001")
+	c.Check(blockdevice.UUID(), gc.Equals, "6199b7c9-b66f-40f6-a238-a938a58a0adf")
 	c.Check(blockdevice.UsedFor(), gc.Equals, "MBR partitioned with 1 partition")
 	c.Check(blockdevice.Tags(), jc.DeepEquals, []string{"rotary"})
 	c.Check(blockdevice.BlockSize(), gc.Equals, uint64(4096))
@@ -41,6 +42,11 @@ func (*blockdeviceSuite) TestReadBlockDevices(c *gc.C) {
 	partition := partitions[0]
 	c.Check(partition.ID(), gc.Equals, 1)
 	c.Check(partition.UsedFor(), gc.Equals, "ext4 formatted filesystem mounted at /")
+
+	fs := blockdevice.FileSystem()
+	c.Assert(fs, gc.NotNil)
+	c.Assert(fs.Type(), gc.Equals, "ext4")
+	c.Assert(fs.MountPoint(), gc.Equals, "/srv")
 }
 
 func (*blockdeviceSuite) TestReadBlockDevicesWithNulls(c *gc.C) {
@@ -51,6 +57,7 @@ func (*blockdeviceSuite) TestReadBlockDevicesWithNulls(c *gc.C) {
 
 	c.Check(blockdevice.Model(), gc.Equals, "")
 	c.Check(blockdevice.IDPath(), gc.Equals, "")
+	c.Check(blockdevice.FileSystem(), gc.IsNil)
 }
 
 func (*blockdeviceSuite) TestLowVersion(c *gc.C) {
@@ -89,7 +96,13 @@ var blockdevicesResponse = `
                 "size": 8581545984
             }
         ],
-        "filesystem": null,
+        "filesystem": {
+            "fstype": "ext4",
+            "mount_point": "/srv",
+            "label": "root",
+            "mount_options": null,
+            "uuid": "fcd7745e-f1b5-4f5d-9575-9b0bb796b752"
+        },
         "id_path": "/dev/disk/by-id/ata-QEMU_HARDDISK_QM00001",
         "resource_uri": "/MAAS/api/2.0/nodes/4y3ha3/blockdevices/34/",
         "id": 34,
@@ -99,7 +112,7 @@ var blockdevicesResponse = `
         "used_size": 8586788864,
         "available_size": 0,
         "partition_table_type": "MBR",
-        "uuid": null,
+        "uuid": "6199b7c9-b66f-40f6-a238-a938a58a0adf",
         "size": 8589934592,
         "model": "QEMU HARDDISK",
         "tags": [

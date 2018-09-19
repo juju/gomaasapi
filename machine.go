@@ -204,6 +204,22 @@ func blockDeviceById(id int, blockDevices []BlockDevice) BlockDevice {
 	return nil
 }
 
+// Partition implements Machine.
+func (m *machine) Partition(id int) Partition {
+	return partitionById(id, m.BlockDevices())
+}
+
+func partitionById(id int, blockDevices []BlockDevice) Partition {
+	for _, blockDevice := range blockDevices {
+		for _, partition := range blockDevice.Partitions() {
+			if partition.ID() == id {
+				return partition
+			}
+		}
+	}
+	return nil
+}
+
 // Devices implements Machine.
 func (m *machine) Devices(args DevicesArgs) ([]Device, error) {
 	// Perhaps in the future, MAAS will give us a way to query just for the

@@ -13,6 +13,11 @@ type partitionSuite struct{}
 
 var _ = gc.Suite(&partitionSuite{})
 
+func (*partitionSuite) TestTypePartition(c *gc.C) {
+	var empty partition
+	c.Assert(empty.Type() == "partition", jc.IsTrue)
+}
+
 func (*partitionSuite) TestNilFileSystem(c *gc.C) {
 	var empty partition
 	c.Assert(empty.FileSystem() == nil, jc.IsTrue)
@@ -30,11 +35,13 @@ func (*partitionSuite) TestReadPartitions(c *gc.C) {
 	c.Assert(partitions, gc.HasLen, 1)
 	partition := partitions[0]
 
+	c.Check(partition.Type(), gc.Equals, "partition")
 	c.Check(partition.ID(), gc.Equals, 1)
 	c.Check(partition.Path(), gc.Equals, "/dev/disk/by-dname/sda-part1")
 	c.Check(partition.UUID(), gc.Equals, "6199b7c9-b66f-40f6-a238-a938a58a0adf")
 	c.Check(partition.UsedFor(), gc.Equals, "ext4 formatted filesystem mounted at /")
 	c.Check(partition.Size(), gc.Equals, uint64(8581545984))
+	c.Check(partition.Tags(), gc.DeepEquals, []string{"ssd-part", "osd-part"})
 
 	fs := partition.FileSystem()
 	c.Assert(fs, gc.NotNil)
@@ -80,7 +87,8 @@ var partitionsResponse = `
         "resource_uri": "/MAAS/api/2.0/nodes/4y3ha3/blockdevices/34/partition/1",
         "uuid": "6199b7c9-b66f-40f6-a238-a938a58a0adf",
         "used_for": "ext4 formatted filesystem mounted at /",
-        "size": 8581545984
+		"size": 8581545984,
+		"tags": ["ssd-part", "osd-part"]
     }
 ]
 `
