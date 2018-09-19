@@ -167,8 +167,7 @@ func blockdevice_2_0(source map[string]interface{}) (*blockdevice, error) {
 		"filesystem": schema.OneOf(schema.Nil(""), schema.StringMap(schema.Any())),
 		"partitions": schema.List(schema.StringMap(schema.Any())),
 	}
-	defaults := schema.Defaults{}
-	checker := schema.FieldMap(fields, defaults)
+	checker := schema.FieldMap(fields, nil)
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
 		return nil, WrapWithDeserializationError(err, "blockdevice 2.0 schema check failed")

@@ -936,11 +936,11 @@ func parseAllocateConstraintsResponse(source interface{}, machine *machine) (Con
 	}
 
 	if interfaceMatches, found := constraintsMap["interfaces"]; found {
-		matches := convertConstraintMatches(interfaceMatches)
+		matches := convertConstraintMatchesInt(interfaceMatches)
 		for label, ids := range matches {
 			interfaces := make([]Interface, len(ids))
 			for index, id := range ids {
-				iface := machine.Interface(id.(int))
+				iface := machine.Interface(id)
 				if iface == nil {
 					return empty, NewDeserializationError("constraint match interface %q: %d does not match an interface for the machine", label, id)
 				}
@@ -951,10 +951,12 @@ func parseAllocateConstraintsResponse(source interface{}, machine *machine) (Con
 	}
 
 	if storageMatches, found := constraintsMap["storage"]; found {
-		matches := convertConstraintMatches(storageMatches)
+		matches := convertConstraintMatchesAny(storageMatches)
 		for label, ids := range matches {
 			storageDevices := make([]StorageDevice, len(ids))
 			for index, storageId := range ids {
+				// The key value can be either an `int` which `json.Unmarshal` converts to a `float64` or a
+				// `string` when the key is "partition:{part_id}".
 				if id, ok := storageId.(float64); ok {
 					// Links to a block device.
 					blockDevice := machine.BlockDevice(int(id))
@@ -965,19 +967,18 @@ func parseAllocateConstraintsResponse(source interface{}, machine *machine) (Con
 				} else if id, ok := storageId.(string); ok {
 					// Should link to a partition.
 					const partPrefix = "partition:"
-					if strings.HasPrefix(id, partPrefix) {
-						partId, err := strconv.Atoi(id[len(partPrefix):])
-						if err != nil {
-							return empty, NewDeserializationError("constraint match storage %q: %s cannot convert to int.", label, id[len(partPrefix):])
-						}
-						partition := machine.Partition(partId)
-						if partition == nil {
-							return empty, NewDeserializationError("constraint match storage %q: %d does not match a partition for the machine", label, partId)
-						}
-						storageDevices[index] = partition
-					} else {
+					if !strings.HasPrefix(id, partPrefix) {
 						return empty, NewDeserializationError("constraint match storage %q: %s is not prefixed with partition", label, id)
 					}
+					partId, err := strconv.Atoi(id[len(partPrefix):])
+					if err != nil {
+						return empty, NewDeserializationError("constraint match storage %q: %s cannot convert to int.", label, id[len(partPrefix):])
+					}
+					partition := machine.Partition(partId)
+					if partition == nil {
+						return empty, NewDeserializationError("constraint match storage %q: %d does not match a partition for the machine", label, partId)
+					}
+					storageDevices[index] = partition
 				} else {
 					return empty, NewDeserializationError("constraint match storage %q: %v is not an int or string", label, storageId)
 				}
@@ -988,7 +989,21 @@ func parseAllocateConstraintsResponse(source interface{}, machine *machine) (Con
 	return result, nil
 }
 
-func convertConstraintMatches(source interface{}) map[string][]interface{} {
+func convertConstraintMatchesInt(source interface{}) map[string][]int {
+	// These casts are all safe because of the schema check.
+	result := make(map[string][]int)
+	matchMap := source.(map[string]interface{})
+	for label, values := range matchMap {
+		items := values.([]interface{})
+		result[label] = make([]int, len(items))
+		for index, value := range items {
+			result[label][index] = value.(int)
+		}
+	}
+	return result
+}
+
+func convertConstraintMatchesAny(source interface{}) map[string][]interface{} {
 	// These casts are all safe because of the schema check.
 	result := make(map[string][]interface{})
 	matchMap := source.(map[string]interface{})

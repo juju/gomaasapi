@@ -234,6 +234,7 @@ type Machine interface {
 	// BlockDevice returns the block device for the machine that matches the
 	// id specified. If there is no match, nil is returned.
 	BlockDevice(id int) BlockDevice
+
 	// Partition returns the partition for the machine that matches the
 	// id specified. If there is no match, nil is returned.
 	Partition(id int) Partition
