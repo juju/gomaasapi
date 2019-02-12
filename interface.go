@@ -332,12 +332,6 @@ func (a *CreateVLANInterfaceArgs) Validate() error {
 	return nil
 }
 
-// interfacesURI used to add interfaces for this device. The operations
-// are on the nodes endpoint, not devices.
-func (i *interface_) interfacesURI() string {
-	return strings.Replace(i.resourceURI, "devices", "nodes", 1) + "interfaces/"
-}
-
 // CreateInterface implements Device.
 func (i *interface_) CreateVLANInterface(args CreateVLANInterfaceArgs) (Interface, error) {
 	if err := args.Validate(); err != nil {
@@ -349,7 +343,7 @@ func (i *interface_) CreateVLANInterface(args CreateVLANInterfaceArgs) (Interfac
 	params.MaybeAddInt("mtu", args.MTU)
 	params.MaybeAddBool("accept_ra", args.AcceptRA)
 	params.MaybeAddBool("autoconf", args.Autoconf)
-	result, err := i.controller.post(i.interfacesURI(), "create_vlan", params.Values)
+	result, err := i.controller.post(i.resourceURI, "create_vlan", params.Values)
 	if err != nil {
 		if svrErr, ok := errors.Cause(err).(ServerError); ok {
 			switch svrErr.StatusCode {
