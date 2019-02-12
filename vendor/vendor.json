@@ -1,0 +1,133 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"checksumSHA1": "xbxQuRQS7qvMqU7TvdZYC9B1QG4=",
+			"path": "github.com/juju/clock",
+			"revision": "9c5c9712527c7986f012361e7d13756b4d99543d",
+			"revisionTime": "2019-02-05T08:19:09Z"
+		},
+		{
+			"checksumSHA1": "2N0EBY3L33K1eoGhELDJlRBsZJc=",
+			"path": "github.com/juju/collections/set",
+			"revision": "9be91dc79b7c185fa8b08e7ceceee40562055c83",
+			"revisionTime": "2018-07-17T17:15:55Z"
+		},
+		{
+			"checksumSHA1": "vF5neIHk3TQYBbwciJNtLThb4bE=",
+			"path": "github.com/juju/errors",
+			"revision": "e65537c515d77e35697c471d6c2755375cb3adc4",
+			"revisionTime": "2019-02-07T03:37:35Z"
+		},
+		{
+			"checksumSHA1": "xfvw14hTUal9IGkih9Sh+g+YDu4=",
+			"path": "github.com/juju/loggo",
+			"revision": "584905176618da46b895b176c721b02c476b6993",
+			"revisionTime": "2018-05-24T02:20:52Z"
+		},
+		{
+			"checksumSHA1": "QXr7diN711NTHSnvxiaIcwdY4kY=",
+			"path": "github.com/juju/retry",
+			"revision": "9058e192b216b21e4741c2eeb20ac798ba1ea80a",
+			"revisionTime": "2018-08-21T22:57:55Z"
+		},
+		{
+			"checksumSHA1": "h7V5QbGUae3i3PYXQ/lBJJNgjlo=",
+			"path": "github.com/juju/schema",
+			"revision": "64a6158e90710d0a16c6bd3cf0a6be6b2e80193c",
+			"revisionTime": "2018-12-10T14:06:54Z"
+		},
+		{
+			"checksumSHA1": "s8cywjfQcZgM+dWtWn/JldN7wQs=",
+			"path": "github.com/juju/testing",
+			"revision": "472a3e8b2073fb3cd67c12d2bc5f3cd28e5f4116",
+			"revisionTime": "2018-09-20T08:48:28Z"
+		},
+		{
+			"checksumSHA1": "oNQJfFgA190ZvU/eqS7vjYVhDp8=",
+			"path": "github.com/juju/testing/checkers",
+			"revision": "472a3e8b2073fb3cd67c12d2bc5f3cd28e5f4116",
+			"revisionTime": "2018-09-20T08:48:28Z"
+		},
+		{
+			"checksumSHA1": "ESJlyQPDYdebuYZyPQMHD55pwGI=",
+			"path": "github.com/juju/utils",
+			"revision": "bf9cc5bdd62dabc40b7f634b39a5e2dc44d44c45",
+			"revisionTime": "2018-08-20T21:05:20Z"
+		},
+		{
+			"checksumSHA1": "iQrz4I4Sb85dDtDXonFZGUoFLv4=",
+			"path": "github.com/juju/version",
+			"revision": "b64dbd566305c836274f0268fa59183a52906b36",
+			"revisionTime": "2018-01-08T02:23:36Z"
+		},
+		{
+			"checksumSHA1": "3ohk4dFYrERZ6WTdKkIwnTA0HSI=",
+			"path": "github.com/kr/pretty",
+			"revision": "73f6ac0b30a98e433b289500d779f50c1a6f0712",
+			"revisionTime": "2018-05-06T08:33:45Z"
+		},
+		{
+			"checksumSHA1": "SbguDK5lY8uhaHNrmJmNbiWIGM0=",
+			"path": "github.com/kr/text",
+			"revision": "e2ffdb16a802fe2bb95e2e35ff34f0e53aeef34f",
+			"revisionTime": "2018-05-06T08:24:08Z"
+		},
+		{
+			"checksumSHA1": "1MGpGDQqnUoRpv7VEcQrXOBydXE=",
+			"path": "golang.org/x/crypto/pbkdf2",
+			"revision": "74369b46fc6756741c016591724fd1cb8e26845f",
+			"revisionTime": "2019-02-10T12:59:10Z"
+		},
+		{
+			"checksumSHA1": "GtamqiJoL7PGHsN454AoffBFMa8=",
+			"path": "golang.org/x/net/context",
+			"revision": "65e2d4e15006aab9813ff8769e768bbf4bb667a0",
+			"revisionTime": "2019-02-01T23:59:58Z"
+		},
+		{
+			"checksumSHA1": "9gypWnVZJEaH3jMK9KqOp4xgQD4=",
+			"path": "gopkg.in/check.v1",
+			"revision": "788fd78401277ebd861206a03c884797c6ec5541",
+			"revisionTime": "2018-06-28T17:31:08Z"
+		},
+		{
+			"checksumSHA1": "bS5Kp6YjeXz4nvvS55CqIBP+HzM=",
+			"path": "gopkg.in/mgo.v2",
+			"revision": "9856a29383ce1c59f308dd1cf0363a79b5bef6b5",
+			"revisionTime": "2018-07-05T11:36:04Z"
+		},
+		{
+			"checksumSHA1": "/xRHTpN8WOK4nmZjJ1f96ER1b/o=",
+			"path": "gopkg.in/mgo.v2/bson",
+			"revision": "9856a29383ce1c59f308dd1cf0363a79b5bef6b5",
+			"revisionTime": "2018-07-05T11:36:04Z"
+		},
+		{
+			"checksumSHA1": "XQsrqoNT1U0KzLxOFcAZVvqhLfk=",
+			"path": "gopkg.in/mgo.v2/internal/json",
+			"revision": "9856a29383ce1c59f308dd1cf0363a79b5bef6b5",
+			"revisionTime": "2018-07-05T11:36:04Z"
+		},
+		{
+			"checksumSHA1": "LEvMCnprte47qdAxWvQ/zRxVF1U=",
+			"path": "gopkg.in/mgo.v2/internal/sasl",
+			"revision": "9856a29383ce1c59f308dd1cf0363a79b5bef6b5",
+			"revisionTime": "2018-07-05T11:36:04Z"
+		},
+		{
+			"checksumSHA1": "+1WDRPaOphSCmRMxVPIPBV4aubc=",
+			"path": "gopkg.in/mgo.v2/internal/scram",
+			"revision": "9856a29383ce1c59f308dd1cf0363a79b5bef6b5",
+			"revisionTime": "2018-07-05T11:36:04Z"
+		},
+		{
+			"checksumSHA1": "QqDq2x8XOU7IoOR98Cx1eiV5QY8=",
+			"path": "gopkg.in/yaml.v2",
+			"revision": "51d6538a90f86fe93ac480b35f37b2be17fef232",
+			"revisionTime": "2018-11-15T11:05:04Z"
+		}
+	],
+	"rootPath": "github.com/juju/gomaasapi"
+}

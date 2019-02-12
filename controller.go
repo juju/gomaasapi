@@ -166,6 +166,7 @@ func (c *controller) Fabrics() ([]Fabric, error) {
 	}
 	var result []Fabric
 	for _, f := range fabrics {
+		f.controller = c
 		result = append(result, f)
 	}
 	return result, nil
