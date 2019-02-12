@@ -6,6 +6,7 @@ package gomaasapi
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/juju/errors"
@@ -332,6 +333,11 @@ func (a *CreateVLANInterfaceArgs) Validate() error {
 	return nil
 }
 
+// interfacesURI used to add child interfaces to this interface.  We need to strip the interface ID in URI to make post call
+func (i *interface_) interfacesURI() string {
+	return strings.Replace(i.resourceURI, "/"+strconv.Itoa(i.ID())+"/", "/", 1)
+}
+
 // CreateInterface implements Device.
 func (i *interface_) CreateVLANInterface(args CreateVLANInterfaceArgs) (Interface, error) {
 	if err := args.Validate(); err != nil {
@@ -339,11 +345,12 @@ func (i *interface_) CreateVLANInterface(args CreateVLANInterfaceArgs) (Interfac
 	}
 	params := NewURLParams()
 	params.Values.Add("vlan", fmt.Sprint(args.VLAN.ID()))
+	params.MaybeAddInt("parent", i.ID())
 	params.MaybeAdd("tags", strings.Join(args.Tags, ","))
 	params.MaybeAddInt("mtu", args.MTU)
 	params.MaybeAddBool("accept_ra", args.AcceptRA)
 	params.MaybeAddBool("autoconf", args.Autoconf)
-	result, err := i.controller.post(i.resourceURI, "create_vlan", params.Values)
+	result, err := i.controller.post(i.interfacesURI(), "create_vlan", params.Values)
 	if err != nil {
 		if svrErr, ok := errors.Cause(err).(ServerError); ok {
 			switch svrErr.StatusCode {
