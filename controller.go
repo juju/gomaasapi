@@ -224,15 +224,17 @@ func (c *controller) Zones() ([]Zone, error) {
 
 // Pools implements Controller.
 func (c *controller) Pools() ([]Pool, error) {
+	var result []Pool
+
 	source, err := c.get("pools")
 	if err != nil {
 		return nil, NewUnexpectedError(err)
 	}
-	pools, err := readPools(c.apiVersion, source)
-	if err != nil {
+
+	if pools, err := readPools(c.apiVersion, source); err != nil {
 		return nil, errors.Trace(err)
 	}
-	var result []Pool
+
 	for _, p := range pools {
 		result = append(result, p)
 	}
