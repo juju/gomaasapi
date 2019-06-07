@@ -234,7 +234,7 @@ func (c *controller) Pools() ([]Pool, error) {
 	}
 	var result []Pool
 	for _, p := range pools {
-		result = append(result, z)
+		result = append(result, p)
 	}
 	return result, nil
 }
@@ -468,6 +468,7 @@ type AllocateMachineArgs struct {
 	Tags      []string
 	NotTags   []string
 	Zone      string
+	Pool      string
 	NotInZone []string
 	// Storage represents the required disks on the Machine. If any are specified
 	// the first value is used for the root disk.
@@ -481,7 +482,6 @@ type AllocateMachineArgs struct {
 	AgentName string
 	Comment   string
 	DryRun    bool
-	Pool      Pool
 }
 
 // Validate makes sure that any labels specified in Storage or Interfaces
