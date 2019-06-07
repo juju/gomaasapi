@@ -72,7 +72,8 @@ func (d *device) Zone() Zone {
 // Pool implements Device.
 func (d *device) Pool() Pool {
 	if d.pool == nil {
-		return nil
+		d.pool.name = ""
+		d.pool.description = "pool not set"
 	}
 	return d.pool
 }
