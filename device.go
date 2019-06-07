@@ -28,6 +28,7 @@ type device struct {
 	ipAddresses  []string
 	interfaceSet []*interface_
 	zone         *zone
+	pool         *pool
 }
 
 // SystemID implements Device.
@@ -66,6 +67,14 @@ func (d *device) Zone() Zone {
 		return nil
 	}
 	return d.zone
+}
+
+// Pool implements Device.
+func (d *device) Pool() Pool {
+	if d.pool == nil {
+		return nil
+	}
+	return d.pool
 }
 
 // InterfaceSet implements Device.
@@ -252,6 +261,7 @@ func device_2_0(source map[string]interface{}) (*device, error) {
 		"ip_addresses":  schema.List(schema.String()),
 		"interface_set": schema.List(schema.StringMap(schema.Any())),
 		"zone":          schema.StringMap(schema.Any()),
+		"pool":          schema.StringMap(schema.Any()),
 	}
 	defaults := schema.Defaults{
 		"owner":  "",
@@ -270,7 +280,14 @@ func device_2_0(source map[string]interface{}) (*device, error) {
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
+
 	zone, err := zone_2_0(valid["zone"].(map[string]interface{}))
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+
+	pool, err := pool_2_0(valid["pool"].(map[string]interface{}))
+
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
@@ -288,6 +305,7 @@ func device_2_0(source map[string]interface{}) (*device, error) {
 		ipAddresses:  convertToStringSlice(valid["ip_addresses"]),
 		interfaceSet: interfaceSet,
 		zone:         zone,
+		pool:         pool,
 	}
 	return result, nil
 }

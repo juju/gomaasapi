@@ -40,6 +40,7 @@ type machine struct {
 	bootInterface *interface_
 	interfaceSet  []*interface_
 	zone          *zone
+	pool          *pool
 	// Don't really know the difference between these two lists:
 	physicalBlockDevices []*blockdevice
 	blockDevices         []*blockdevice
@@ -60,6 +61,7 @@ func (m *machine) updateFrom(other *machine) {
 	m.statusName = other.statusName
 	m.statusMessage = other.statusMessage
 	m.zone = other.zone
+	m.pool = other.pool
 	m.tags = other.tags
 	m.ownerData = other.ownerData
 }
@@ -82,6 +84,14 @@ func (m *machine) FQDN() string {
 // Tags implements Machine.
 func (m *machine) Tags() []string {
 	return m.tags
+}
+
+// Pool implements Machine
+func (m *machine) Pool() Pool {
+	if m.pool == nil {
+		return nil
+	}
+	return m.pool
 }
 
 // IPAddresses implements Machine.
@@ -494,6 +504,7 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 		"hostname":   schema.String(),
 		"fqdn":       schema.String(),
 		"tag_names":  schema.List(schema.String()),
+		"pool":       schema.StringMap(schema.Any()),
 		"owner_data": schema.StringMap(schema.String()),
 
 		"osystem":       schema.String(),
@@ -510,6 +521,7 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 		"boot_interface": schema.OneOf(schema.Nil(""), schema.StringMap(schema.Any())),
 		"interface_set":  schema.List(schema.StringMap(schema.Any())),
 		"zone":           schema.StringMap(schema.Any()),
+		"pool":           schema.StringMap(schema.Any()),
 
 		"physicalblockdevice_set": schema.List(schema.StringMap(schema.Any())),
 		"blockdevice_set":         schema.List(schema.StringMap(schema.Any())),
@@ -517,6 +529,7 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 	defaults := schema.Defaults{
 		"architecture": "",
 	}
+
 	checker := schema.FieldMap(fields, defaults)
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
@@ -538,14 +551,30 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
+
 	zone, err := zone_2_0(valid["zone"].(map[string]interface{}))
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
+
+	pool, err := Pool2dot0(valid["pool"].(map[string]interface{}))
+	if err != nil {
+<<<<<<< HEAD
+<<<<<<< HEAD
+
+=======
+>>>>>>> c00d3cc... Implement pools
+=======
+
+>>>>>>> 925e48d... Bugfixes missed in implementing Pool.
+		return nil, errors.Trace(err)
+	}
+
 	physicalBlockDevices, err := readBlockDeviceList(valid["physicalblockdevice_set"].([]interface{}), blockdevice_2_0)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
+
 	blockDevices, err := readBlockDeviceList(valid["blockdevice_set"].([]interface{}), blockdevice_2_0)
 	if err != nil {
 		return nil, errors.Trace(err)
@@ -575,6 +604,11 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 		bootInterface:        bootInterface,
 		interfaceSet:         interfaceSet,
 		zone:                 zone,
+<<<<<<< HEAD
+		pool:                 pool,
+=======
+		pool:      			  pool,
+>>>>>>> c00d3cc... Implement pools
 		physicalBlockDevices: physicalBlockDevices,
 		blockDevices:         blockDevices,
 	}
