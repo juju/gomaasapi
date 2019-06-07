@@ -201,7 +201,6 @@ type Machine interface {
 	Hostname() string
 	FQDN() string
 	Tags() []string
-	Pool() string
 
 	OperatingSystem() string
 	DistroSeries() string
@@ -248,6 +247,7 @@ type Machine interface {
 	Partition(id int) Partition
 
 	Zone() Zone
+	Pool() Pool
 
 	// Start the machine and install the operating system specified in the args.
 	Start(StartArgs) error
@@ -312,7 +312,7 @@ type Interface interface {
 	Type() string
 	Enabled() bool
 	Tags() []string
-	Pool() string
+	Pool() Pool
 
 	VLAN() VLAN
 	Links() []Link

@@ -70,7 +70,7 @@ func (d *device) Zone() Zone {
 }
 
 // Pool implements Device.
-func (d *device) Pool() string {
+func (d *device) Pool() Pool {
 	if d.pool == nil {
 		return nil
 	}
@@ -136,7 +136,7 @@ func (d *device) CreateInterface(args CreateInterfaceArgs) (Interface, error) {
 	params.Values.Add("mac_address", args.MACAddress)
 	params.Values.Add("vlan", fmt.Sprint(args.VLAN.ID()))
 	params.MaybeAdd("tags", strings.Join(args.Tags, ","))
-//	params.MaybeAdd("pool", args.)
+//params.MaybeAdd("pool", args.)
 	params.MaybeAddInt("mtu", args.MTU)
 	params.MaybeAddBool("accept_ra", args.AcceptRA)
 	params.MaybeAddBool("autoconf", args.Autoconf)
