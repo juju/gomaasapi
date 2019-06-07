@@ -74,11 +74,6 @@ func (i *interface_) Type() string {
 	return i.type_
 }
 
-// Pool implements Interface.
-func (i *interface_) Pool() Pool {
-	return i.pool
-}
-
 // Enabled implements Interface.
 func (i *interface_) Enabled() bool {
 	return i.enabled
