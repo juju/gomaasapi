@@ -12,7 +12,7 @@ import (
 	"github.com/juju/version"
 )
 
-// Can't use interface as a type, so add an underscore. Yay.
+// Can't use "interface" as a type, so add an underscore. Yay.
 type interface_ struct {
 	controller *controller
 

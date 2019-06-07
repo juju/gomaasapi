@@ -222,6 +222,26 @@ func (c *controller) Zones() ([]Zone, error) {
 	return result, nil
 }
 
+// Pools implements Controller.
+func (c *controller) Pools() ([]Pool, error) {
+	var result []Pool
+
+	source, err := c.get("pools")
+	if err != nil {
+		return nil, NewUnexpectedError(err)
+	}
+
+	pools, err := readPools(c.apiVersion, source)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+
+	for _, p := range pools {
+		result = append(result, p)
+	}
+	return result, nil
+}
+
 // Domains implements Controller
 func (c *controller) Domains() ([]Domain, error) {
 	source, err := c.get("domains")
@@ -371,7 +391,7 @@ type StorageSpec struct {
 	Label string
 	// Size is required and refers to the required minimum size in GB.
 	Size int
-	// Zero or more tags assocated to with the disks.
+	// Zero or more tags associated to the disks.
 	Tags []string
 }
 
@@ -402,7 +422,7 @@ func (s *StorageSpec) String() string {
 	return fmt.Sprintf("%s%d%s", label, s.Size, tags)
 }
 
-// InterfaceSpec represents one elemenet of network related constraints.
+// InterfaceSpec represents one element of network related constraints.
 type InterfaceSpec struct {
 	// Label is required and an arbitrary string. Labels need to be unique
 	// across the InterfaceSpec elements specified in the AllocateMachineArgs.
@@ -451,7 +471,9 @@ type AllocateMachineArgs struct {
 	Tags      []string
 	NotTags   []string
 	Zone      string
+	Pool      string
 	NotInZone []string
+	NotInPool []string
 	// Storage represents the required disks on the Machine. If any are specified
 	// the first value is used for the root disk.
 	Storage []StorageSpec
@@ -466,8 +488,9 @@ type AllocateMachineArgs struct {
 	DryRun    bool
 }
 
-// Validate makes sure that any labels specifed in Storage or Interfaces
-// are unique, and that the required specifications are valid.
+// Validate makes sure that any labels specified in Storage or Interfaces
+// are unique, and that the required specifications are valid. It
+// also makes sure that any pools specified exist.
 func (a *AllocateMachineArgs) Validate() error {
 	storageLabels := set.NewStrings()
 	for _, spec := range a.Storage {
@@ -554,7 +577,9 @@ func (c *controller) AllocateMachine(args AllocateMachineArgs) (Machine, Constra
 	params.MaybeAdd("interfaces", args.interfaces())
 	params.MaybeAddMany("not_subnets", args.notSubnets())
 	params.MaybeAdd("zone", args.Zone)
+	params.MaybeAdd("pool", args.Pool)
 	params.MaybeAddMany("not_in_zone", args.NotInZone)
+	params.MaybeAddMany("not_in_pool", args.NotInPool)
 	params.MaybeAdd("agent_name", args.AgentName)
 	params.MaybeAdd("comment", args.Comment)
 	params.MaybeAddBool("dry_run", args.DryRun)

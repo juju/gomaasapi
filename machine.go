@@ -5,12 +5,11 @@ package gomaasapi
 
 import (
 	"fmt"
-	"net/http"
-	"net/url"
-
 	"github.com/juju/errors"
 	"github.com/juju/schema"
 	"github.com/juju/version"
+	"net/http"
+	"net/url"
 )
 
 type machine struct {
@@ -40,6 +39,7 @@ type machine struct {
 	bootInterface *interface_
 	interfaceSet  []*interface_
 	zone          *zone
+	pool          *pool
 	// Don't really know the difference between these two lists:
 	physicalBlockDevices []*blockdevice
 	blockDevices         []*blockdevice
@@ -60,6 +60,7 @@ func (m *machine) updateFrom(other *machine) {
 	m.statusName = other.statusName
 	m.statusMessage = other.statusMessage
 	m.zone = other.zone
+	m.pool = other.pool
 	m.tags = other.tags
 	m.ownerData = other.ownerData
 }
@@ -82,6 +83,14 @@ func (m *machine) FQDN() string {
 // Tags implements Machine.
 func (m *machine) Tags() []string {
 	return m.tags
+}
+
+// Pool implements Machine
+func (m *machine) Pool() Pool {
+	if m.pool == nil {
+		return nil
+	}
+	return m.pool
 }
 
 // IPAddresses implements Machine.
@@ -494,6 +503,7 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 		"hostname":   schema.String(),
 		"fqdn":       schema.String(),
 		"tag_names":  schema.List(schema.String()),
+		"pool":       schema.StringMap(schema.Any()),
 		"owner_data": schema.StringMap(schema.String()),
 
 		"osystem":       schema.String(),
@@ -542,6 +552,12 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
+
+	pool, err := pool_2_0(valid["pool"].(map[string]interface{}))
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+
 	physicalBlockDevices, err := readBlockDeviceList(valid["physicalblockdevice_set"].([]interface{}), blockdevice_2_0)
 	if err != nil {
 		return nil, errors.Trace(err)
@@ -575,6 +591,7 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 		bootInterface:        bootInterface,
 		interfaceSet:         interfaceSet,
 		zone:                 zone,
+		pool:      			  pool,
 		physicalBlockDevices: physicalBlockDevices,
 		blockDevices:         blockDevices,
 	}
