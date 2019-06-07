@@ -60,9 +60,9 @@ func (m *machine) updateFrom(other *machine) {
 	m.statusName = other.statusName
 	m.statusMessage = other.statusMessage
 	m.zone = other.zone
+	m.pool = other.pool
 	m.tags = other.tags
 	m.ownerData = other.ownerData
-	m.pool = other.pool
 }
 
 // SystemID implements Machine.
@@ -87,6 +87,9 @@ func (m *machine) Tags() []string {
 
 // Pool implements Machine
 func (m *machine) Pool() Pool {
+	if m.pool == nil {
+		return nil
+	}
 	return m.pool
 }
 
@@ -500,7 +503,7 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 		"hostname":   schema.String(),
 		"fqdn":       schema.String(),
 		"tag_names":  schema.List(schema.String()),
-		"pool":       schema.String(),
+		"pool":       schema.StringMap(schema.Any()),
 		"owner_data": schema.StringMap(schema.String()),
 
 		"osystem":       schema.String(),

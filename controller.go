@@ -470,6 +470,7 @@ type AllocateMachineArgs struct {
 	Zone      string
 	Pool      string
 	NotInZone []string
+	NotInPool []string
 	// Storage represents the required disks on the Machine. If any are specified
 	// the first value is used for the root disk.
 	Storage []StorageSpec
@@ -575,6 +576,7 @@ func (c *controller) AllocateMachine(args AllocateMachineArgs) (Machine, Constra
 	params.MaybeAdd("zone", args.Zone)
 	params.MaybeAdd("pool", args.Pool)
 	params.MaybeAddMany("not_in_zone", args.NotInZone)
+	params.MaybeAddMany("not_in_pool", args.NotInPool)
 	params.MaybeAdd("agent_name", args.AgentName)
 	params.MaybeAdd("comment", args.Comment)
 	params.MaybeAddBool("dry_run", args.DryRun)
