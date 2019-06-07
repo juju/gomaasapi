@@ -5,7 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="ec0b31a5-4b85-4db8-ae5e-cdd909c7745d" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/interfaces.go" beforeDir="false" afterPath="$PROJECT_DIR$/interfaces.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/controller.go" beforeDir="false" afterPath="$PROJECT_DIR$/controller.go" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -18,8 +18,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/controller.go">
           <provider selected="true" editor-type-id="text-editor">
-            <state>
-              <caret line="497" column="16" selection-start-line="497" selection-start-column="16" selection-end-line="497" selection-end-column="16" />
+            <state relative-caret-position="416">
+              <caret line="224" column="3" selection-start-line="224" selection-start-column="3" selection-end-line="224" selection-end-column="3" />
               <folding>
                 <element signature="e#113#374#0" expanded="true" />
               </folding>
@@ -27,11 +27,11 @@
           </provider>
         </entry>
       </file>
-      <file pinned="false" current-in-tab="false">
+      <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/device.go">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="370">
-              <caret line="264" column="20" selection-start-line="264" selection-start-column="20" selection-end-line="264" selection-end-column="20" />
+            <state relative-caret-position="468">
+              <caret line="74" selection-start-line="74" selection-end-line="74" />
               <folding>
                 <element signature="e#113#233#0" expanded="true" />
               </folding>
@@ -48,11 +48,11 @@
           </provider>
         </entry>
       </file>
-      <file pinned="false" current-in-tab="true">
+      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/interfaces.go">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="618">
-              <caret line="154" column="23" selection-start-line="154" selection-start-column="23" selection-end-line="154" selection-end-column="23" />
+            <state relative-caret-position="513">
+              <caret line="147" column="23" selection-start-line="147" selection-start-column="23" selection-end-line="147" selection-end-column="23" />
             </state>
           </provider>
         </entry>
@@ -86,9 +86,9 @@
         <option value="$PROJECT_DIR$/interface.go" />
         <option value="$PROJECT_DIR$/device.go" />
         <option value="$PROJECT_DIR$/pool.go" />
-        <option value="$PROJECT_DIR$/controller.go" />
         <option value="$PROJECT_DIR$/machine.go" />
         <option value="$PROJECT_DIR$/interfaces.go" />
+        <option value="$PROJECT_DIR$/controller.go" />
       </list>
     </option>
   </component>
@@ -231,26 +231,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/controller.go">
-      <provider selected="true" editor-type-id="text-editor">
-        <state>
-          <caret line="497" column="16" selection-start-line="497" selection-start-column="16" selection-end-line="497" selection-end-column="16" />
-          <folding>
-            <element signature="e#113#374#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/device.go">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="370">
-          <caret line="264" column="20" selection-start-line="264" selection-start-column="20" selection-end-line="264" selection-end-column="20" />
-          <folding>
-            <element signature="e#113#233#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/machine.go">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="423">
@@ -267,8 +247,28 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/interfaces.go">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="618">
-          <caret line="154" column="23" selection-start-line="154" selection-start-column="23" selection-end-line="154" selection-end-column="23" />
+        <state relative-caret-position="513">
+          <caret line="147" column="23" selection-start-line="147" selection-start-column="23" selection-end-line="147" selection-end-column="23" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/controller.go">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="416">
+          <caret line="224" column="3" selection-start-line="224" selection-start-column="3" selection-end-line="224" selection-end-column="3" />
+          <folding>
+            <element signature="e#113#374#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/device.go">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="468">
+          <caret line="74" selection-start-line="74" selection-end-line="74" />
+          <folding>
+            <element signature="e#113#233#0" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>

@@ -231,7 +231,8 @@ func (c *controller) Pools() ([]Pool, error) {
 		return nil, NewUnexpectedError(err)
 	}
 
-	if pools, err := readPools(c.apiVersion, source); err != nil {
+	pools, err := readPools(c.apiVersion, source)
+	if err != nil {
 		return nil, errors.Trace(err)
 	}
 
