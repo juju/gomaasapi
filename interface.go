@@ -23,7 +23,7 @@ type interface_ struct {
 	type_   string
 	enabled bool
 	tags    []string
-	pool    string
+	pool    Pool
 
 	vlan  *vlan
 	links []*link
@@ -77,7 +77,7 @@ func (i *interface_) Type() string {
 }
 
 // Pool implements Interface.
-func (i *interface_) Pool() string {
+func (i *interface_) Pool() Pool {
 	return i.pool
 }
 

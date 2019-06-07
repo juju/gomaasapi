@@ -464,7 +464,7 @@ type AllocateMachineArgs struct {
 	AgentName string
 	Comment   string
 	DryRun    bool
-	Pool      string
+	Pool      Pool
 }
 
 // Validate makes sure that any labels specified in Storage or Interfaces

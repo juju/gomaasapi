@@ -63,10 +63,10 @@ func readPoolList(sourceList []interface{}, readFunc poolDeserializationFunc) ([
 type poolDeserializationFunc func(map[string]interface{}) (*pool, error)
 
 var poolDeserializationFuncs = map[version.Number]poolDeserializationFunc{
-	twoDotOh: zone_2_0,
+	twoDotOh: pool_2_0,
 }
 
-func zone_2_0(source map[string]interface{}) (*pool, error) {
+func pool_2_0(source map[string]interface{}) (*pool, error) {
 	fields := schema.Fields{
 		"name":         schema.String(),
 		"resource_uri": schema.String(),

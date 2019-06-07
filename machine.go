@@ -21,7 +21,6 @@ type machine struct {
 	hostname  string
 	fqdn      string
 	tags      []string
-	pool      string
 	ownerData map[string]string
 
 	operatingSystem string
@@ -40,6 +39,7 @@ type machine struct {
 	bootInterface *interface_
 	interfaceSet  []*interface_
 	zone          *zone
+	pool          *pool
 	// Don't really know the difference between these two lists:
 	physicalBlockDevices []*blockdevice
 	blockDevices         []*blockdevice
@@ -86,7 +86,7 @@ func (m *machine) Tags() []string {
 }
 
 // Pool implements Machine
-func (m *machine) Pool() string {
+func (m *machine) Pool() Pool {
 	return m.pool
 }
 
@@ -549,6 +549,12 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
+
+	pool, err := pool_2_0(valid["pool"].(map[string]interface{}))
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+
 	physicalBlockDevices, err := readBlockDeviceList(valid["physicalblockdevice_set"].([]interface{}), blockdevice_2_0)
 	if err != nil {
 		return nil, errors.Trace(err)
@@ -566,7 +572,6 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 		hostname:  valid["hostname"].(string),
 		fqdn:      valid["fqdn"].(string),
 		tags:      convertToStringSlice(valid["tag_names"]),
-		pool:      valid["pool"].(string),
 		ownerData: convertToStringMap(valid["owner_data"]),
 
 		operatingSystem: valid["osystem"].(string),
@@ -583,6 +588,7 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 		bootInterface:        bootInterface,
 		interfaceSet:         interfaceSet,
 		zone:                 zone,
+		pool:      			  pool,
 		physicalBlockDevices: physicalBlockDevices,
 		blockDevices:         blockDevices,
 	}
