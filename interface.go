@@ -23,6 +23,7 @@ type interface_ struct {
 	type_   string
 	enabled bool
 	tags    []string
+	pool    string
 
 	vlan  *vlan
 	links []*link
@@ -41,6 +42,7 @@ func (i *interface_) updateFrom(other *interface_) {
 	i.type_ = other.type_
 	i.enabled = other.enabled
 	i.tags = other.tags
+	i.pool = other.pool
 	i.vlan = other.vlan
 	i.links = other.links
 	i.macAddress = other.macAddress
@@ -72,6 +74,11 @@ func (i *interface_) Children() []string {
 // Type implements Interface.
 func (i *interface_) Type() string {
 	return i.type_
+}
+
+// Pool implements Interface.
+func (i *interface_) Pool() string {
+	return i.pool
 }
 
 // Enabled implements Interface.
