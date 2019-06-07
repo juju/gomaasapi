@@ -136,6 +136,7 @@ func (d *device) CreateInterface(args CreateInterfaceArgs) (Interface, error) {
 	params.Values.Add("mac_address", args.MACAddress)
 	params.Values.Add("vlan", fmt.Sprint(args.VLAN.ID()))
 	params.MaybeAdd("tags", strings.Join(args.Tags, ","))
+//	params.MaybeAdd("pool", args.)
 	params.MaybeAddInt("mtu", args.MTU)
 	params.MaybeAddBool("accept_ra", args.AcceptRA)
 	params.MaybeAddBool("autoconf", args.Autoconf)

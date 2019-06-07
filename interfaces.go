@@ -145,6 +145,12 @@ type Zone interface {
 	Description() string
 }
 
+// Pool is just a logical separation of resources.
+type Pool interface {
+	// The name of the resource pool
+	Name() string
+}
+
 type Domain interface {
 	// The name of the Domain
 	Name() string
@@ -168,6 +174,7 @@ type Device interface {
 	FQDN() string
 	IPAddresses() []string
 	Zone() Zone
+	Pool() Pool
 
 	// Parent returns the SystemID of the Parent. Most often this will be a
 	// Machine.
