@@ -194,6 +194,7 @@ type Machine interface {
 	Hostname() string
 	FQDN() string
 	Tags() []string
+	Pool() string
 
 	OperatingSystem() string
 	DistroSeries() string
@@ -304,6 +305,7 @@ type Interface interface {
 	Type() string
 	Enabled() bool
 	Tags() []string
+	Pool() string
 
 	VLAN() VLAN
 	Links() []Link

@@ -371,7 +371,7 @@ type StorageSpec struct {
 	Label string
 	// Size is required and refers to the required minimum size in GB.
 	Size int
-	// Zero or more tags assocated to with the disks.
+	// Zero or more tags associated to the disks.
 	Tags []string
 }
 
@@ -402,7 +402,7 @@ func (s *StorageSpec) String() string {
 	return fmt.Sprintf("%s%d%s", label, s.Size, tags)
 }
 
-// InterfaceSpec represents one elemenet of network related constraints.
+// InterfaceSpec represents one element of network related constraints.
 type InterfaceSpec struct {
 	// Label is required and an arbitrary string. Labels need to be unique
 	// across the InterfaceSpec elements specified in the AllocateMachineArgs.
@@ -464,10 +464,12 @@ type AllocateMachineArgs struct {
 	AgentName string
 	Comment   string
 	DryRun    bool
+	Pool      string
 }
 
-// Validate makes sure that any labels specifed in Storage or Interfaces
-// are unique, and that the required specifications are valid.
+// Validate makes sure that any labels specified in Storage or Interfaces
+// are unique, and that the required specifications are valid. It
+// also makes sure that any pools specified exist.
 func (a *AllocateMachineArgs) Validate() error {
 	storageLabels := set.NewStrings()
 	for _, spec := range a.Storage {
@@ -558,6 +560,7 @@ func (c *controller) AllocateMachine(args AllocateMachineArgs) (Machine, Constra
 	params.MaybeAdd("agent_name", args.AgentName)
 	params.MaybeAdd("comment", args.Comment)
 	params.MaybeAddBool("dry_run", args.DryRun)
+	params.MaybeAdd("pool", args.Pool)
 	result, err := c.post("machines", "allocate", params.Values)
 	if err != nil {
 		// A 409 Status code is "No Matching Machines"

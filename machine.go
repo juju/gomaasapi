@@ -5,12 +5,11 @@ package gomaasapi
 
 import (
 	"fmt"
-	"net/http"
-	"net/url"
-
 	"github.com/juju/errors"
 	"github.com/juju/schema"
 	"github.com/juju/version"
+	"net/http"
+	"net/url"
 )
 
 type machine struct {
@@ -22,6 +21,7 @@ type machine struct {
 	hostname  string
 	fqdn      string
 	tags      []string
+	pool      string
 	ownerData map[string]string
 
 	operatingSystem string
@@ -62,6 +62,7 @@ func (m *machine) updateFrom(other *machine) {
 	m.zone = other.zone
 	m.tags = other.tags
 	m.ownerData = other.ownerData
+	m.pool = other.pool
 }
 
 // SystemID implements Machine.
@@ -82,6 +83,11 @@ func (m *machine) FQDN() string {
 // Tags implements Machine.
 func (m *machine) Tags() []string {
 	return m.tags
+}
+
+// Pool implements Machine
+func (m *machine) Pool() string {
+	return m.pool
 }
 
 // IPAddresses implements Machine.
@@ -494,6 +500,7 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 		"hostname":   schema.String(),
 		"fqdn":       schema.String(),
 		"tag_names":  schema.List(schema.String()),
+		"pool":       schema.String(),
 		"owner_data": schema.StringMap(schema.String()),
 
 		"osystem":       schema.String(),
@@ -559,6 +566,7 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 		hostname:  valid["hostname"].(string),
 		fqdn:      valid["fqdn"].(string),
 		tags:      convertToStringSlice(valid["tag_names"]),
+		pool:      valid["pool"].(string),
 		ownerData: convertToStringMap(valid["owner_data"]),
 
 		operatingSystem: valid["osystem"].(string),
