@@ -556,7 +556,7 @@ func (c *controller) AllocateMachine(args AllocateMachineArgs) (Machine, Constra
 	params.MaybeAdd("interfaces", args.interfaces())
 	params.MaybeAddMany("not_subnets", args.notSubnets())
 	params.MaybeAdd("zone", args.Zone)
-	params.MaybeAdd("pool", args.Pool)
+	params.MaybeAdd("pool", args.Pool.Name())
 	params.MaybeAddMany("not_in_zone", args.NotInZone)
 	params.MaybeAdd("agent_name", args.AgentName)
 	params.MaybeAdd("comment", args.Comment)
