@@ -152,6 +152,7 @@ type Zone interface {
 type Pool interface {
 	// The name of the resource pool
 	Name() string
+	Description() string
 }
 
 type Domain interface {
