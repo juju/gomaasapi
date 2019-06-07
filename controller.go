@@ -556,11 +556,11 @@ func (c *controller) AllocateMachine(args AllocateMachineArgs) (Machine, Constra
 	params.MaybeAdd("interfaces", args.interfaces())
 	params.MaybeAddMany("not_subnets", args.notSubnets())
 	params.MaybeAdd("zone", args.Zone)
+	params.MaybeAdd("pool", args.Pool)
 	params.MaybeAddMany("not_in_zone", args.NotInZone)
 	params.MaybeAdd("agent_name", args.AgentName)
 	params.MaybeAdd("comment", args.Comment)
 	params.MaybeAddBool("dry_run", args.DryRun)
-	params.MaybeAdd("pool", args.Pool)
 	result, err := c.post("machines", "allocate", params.Values)
 	if err != nil {
 		// A 409 Status code is "No Matching Machines"
