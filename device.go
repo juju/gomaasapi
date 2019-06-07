@@ -71,10 +71,12 @@ func (d *device) Zone() Zone {
 
 // Pool implements Device.
 func (d *device) Pool() Pool {
+	fmt.Println("GOT HERE front")
 	if d.pool == nil {
 		d.pool.name = ""
 		d.pool.description = "pool not set"
 	}
+	fmt.Println("GOT HERE back")
 	return d.pool
 }
 
