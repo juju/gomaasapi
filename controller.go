@@ -222,6 +222,23 @@ func (c *controller) Zones() ([]Zone, error) {
 	return result, nil
 }
 
+// Pools implements Controller.
+func (c *controller) Pools() ([]Pool, error) {
+	source, err := c.get("pools")
+	if err != nil {
+		return nil, NewUnexpectedError(err)
+	}
+	pools, err := readPools(c.apiVersion, source)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	var result []Pool
+	for _, p := range pools {
+		result = append(result, z)
+	}
+	return result, nil
+}
+
 // Domains implements Controller
 func (c *controller) Domains() ([]Domain, error) {
 	source, err := c.get("domains")
