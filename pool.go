@@ -14,12 +14,19 @@ type pool struct {
 	// controller Controller
 
 	resourceURI string
+
 	name        string
+	description string
 }
 
 // Name implements Pool.
 func (p *pool) Name() string {
 	return p.name
+}
+
+// Description implements Pool.
+func (p *pool) Description() string {
+	return p.description
 }
 
 func readPools(controllerVersion version.Number, source interface{}) ([]*pool, error) {
@@ -69,6 +76,7 @@ var poolDeserializationFuncs = map[version.Number]poolDeserializationFunc{
 func pool_2_0(source map[string]interface{}) (*pool, error) {
 	fields := schema.Fields{
 		"name":         schema.String(),
+		"description":  schema.String(),
 		"resource_uri": schema.String(),
 	}
 	checker := schema.FieldMap(fields, nil) // no defaults
@@ -82,6 +90,7 @@ func pool_2_0(source map[string]interface{}) (*pool, error) {
 
 	result := &pool{
 		name:        valid["name"].(string),
+		description: valid["description"].(string),
 		resourceURI: valid["resource_uri"].(string),
 	}
 	return result, nil

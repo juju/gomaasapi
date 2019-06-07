@@ -38,6 +38,9 @@ type Controller interface {
 	// Zones lists all the zones known to the MAAS controller.
 	Zones() ([]Zone, error)
 
+	// Pools lists all the pools known to the MAAS controller.
+	Pools() ([]Pool, error)
+
 	// Machines returns a list of machines that match the params.
 	Machines(MachinesArgs) ([]Machine, error)
 
@@ -312,7 +315,6 @@ type Interface interface {
 	Type() string
 	Enabled() bool
 	Tags() []string
-	Pool() Pool
 
 	VLAN() VLAN
 	Links() []Link
