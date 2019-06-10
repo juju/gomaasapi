@@ -267,6 +267,7 @@ type DevicesArgs struct {
 	SystemIDs    []string
 	Domain       string
 	Zone         string
+	Pool         string
 	AgentName    string
 }
 
