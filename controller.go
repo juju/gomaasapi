@@ -278,6 +278,7 @@ func (c *controller) Devices(args DevicesArgs) ([]Device, error) {
 	params.MaybeAddMany("id", args.SystemIDs)
 	params.MaybeAdd("domain", args.Domain)
 	params.MaybeAdd("zone", args.Zone)
+	params.MaybeAdd("pool", args.Pool)
 	params.MaybeAdd("agent_name", args.AgentName)
 	source, err := c.getQuery("devices", params.Values)
 	if err != nil {
@@ -341,6 +342,7 @@ type MachinesArgs struct {
 	SystemIDs    []string
 	Domain       string
 	Zone         string
+	Pool         string
 	AgentName    string
 	OwnerData    map[string]string
 }
@@ -353,6 +355,7 @@ func (c *controller) Machines(args MachinesArgs) ([]Machine, error) {
 	params.MaybeAddMany("id", args.SystemIDs)
 	params.MaybeAdd("domain", args.Domain)
 	params.MaybeAdd("zone", args.Zone)
+	params.MaybeAdd("pool", args.Pool)
 	params.MaybeAdd("agent_name", args.AgentName)
 	// At the moment the MAAS API doesn't support filtering by owner
 	// data so we do that ourselves below.

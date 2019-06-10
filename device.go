@@ -280,11 +280,13 @@ func device_2_0(source map[string]interface{}) (*device, error) {
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
+
 	zone, err := zone_2_0(valid["zone"].(map[string]interface{}))
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
-	pool, err := pool_2_0(valid["pool"].(map[string]interface{}))
+
+	pool, err := Pool2dot0(valid["pool"].(map[string]interface{}))
 	if err != nil {
 		return nil, errors.Trace(err)
 	}

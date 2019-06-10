@@ -50,7 +50,7 @@ func readPools(controllerVersion version.Number, source interface{}) ([]*pool, e
 	return readPoolList(valid, readFunc)
 }
 
-// readZoneList expects the values of the sourceList to be string maps.
+// readPoolList expects the values of the sourceList to be string maps.
 func readPoolList(sourceList []interface{}, readFunc poolDeserializationFunc) ([]*pool, error) {
 	result := make([]*pool, 0, len(sourceList))
 	for i, value := range sourceList {
@@ -70,16 +70,18 @@ func readPoolList(sourceList []interface{}, readFunc poolDeserializationFunc) ([
 type poolDeserializationFunc func(map[string]interface{}) (*pool, error)
 
 var poolDeserializationFuncs = map[version.Number]poolDeserializationFunc{
-	twoDotOh: pool_2_0,
+	twoDotOh: Pool2dot0,
 }
 
-func pool_2_0(source map[string]interface{}) (*pool, error) {
+func Pool2dot0(source map[string]interface{}) (*pool, error) {
 	fields := schema.Fields{
 		"name":         schema.String(),
 		"description":  schema.String(),
 		"resource_uri": schema.String(),
 	}
+
 	checker := schema.FieldMap(fields, nil) // no defaults
+
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
 		return nil, errors.Annotatef(err, "pool 2.0 schema check failed")
