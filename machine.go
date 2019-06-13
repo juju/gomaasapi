@@ -504,7 +504,6 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 		"hostname":   schema.String(),
 		"fqdn":       schema.String(),
 		"tag_names":  schema.List(schema.String()),
-		"pool":       schema.StringMap(schema.Any()),
 		"owner_data": schema.StringMap(schema.String()),
 
 		"osystem":       schema.String(),
@@ -521,6 +520,7 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 		"boot_interface": schema.OneOf(schema.Nil(""), schema.StringMap(schema.Any())),
 		"interface_set":  schema.List(schema.StringMap(schema.Any())),
 		"zone":           schema.StringMap(schema.Any()),
+		"pool":           schema.StringMap(schema.Any()),
 
 		"physicalblockdevice_set": schema.List(schema.StringMap(schema.Any())),
 		"blockdevice_set":         schema.List(schema.StringMap(schema.Any())),
@@ -528,6 +528,7 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 	defaults := schema.Defaults{
 		"architecture": "",
 	}
+	fmt.Printf("*** sources is: %+v\n", source)
 	checker := schema.FieldMap(fields, defaults)
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {

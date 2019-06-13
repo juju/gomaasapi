@@ -409,6 +409,7 @@ func (s *controllerSuite) TestMachinesArgs(c *gc.C) {
 		SystemIDs:    []string{"something-else"},
 		Domain:       "magic",
 		Zone:         "foo",
+		Pool:         "swimming_is_fun",
 		AgentName:    "agent 42",
 	})
 	request := s.server.LastRequest()

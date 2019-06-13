@@ -13,7 +13,6 @@ import (
 type pool struct {
 	// Add the controller in when we need to do things with the pool.
 	// controller Controller
-
 	resourceURI string
 
 	name        string
@@ -31,30 +30,37 @@ func (p *pool) Description() string {
 }
 
 func readPools(controllerVersion version.Number, source interface{}) ([]*pool, error) {
+	var deserialisationVersion version.Number
+
 	checker := schema.List(schema.StringMap(schema.Any()))
 	coerced, err := checker.Coerce(source, nil)
+
 	if err != nil {
 		return nil, errors.Annotatef(err, "pool base schema check failed")
 	}
+
 	valid := coerced.([]interface{})
 
-	var deserialisationVersion version.Number
 	for v := range poolDeserializationFuncs {
 		if v.Compare(deserialisationVersion) > 0 && v.Compare(controllerVersion) <= 0 {
 			deserialisationVersion = v
 		}
 	}
+
 	if deserialisationVersion == version.Zero {
 		return nil, errors.Errorf("no pool read func for version %s", controllerVersion)
 	}
+
 	readFunc := poolDeserializationFuncs[deserialisationVersion]
 	return readPoolList(valid, readFunc)
 }
 
 // readPoolList expects the values of the sourceList to be string maps.
 func readPoolList(sourceList []interface{}, readFunc poolDeserializationFunc) ([]*pool, error) {
-	fmt.Println("*************** Yeah, you got here! *******************")
+	fmt.Printf("sources: %+v\n", sourceList)
 	result := make([]*pool, 0, len(sourceList))
+
+	fmt.Printf("result: %+v\n", result)
 	for i, value := range sourceList {
 		source, ok := value.(map[string]interface{})
 		if !ok {
