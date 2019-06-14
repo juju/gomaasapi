@@ -287,6 +287,7 @@ func device_2_0(source map[string]interface{}) (*device, error) {
 	}
 
 	pool, err := pool_2_0(valid["pool"].(map[string]interface{}))
+
 	if err != nil {
 		return nil, errors.Trace(err)
 	}

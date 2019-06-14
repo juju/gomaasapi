@@ -15,6 +15,7 @@ var _ = gc.Suite(&poolSuite{})
 
 func (*poolSuite) TestReadPoolsBadSchema(c *gc.C) {
 	test_string := "blahfoob!"
+
 	_, err := readPools(twoDotOh, test_string)
 	c.Assert(err.Error(), gc.Equals, `pool base schema check failed: expected list, got string(%s)`, test_string)
 }
@@ -53,3 +54,4 @@ var poolResponse = `
     }
 ]
 `
+

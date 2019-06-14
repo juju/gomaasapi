@@ -4,7 +4,6 @@
 package gomaasapi
 
 import (
-	"fmt"
 	"github.com/juju/errors"
 	"github.com/juju/schema"
 	"github.com/juju/version"
@@ -13,6 +12,7 @@ import (
 type pool struct {
 	// Add the controller in when we need to do things with the pool.
 	// controller Controller
+
 	resourceURI string
 
 	name        string
@@ -57,10 +57,8 @@ func readPools(controllerVersion version.Number, source interface{}) ([]*pool, e
 
 // readPoolList expects the values of the sourceList to be string maps.
 func readPoolList(sourceList []interface{}, readFunc poolDeserializationFunc) ([]*pool, error) {
-	fmt.Printf("sources: %+v\n", sourceList)
 	result := make([]*pool, 0, len(sourceList))
 
-	fmt.Printf("result: %+v\n", result)
 	for i, value := range sourceList {
 		source, ok := value.(map[string]interface{})
 		if !ok {
@@ -82,7 +80,7 @@ var poolDeserializationFuncs = map[version.Number]poolDeserializationFunc{
 }
 
 func pool_2_0(source map[string]interface{}) (*pool, error) {
-	fields := schema.Fields{
+	fields := schema.Fields {
 		"name":         schema.String(),
 		"description":  schema.String(),
 		"resource_uri": schema.String(),
@@ -105,3 +103,4 @@ func pool_2_0(source map[string]interface{}) (*pool, error) {
 	}
 	return result, nil
 }
+

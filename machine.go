@@ -5,12 +5,11 @@ package gomaasapi
 
 import (
 	"fmt"
-	"net/http"
-	"net/url"
-
 	"github.com/juju/errors"
 	"github.com/juju/schema"
 	"github.com/juju/version"
+	"net/http"
+	"net/url"
 )
 
 type machine struct {
