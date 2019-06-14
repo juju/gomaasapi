@@ -5,11 +5,12 @@ package gomaasapi
 
 import (
 	"fmt"
+	"net/http"
+	"net/url"
+
 	"github.com/juju/errors"
 	"github.com/juju/schema"
 	"github.com/juju/version"
-	"net/http"
-	"net/url"
 )
 
 type machine struct {
@@ -527,7 +528,7 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 	defaults := schema.Defaults{
 		"architecture": "",
 	}
-	fmt.Printf("*** sources is: %+v\n", source)
+
 	checker := schema.FieldMap(fields, defaults)
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {

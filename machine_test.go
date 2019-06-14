@@ -63,6 +63,7 @@ func (*machineSuite) TestReadMachines(c *gc.C) {
 	c.Check(machine.CPUCount(), gc.Equals, 1)
 	c.Check(machine.PowerState(), gc.Equals, "on")
 	c.Check(machine.Zone().Name(), gc.Equals, "default")
+	c.Check(machine.Pool().Name(), gc.Equals, "default")
 	c.Check(machine.OperatingSystem(), gc.Equals, "ubuntu")
 	c.Check(machine.DistroSeries(), gc.Equals, "trusty")
 	c.Check(machine.Architecture(), gc.Equals, "amd64/generic")
@@ -732,6 +733,12 @@ const (
         "disable_ipv4": false,
         "status_message": "From 'Deploying' to 'Deployed'",
         "swap_size": null,
+        "pool": {
+            "name": "default",
+            "description": "machines in the default pool",
+            "id": 3,
+            "resource_uri": "/MAAS/api/2.0/resourcepool/3/"
+        },
         "blockdevice_set": [
             {
                 "path": "/dev/disk/by-dname/sda",
@@ -842,6 +849,11 @@ const (
             "resource_uri": "/MAAS/api/2.0/zones/default/",
             "name": "default"
         },
+        "pool": {
+            "description": "",
+            "resource_uri": "/MAAS/api/2.0/pools/default/",
+            "name": "default"
+        },
         "fqdn": "untasted-markita.maas",
         "storage": 8589.934592,
         "node_type": 0,
@@ -864,6 +876,11 @@ const (
 	"zone": {
 		"description": "",
 		"resource_uri": "/MAAS/api/2.0/zones/default/",
+		"name": "default"
+	},
+	"pool": {
+		"description": "",
+		"resource_uri": "/MAAS/api/2.0/pools/default/",
 		"name": "default"
 	},
 	"domain": {
@@ -1154,6 +1171,11 @@ var (
             "resource_uri": "/MAAS/api/2.0/zones/default/",
             "name": "default"
         },
+        "pool": {
+            "description": "",
+            "resource_uri": "/MAAS/api/2.0/pools/default/",
+            "name": "default"
+        },
         "fqdn": "lowlier-glady.maas",
         "storage": 8589.934592,
         "node_type": 0,
@@ -1398,6 +1420,11 @@ var (
         "zone": {
             "description": "",
             "resource_uri": "/MAAS/api/2.0/zones/default/",
+            "name": "default"
+        },
+        "pool": {
+            "description": "",
+            "resource_uri": "/MAAS/api/2.0/pools/default/",
             "name": "default"
         },
         "fqdn": "icier-nina.maas",

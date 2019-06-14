@@ -234,6 +234,11 @@ const (
             "resource_uri": "/MAAS/api/2.0/zones/default/",
             "name": "default"
         },
+		"pool": {
+            "description": "",
+            "resource_uri": "/MAAS/api/2.0/pools/default/",
+            "name": "default"
+        },
         "domain": {
             "resource_record_count": 0,
             "resource_uri": "/MAAS/api/2.0/domains/0/",

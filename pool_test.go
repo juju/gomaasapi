@@ -14,27 +14,30 @@ type poolSuite struct{}
 var _ = gc.Suite(&poolSuite{})
 
 func (*poolSuite) TestReadPoolsBadSchema(c *gc.C) {
-	test_string := "blahfoob!"
-
-	_, err := readPools(twoDotOh, test_string)
-	c.Assert(err.Error(), gc.Equals, `pool base schema check failed: expected list, got string(%s)`, test_string)
+	_, err := readPools(twoDotOh, "blahfoob")
+	c.Assert(err.Error(), gc.Equals, `pool base schema check failed: expected list, got string("blahfoob")`)
 }
 
 func (*poolSuite) TestReadPools(c *gc.C) {
 	pools, err := readPools(twoDotOh, parseJSON(c, poolResponse))
 	c.Assert(err, jc.ErrorIsNil)
+
 	c.Assert(pools, gc.HasLen, 2)
+
 	c.Assert(pools[0].Name(), gc.Equals, "default")
 	c.Assert(pools[0].Description(), gc.Equals, "default description")
-	c.Assert(pools[1].Name(), gc.Equals, "special")
-	c.Assert(pools[1].Description(), gc.Equals, "special description")
+
+	c.Assert(pools[1].Name(), gc.Equals, "swimming_is_fun")
+	c.Assert(pools[1].Description(), gc.Equals, "swimming is fun description")
 }
 
+// Pools were not introduced until 2.5.x
 func (*poolSuite) TestLowVersion(c *gc.C) {
 	_, err := readPools(version.MustParse("1.9.0"), parseJSON(c, poolResponse))
 	c.Assert(err.Error(), gc.Equals, `no pool read func for version 1.9.0`)
 }
 
+// MaaS 2.6.x is GA now.
 func (*poolSuite) TestHighVersion(c *gc.C) {
 	pools, err := readPools(version.MustParse("2.1.9"), parseJSON(c, poolResponse))
 	c.Assert(err, jc.ErrorIsNil)
@@ -48,9 +51,9 @@ var poolResponse = `
         "resource_uri": "/MAAS/api/2.0/pools/default/",
         "name": "default"
     }, {
-        "description": "special description",
-        "resource_uri": "/MAAS/api/2.0/pools/special/",
-        "name": "special"
+        "description": "swimming is fun description",
+        "resource_uri": "/MAAS/api/2.0/pools/swimming_is_fun/",
+        "name": "swimming_is_fun"
     }
 ]
 `
