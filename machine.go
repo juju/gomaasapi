@@ -504,7 +504,6 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 		"hostname":   schema.String(),
 		"fqdn":       schema.String(),
 		"tag_names":  schema.List(schema.String()),
-		"pool":       schema.StringMap(schema.Any()),
 		"owner_data": schema.StringMap(schema.String()),
 
 		"osystem":       schema.String(),
@@ -557,16 +556,9 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 		return nil, errors.Trace(err)
 	}
 
-	pool, err := Pool2dot0(valid["pool"].(map[string]interface{}))
+	pool, err := pool_2_0(valid["pool"].(map[string]interface{}))
 	if err != nil {
-<<<<<<< HEAD
-<<<<<<< HEAD
 
-=======
->>>>>>> c00d3cc... Implement pools
-=======
-
->>>>>>> 925e48d... Bugfixes missed in implementing Pool.
 		return nil, errors.Trace(err)
 	}
 
@@ -604,11 +596,7 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 		bootInterface:        bootInterface,
 		interfaceSet:         interfaceSet,
 		zone:                 zone,
-<<<<<<< HEAD
 		pool:                 pool,
-=======
-		pool:      			  pool,
->>>>>>> c00d3cc... Implement pools
 		physicalBlockDevices: physicalBlockDevices,
 		blockDevices:         blockDevices,
 	}
