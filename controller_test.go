@@ -53,6 +53,7 @@ func (s *controllerSuite) SetUpTest(c *gc.C) {
 	server.AddGetResponse("/api/2.0/users/?op=whoami", http.StatusOK, `"captain awesome"`)
 	server.AddGetResponse("/api/2.0/version/", http.StatusOK, versionResponse)
 	server.AddGetResponse("/api/2.0/zones/", http.StatusOK, zoneResponse)
+	server.AddGetResponse("/api/2.0/pools/", http.StatusOK, poolResponse)
 	server.Start()
 	s.AddCleanup(func(*gc.C) { server.Close() })
 	s.server = server
@@ -343,6 +344,13 @@ func (s *controllerSuite) TestZones(c *gc.C) {
 	c.Assert(zones, gc.HasLen, 2)
 }
 
+func (s *controllerSuite) TestPools(c *gc.C) {
+	controller := s.getController(c)
+	pools, err := controller.Pools()
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(pools, gc.HasLen, 2)
+}
+
 func (s *controllerSuite) TestMachines(c *gc.C) {
 	controller := s.getController(c)
 	machines, err := controller.Machines(MachinesArgs{})
@@ -409,11 +417,12 @@ func (s *controllerSuite) TestMachinesArgs(c *gc.C) {
 		SystemIDs:    []string{"something-else"},
 		Domain:       "magic",
 		Zone:         "foo",
+		Pool:         "swimming_is_fun",
 		AgentName:    "agent 42",
 	})
 	request := s.server.LastRequest()
 	// There should be one entry in the form values for each of the args.
-	c.Assert(request.URL.Query(), gc.HasLen, 6)
+	c.Assert(request.URL.Query(), gc.HasLen, 7)
 }
 
 func (s *controllerSuite) TestStorageSpec(c *gc.C) {
@@ -696,6 +705,7 @@ func (s *controllerSuite) TestAllocateMachineArgsForm(c *gc.C) {
 		Interfaces:   []InterfaceSpec{{Label: "default", Space: "magic"}},
 		NotSpace:     []string{"special"},
 		Zone:         "magic",
+		Pool:         "swimming_is_fun",
 		NotInZone:    []string{"not-magic"},
 		AgentName:    "agent 42",
 		Comment:      "testing",
@@ -707,7 +717,7 @@ func (s *controllerSuite) TestAllocateMachineArgsForm(c *gc.C) {
 	request := s.server.LastRequest()
 	// There should be one entry in the form values for each of the args.
 	form := request.PostForm
-	c.Assert(form, gc.HasLen, 15)
+	c.Assert(form, gc.HasLen, 16)
 	// Positive space check.
 	c.Assert(form.Get("interfaces"), gc.Equals, "default:space=magic")
 	// Negative space check.
