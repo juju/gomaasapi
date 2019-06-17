@@ -471,7 +471,7 @@ const (
     "parents": ["bond0"],
     "id": 40,
     "type": "physical",
-    "resource_uri": "/maas/api/2.0/nodes/4y3ha6/interfaces/40/",
+    "resource_uri": "/MAAS/api/2.0/nodes/4y3ha6/interfaces/40/",
     "tags": null,
     "links": [
         {
