@@ -43,6 +43,9 @@ func (*deviceSuite) TestReadDevices(c *gc.C) {
 	zone := device.Zone()
 	c.Check(zone, gc.NotNil)
 	c.Check(zone.Name(), gc.Equals, "default")
+	pool := device.Pool()
+	c.Check(pool, gc.NotNil)
+	c.Check(pool.Name(), gc.Equals, "default")
 }
 
 func (*deviceSuite) TestReadDevicesNils(c *gc.C) {
@@ -50,6 +53,7 @@ func (*deviceSuite) TestReadDevicesNils(c *gc.C) {
 	deviceMap := json.([]interface{})[0].(map[string]interface{})
 	deviceMap["owner"] = nil
 	deviceMap["parent"] = nil
+	deviceMap["pool"] = nil
 	devices, err := readDevices(twoDotOh, json)
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(devices, gc.HasLen, 1)
@@ -57,6 +61,7 @@ func (*deviceSuite) TestReadDevicesNils(c *gc.C) {
 	device := devices[0]
 	c.Check(device.Owner(), gc.Equals, "")
 	c.Check(device.Parent(), gc.Equals, "")
+	c.Check(device.Pool(), gc.IsNil)
 }
 
 func (*deviceSuite) TestLowVersion(c *gc.C) {
@@ -234,7 +239,7 @@ const (
             "resource_uri": "/MAAS/api/2.0/zones/default/",
             "name": "default"
         },
-		"pool": {
+        "pool": {
             "description": "",
             "resource_uri": "/MAAS/api/2.0/pools/default/",
             "name": "default"

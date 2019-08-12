@@ -261,7 +261,7 @@ func device_2_0(source map[string]interface{}) (*device, error) {
 		"ip_addresses":  schema.List(schema.String()),
 		"interface_set": schema.List(schema.StringMap(schema.Any())),
 		"zone":          schema.StringMap(schema.Any()),
-		"pool":          schema.StringMap(schema.Any()),
+		"pool":          schema.OneOf(schema.Nil(""), schema.StringMap(schema.Any())),
 	}
 	defaults := schema.Defaults{
 		"owner":  "",
@@ -286,11 +286,13 @@ func device_2_0(source map[string]interface{}) (*device, error) {
 		return nil, errors.Trace(err)
 	}
 
-	pool, err := pool_2_0(valid["pool"].(map[string]interface{}))
-
-	if err != nil {
-		return nil, errors.Trace(err)
+	var pool *pool
+	if valid["pool"] != nil {
+		if pool, err = pool_2_0(valid["pool"].(map[string]interface{})); err != nil {
+			return nil, errors.Trace(err)
+		}
 	}
+
 	owner, _ := valid["owner"].(string)
 	parent, _ := valid["parent"].(string)
 	result := &device{
