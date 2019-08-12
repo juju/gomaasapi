@@ -2039,7 +2039,6 @@ func (suite *TestMAASObjectSuite) TestAcquireFilterTag(c *C) {
 	c.Assert(err, IsNil)
 	acquiredNode, err := jsonResponse.GetMAASObject()
 	c.Assert(err, IsNil)
-	fmt.Printf("%v\n", acquiredNode)
 	tag, _ := acquiredNode.GetField("tag_names")
 	c.Assert(tag, Equals, "GPU")
 }
