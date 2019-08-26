@@ -520,7 +520,7 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 		"boot_interface": schema.OneOf(schema.Nil(""), schema.StringMap(schema.Any())),
 		"interface_set":  schema.List(schema.StringMap(schema.Any())),
 		"zone":           schema.StringMap(schema.Any()),
-		"pool":           schema.StringMap(schema.Any()),
+		"pool":           schema.OneOf(schema.Nil(""), schema.Any()),
 
 		"physicalblockdevice_set": schema.List(schema.StringMap(schema.Any())),
 		"blockdevice_set":         schema.List(schema.StringMap(schema.Any())),
@@ -556,10 +556,11 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 		return nil, errors.Trace(err)
 	}
 
-	pool, err := pool_2_0(valid["pool"].(map[string]interface{}))
-	if err != nil {
-
-		return nil, errors.Trace(err)
+	var pool *pool
+	if valid["pool"] != nil {
+		if pool, err = pool_2_0(valid["pool"].(map[string]interface{})); err != nil {
+			return nil, errors.Trace(err)
+		}
 	}
 
 	physicalBlockDevices, err := readBlockDeviceList(valid["physicalblockdevice_set"].([]interface{}), blockdevice_2_0)

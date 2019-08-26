@@ -80,7 +80,7 @@ var poolDeserializationFuncs = map[version.Number]poolDeserializationFunc{
 }
 
 func pool_2_0(source map[string]interface{}) (*pool, error) {
-	fields := schema.Fields {
+	fields := schema.Fields{
 		"name":         schema.String(),
 		"description":  schema.String(),
 		"resource_uri": schema.String(),
@@ -103,4 +103,3 @@ func pool_2_0(source map[string]interface{}) (*pool, error) {
 	}
 	return result, nil
 }
-
