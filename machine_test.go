@@ -94,6 +94,10 @@ func (*machineSuite) TestReadMachines(c *gc.C) {
 	id = blockDevices[0].ID()
 	c.Assert(machine.PhysicalBlockDevice(id), jc.DeepEquals, blockDevices[0])
 	c.Assert(machine.PhysicalBlockDevice(id+5), gc.IsNil)
+
+	pool := machine.Pool()
+	c.Check(pool, gc.NotNil)
+	c.Check(pool.Name(), gc.Equals, "default")
 }
 
 func (*machineSuite) TestReadMachinesNilValues(c *gc.C) {
@@ -102,6 +106,7 @@ func (*machineSuite) TestReadMachinesNilValues(c *gc.C) {
 	data["architecture"] = nil
 	data["status_message"] = nil
 	data["boot_interface"] = nil
+	data["pool"] = nil
 	machines, err := readMachines(twoDotOh, json)
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(machines, gc.HasLen, 3)
@@ -109,6 +114,7 @@ func (*machineSuite) TestReadMachinesNilValues(c *gc.C) {
 	c.Check(machine.Architecture(), gc.Equals, "")
 	c.Check(machine.StatusMessage(), gc.Equals, "")
 	c.Check(machine.BootInterface(), gc.IsNil)
+	c.Check(machine.Pool(), gc.IsNil)
 }
 
 func (*machineSuite) TestLowVersion(c *gc.C) {
