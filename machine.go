@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/juju/errors"
 	"github.com/juju/schema"
@@ -245,6 +246,65 @@ func (m *machine) Devices(args DevicesArgs) ([]Device, error) {
 		}
 	}
 	return result, nil
+}
+
+// CommissionArgs is an argument struct for passing parameters to the Machine.Comission
+// method.
+type CommissionArgs struct {
+	// UserData needs to be Base64 encoded user data for cloud-init.
+	EnableSSH            *bool
+	SkipBMCConfig        *bool
+	SkipNetworking       *bool
+	SkipStorage          *bool
+	CommissioningScripts []string
+	TestingScripts       []string
+}
+
+// Commission implements Machine.
+func (m *machine) Commision(args CommissionArgs) error {
+	params := NewURLParams()
+	addBool := func(name string, value *bool) {
+		if value == nil || !*value {
+			params.MaybeAdd(name, "0")
+		} else {
+			params.MaybeAdd(name, "1")
+		}
+	}
+	addBool("enable_ssh", args.EnableSSH)
+	addBool("skip_bnc_config", args.SkipBMCConfig)
+	addBool("skip_networking", args.SkipNetworking)
+	addBool("skip_storage", args.SkipStorage)
+	if args.CommissioningScripts != nil {
+		value := strings.Join(args.CommissioningScripts, ",")
+		params.MaybeAdd("commissioning_scripts", value)
+
+	}
+	if args.TestingScripts != nil {
+		value := strings.Join(args.TestingScripts, ",")
+		params.MaybeAdd("testing_scripts", value)
+
+	}
+	result, err := m.controller.post(m.resourceURI, "commission", params.Values)
+	if err != nil {
+		if svrErr, ok := errors.Cause(err).(ServerError); ok {
+			switch svrErr.StatusCode {
+			case http.StatusNotFound, http.StatusConflict:
+				return errors.Wrap(err, NewBadRequestError(svrErr.BodyMessage))
+			case http.StatusForbidden:
+				return errors.Wrap(err, NewPermissionError(svrErr.BodyMessage))
+			case http.StatusServiceUnavailable:
+				return errors.Wrap(err, NewCannotCompleteError(svrErr.BodyMessage))
+			}
+		}
+		return NewUnexpectedError(err)
+	}
+
+	machine, err := readMachine(m.controller.apiVersion, result)
+	if err != nil {
+		return errors.Trace(err)
+	}
+	m.updateFrom(machine)
+	return nil
 }
 
 // StartArgs is an argument struct for passing parameters to the Machine.Start

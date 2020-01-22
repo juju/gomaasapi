@@ -5,6 +5,7 @@ go 1.13
 require (
 	github.com/juju/collections v0.0.0-20180515203731-520e0549d51a
 	github.com/juju/errors v0.0.0-20150916125642-1b5e39b83d18
+	github.com/juju/gomaasapi v0.0.0-20190826212825-0ab1eb636aba
 	github.com/juju/loggo v0.0.0-20170605014607-8232ab8918d9
 	github.com/juju/retry v0.0.0-20151029024821-62c620325291
 	github.com/juju/schema v0.0.0-20160420044203-075de04f9b7d
