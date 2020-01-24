@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/juju/errors"
 	"github.com/juju/schema"
@@ -285,6 +286,54 @@ func (m *machine) Start(args StartArgs) error {
 	}
 	m.updateFrom(machine)
 	return nil
+}
+
+// CreateMachineBondArgs is the argument structure for Machine.CreateBond
+type CreateMachineBondArgs struct {
+	UpdateInterfaceArgs
+	Parents []Interface
+}
+
+func (a *CreateMachineBondArgs) toParams() *URLParams {
+	params := a.UpdateInterfaceArgs.toParams()
+	parents := []string{}
+	for _, p := range a.Parents {
+		parents = append(parents, fmt.Sprintf("%d", p.ID()))
+	}
+	params.MaybeAdd("parents", strings.Join(parents, ","))
+	return params
+}
+
+// Validate ensures that all required values are non-emtpy.
+func (a *CreateMachineBondArgs) Validate() error {
+	return nil
+}
+
+// CreateBond implements Machine
+func (m *machine) CreateBond(args CreateMachineBondArgs) (_ Interface, err error) {
+	if err := args.Validate(); err != nil {
+		return nil, errors.Trace(err)
+	}
+
+	params := args.toParams()
+	source, err := m.controller.post(m.resourceURI+"interfaces/", "create_bond", params.Values)
+	if err != nil {
+		if svrErr, ok := errors.Cause(err).(ServerError); ok {
+			switch svrErr.StatusCode {
+			case http.StatusNotFound:
+				return nil, errors.Wrap(err, NewNoMatchError(svrErr.BodyMessage))
+			case http.StatusForbidden:
+				return nil, errors.Wrap(err, NewPermissionError(svrErr.BodyMessage))
+			}
+		}
+		return nil, NewUnexpectedError(err)
+	}
+
+	response, err := readInterface(m.controller.apiVersion, source)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	return response, nil
 }
 
 // CreateMachineDeviceArgs is an argument structure for Machine.CreateDevice.
