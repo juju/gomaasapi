@@ -234,6 +234,9 @@ type Machine interface {
 	// specified. If there is no match, nil is returned.
 	Interface(id int) Interface
 
+	// Update allows editing of some of the machine's properties
+	Update(args UpdateMachineArgs) error
+
 	// CreateBond creates a bond with the provided interfaces and returns the
 	// newly created bond interface.
 	CreateBond(args CreateMachineBondArgs) (Interface, error)

@@ -248,7 +248,55 @@ func (m *machine) Devices(args DevicesArgs) ([]Device, error) {
 	return result, nil
 }
 
-// CommisionArgs is an argument struct for Machine.Commission
+// UpdateMachineArgs is arguments for machine.Update
+type UpdateMachineArgs struct {
+	Hostname      string
+	Domain        string
+	PowerType     string
+	PowerAddress  string
+	PowerUser     string
+	PowerPassword string
+	PowerOpts     map[string]string
+}
+
+// Update implementes Machine
+func (m *machine) Update(args UpdateMachineArgs) error {
+	params := NewURLParams()
+	params.MaybeAdd("hostname", args.Hostname)
+	params.MaybeAdd("domain", args.Domain)
+	params.MaybeAdd("power_type", args.PowerType)
+	params.MaybeAdd("power_parameters_power_user", args.PowerUser)
+	params.MaybeAdd("power_parameters_power_password", args.PowerUser)
+	params.MaybeAdd("power_parameters_power_address", args.PowerAddress)
+	if args.PowerOpts != nil {
+		for k, v := range args.PowerOpts {
+			params.MaybeAdd(fmt.Sprintf("power_parameters_%s", k), v)
+		}
+	}
+	result, err := m.controller.put(m.resourceURI, params.Values)
+	if err != nil {
+		if svrErr, ok := errors.Cause(err).(ServerError); ok {
+			switch svrErr.StatusCode {
+			case http.StatusNotFound, http.StatusConflict:
+				return errors.Wrap(err, NewBadRequestError(svrErr.BodyMessage))
+			case http.StatusForbidden:
+				return errors.Wrap(err, NewPermissionError(svrErr.BodyMessage))
+			case http.StatusServiceUnavailable:
+				return errors.Wrap(err, NewCannotCompleteError(svrErr.BodyMessage))
+			}
+		}
+		return NewUnexpectedError(err)
+	}
+
+	machine, err := readMachine(m.controller.apiVersion, result)
+	if err != nil {
+		return errors.Trace(err)
+	}
+	m.updateFrom(machine)
+	return nil
+}
+
+// CommissionArgs is an argument struct for Machine.Commission
 type CommissionArgs struct {
 	EnableSSH            bool
 	SkipBMCConfig        bool
