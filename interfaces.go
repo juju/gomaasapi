@@ -257,6 +257,9 @@ type Machine interface {
 	Zone() Zone
 	Pool() Pool
 
+	// Commision makes a new node Ready
+	Commission(CommissionArgs) error
+
 	// Start the machine and install the operating system specified in the args.
 	Start(StartArgs) error
 

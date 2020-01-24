@@ -248,6 +248,48 @@ func (m *machine) Devices(args DevicesArgs) ([]Device, error) {
 	return result, nil
 }
 
+// CommisionArgs is an argument struct for Machine.Commission
+type CommissionArgs struct {
+	EnableSSH            bool
+	SkipBMCConfig        bool
+	SkipNetworking       bool
+	SkipStorage          bool
+	CommissioningScripts []string
+	TestingScripts       []string
+}
+
+func (m *machine) Commission(args CommissionArgs) error {
+	params := NewURLParams()
+	params.MaybeAddBool("enableSSH", args.EnableSSH)
+	params.MaybeAddBool("skip_bmc_config", args.SkipBMCConfig)
+	params.MaybeAddBool("skip_networking", args.SkipNetworking)
+	params.MaybeAddBool("skip_storage", args.SkipStorage)
+	params.MaybeAdd("commissioning_scripts", strings.Join(args.CommissioningScripts, ","))
+	params.MaybeAdd("testing_scripts", strings.Join(args.TestingScripts, ","))
+
+	result, err := m.controller.post(m.resourceURI, "commission", params.Values)
+	if err != nil {
+		if svrErr, ok := errors.Cause(err).(ServerError); ok {
+			switch svrErr.StatusCode {
+			case http.StatusNotFound, http.StatusConflict:
+				return errors.Wrap(err, NewBadRequestError(svrErr.BodyMessage))
+			case http.StatusForbidden:
+				return errors.Wrap(err, NewPermissionError(svrErr.BodyMessage))
+			case http.StatusServiceUnavailable:
+				return errors.Wrap(err, NewCannotCompleteError(svrErr.BodyMessage))
+			}
+		}
+		return NewUnexpectedError(err)
+	}
+
+	machine, err := readMachine(m.controller.apiVersion, result)
+	if err != nil {
+		return errors.Trace(err)
+	}
+	m.updateFrom(machine)
+	return nil
+}
+
 // StartArgs is an argument struct for passing parameters to the Machine.Start
 // method.
 type StartArgs struct {
