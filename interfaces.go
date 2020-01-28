@@ -52,6 +52,9 @@ type Controller interface {
 	// from the user making them available to be allocated again.
 	ReleaseMachines(ReleaseMachinesArgs) error
 
+	// CreateMachine will create a new machine with the provided parameters
+	CreateMachine(CreateMachineArgs) (Machine, error)
+
 	// Devices returns a list of devices that match the params.
 	Devices(DevicesArgs) ([]Device, error)
 

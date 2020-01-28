@@ -259,20 +259,31 @@ type UpdateMachineArgs struct {
 	PowerOpts     map[string]string
 }
 
-// Update implementes Machine
-func (m *machine) Update(args UpdateMachineArgs) error {
+// Validate ensures the arguments are acceptable
+func (a *UpdateMachineArgs) Validate() error {
+	return nil
+}
+
+// ToParams converts arguments to URL parameters
+func (a *UpdateMachineArgs) ToParams() *URLParams {
 	params := NewURLParams()
-	params.MaybeAdd("hostname", args.Hostname)
-	params.MaybeAdd("domain", args.Domain)
-	params.MaybeAdd("power_type", args.PowerType)
-	params.MaybeAdd("power_parameters_power_user", args.PowerUser)
-	params.MaybeAdd("power_parameters_power_password", args.PowerUser)
-	params.MaybeAdd("power_parameters_power_address", args.PowerAddress)
-	if args.PowerOpts != nil {
-		for k, v := range args.PowerOpts {
+	params.MaybeAdd("hostname", a.Hostname)
+	params.MaybeAdd("domain", a.Domain)
+	params.MaybeAdd("power_type", a.PowerType)
+	params.MaybeAdd("power_parameters_power_user", a.PowerUser)
+	params.MaybeAdd("power_parameters_power_password", a.PowerUser)
+	params.MaybeAdd("power_parameters_power_address", a.PowerAddress)
+	if a.PowerOpts != nil {
+		for k, v := range a.PowerOpts {
 			params.MaybeAdd(fmt.Sprintf("power_parameters_%s", k), v)
 		}
 	}
+	return params
+}
+
+// Update implementes Machine
+func (m *machine) Update(args UpdateMachineArgs) error {
+	params := args.ToParams()
 	result, err := m.controller.put(m.resourceURI, params.Values)
 	if err != nil {
 		if svrErr, ok := errors.Cause(err).(ServerError); ok {

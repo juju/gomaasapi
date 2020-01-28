@@ -335,6 +335,61 @@ func (c *controller) CreateDevice(args CreateDeviceArgs) (Device, error) {
 	return device, nil
 }
 
+// CreateMachineArgs is a argument struct for passing information into CreateDevice.
+type CreateMachineArgs struct {
+	UpdateMachineArgs
+	Architecture string
+	Description  string
+	MACAddresses []string
+}
+
+// Validate ensures the arguments are acceptable
+func (a *CreateMachineArgs) Validate() error {
+	if err := a.UpdateMachineArgs.Validate(); err != nil {
+		return err
+	}
+	if len(a.MACAddresses) == 0 {
+		return fmt.Errorf("at least one MAC address must be specified")
+	}
+
+	return nil
+}
+
+// ToParams converts arguments to URL parameters
+func (a *CreateMachineArgs) ToParams() *URLParams {
+	params := a.UpdateMachineArgs.ToParams()
+	params.MaybeAdd("architecture", a.Architecture)
+	params.MaybeAdd("description", a.Description)
+	params.MaybeAddMany("mac_addresses", a.MACAddresses)
+	return params
+}
+
+// CreateMachine implements Controller.
+func (c *controller) CreateMachine(args CreateMachineArgs) (Machine, error) {
+	// There must be at least one mac address.
+	if err := args.Validate(); err != nil {
+		return nil, errors.NewBadRequest(err, "Invalid CreateMachine arguments")
+	}
+	params := args.ToParams()
+	result, err := c.post("machines", "", params.Values)
+	if err != nil {
+		if svrErr, ok := errors.Cause(err).(ServerError); ok {
+			if svrErr.StatusCode == http.StatusBadRequest {
+				return nil, errors.Wrap(err, NewBadRequestError(svrErr.BodyMessage))
+			}
+		}
+		// Translate http errors.
+		return nil, NewUnexpectedError(err)
+	}
+
+	machine, err := readMachine(c.apiVersion, result)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	machine.controller = c
+	return machine, nil
+}
+
 // MachinesArgs is a argument struct for selecting Machines.
 // Only machines that match the specified criteria are returned.
 type MachinesArgs struct {
