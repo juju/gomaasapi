@@ -72,6 +72,15 @@ type Controller interface {
 
 	// Returns the DNS Domain Managed By MAAS
 	Domains() ([]Domain, error)
+
+	// Returns the set of all tags
+	Tags() ([]Tag, error)
+
+	// Retuns a aspecific tag or an error if it doesn't exist
+	GetTag(name string) (Tag, error)
+
+	// Creates a new tag, or returns an error if the tag already exists
+	CreateTag(args CreateTagArgs) (Tag, error)
 }
 
 // File represents a file stored in the MAAS controller.
@@ -426,4 +435,14 @@ type OwnerDataHolder interface {
 	// its value to "". All owner data is cleared when the object is
 	// released.
 	SetOwnerData(map[string]string) error
+}
+
+// Tag represents a MaaS device tag
+type Tag interface {
+	Name() string
+	Definition() string
+	Comment() string
+	Machines() ([]Machine, error)
+	AddToMachine(Machine) error
+	RemoveFromMachine(Machine) error
 }

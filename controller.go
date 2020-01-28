@@ -754,6 +754,66 @@ func (c *controller) AddFile(args AddFileArgs) error {
 	return nil
 }
 
+func (c *controller) Tags() ([]Tag, error) {
+	source, err := c.getQuery("tags", url.Values{})
+	if err != nil {
+		return nil, NewUnexpectedError(err)
+	}
+	tags, err := readTags(c.apiVersion, source)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	var result []Tag
+	for _, t := range tags {
+		t.controller = c
+		result = append(result, t)
+	}
+	return result, nil
+}
+
+func (c *controller) GetTag(name string) (Tag, error) {
+	source, err := c.getQuery("tags/"+name, url.Values{})
+	if err != nil {
+		return nil, NewUnexpectedError(err)
+	}
+	tag, err := readTag(c.apiVersion, source)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	tag.controller = c
+	return tag, nil
+}
+
+// CreateTagArgs are creation parameters
+type CreateTagArgs struct {
+	Name       string
+	Comment    string
+	Definition string
+}
+
+// Validate ensures arguments are valid
+func (a *CreateTagArgs) Validate() error {
+	if a.Name == "" {
+		return fmt.Errorf("Missing name value")
+	}
+	return nil
+}
+
+func (c *controller) CreateTag(args CreateTagArgs) (Tag, error) {
+	if err := args.Validate(); err != nil {
+		return nil, err
+	}
+	params := NewURLParams()
+	params.MaybeAdd("name", args.Name)
+	params.MaybeAdd("comment", args.Comment)
+	params.MaybeAdd("definition", args.Definition)
+	result, err := c.post("tags", "", params.Values)
+	if err != nil {
+		return nil, err
+	}
+	return readTag(c.apiVersion, result)
+}
+
 func (c *controller) checkCreds() error {
 	if _, err := c.getOp("users", "whoami"); err != nil {
 		if svrErr, ok := errors.Cause(err).(ServerError); ok {
