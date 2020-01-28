@@ -581,6 +581,14 @@ func (m *machine) SetOwnerData(ownerData map[string]string) error {
 	return nil
 }
 
+func (m *machine) Delete() error {
+	err := m.controller.delete(m.resourceURI)
+	if err != nil {
+		return errors.Trace(err)
+	}
+	return nil
+}
+
 func readMachine(controllerVersion version.Number, source interface{}) (*machine, error) {
 	readFunc, err := getMachineDeserializationFunc(controllerVersion)
 	if err != nil {

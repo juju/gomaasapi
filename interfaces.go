@@ -281,6 +281,9 @@ type Machine interface {
 	// CreateDevice creates a new Device with this Machine as the parent.
 	// The device will have one interface that is linked to the specified subnet.
 	CreateDevice(CreateMachineDeviceArgs) (Device, error)
+
+	// Delete removes the machine from maas
+	Delete() error
 }
 
 // Space is a name for a collection of Subnets.
@@ -446,6 +449,6 @@ type Tag interface {
 	Definition() string
 	Comment() string
 	Machines() ([]Machine, error)
-	AddToMachine(Machine) error
-	RemoveFromMachine(Machine) error
+	AddToMachine(systemID string) error
+	RemoveFromMachine(systemID string) error
 }

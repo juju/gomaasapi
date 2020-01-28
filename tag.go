@@ -49,17 +49,17 @@ func (s *tag) Machines() ([]Machine, error) {
 	return result, nil
 }
 
-func (s *tag) AddToMachine(machine Machine) error {
+func (s *tag) AddToMachine(systemID string) error {
 	params := url.Values{
-		"add": []string{machine.SystemID()},
+		"add": []string{systemID},
 	}
 	_, err := s.controller.post(s.resourceURI, "update_nodes", params)
 	return err
 }
 
-func (s *tag) RemoveFromMachine(machine Machine) error {
+func (s *tag) RemoveFromMachine(systemID string) error {
 	params := url.Values{
-		"remove": []string{machine.SystemID()},
+		"remove": []string{systemID},
 	}
 	_, err := s.controller.post(s.resourceURI, "update_nodes", params)
 	return err
