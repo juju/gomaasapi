@@ -340,6 +340,7 @@ type CreateMachineArgs struct {
 	UpdateMachineArgs
 	Architecture string
 	Description  string
+	Commission   bool
 	MACAddresses []string
 }
 
@@ -361,6 +362,11 @@ func (a *CreateMachineArgs) ToParams() *URLParams {
 	params.MaybeAdd("architecture", a.Architecture)
 	params.MaybeAdd("description", a.Description)
 	params.MaybeAddMany("mac_addresses", a.MACAddresses)
+	if a.Commission {
+		params.MaybeAdd("commission", "true")
+	} else {
+		params.MaybeAdd("commission", "false")
+	}
 	return params
 }
 
