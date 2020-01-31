@@ -44,6 +44,9 @@ type Controller interface {
 	// Machines returns a list of machines that match the params.
 	Machines(MachinesArgs) ([]Machine, error)
 
+	// GetMachine gets a single machine
+	GetMachine(systemID string) (Machine, error)
+
 	// AllocateMachine will attempt to allocate a machine to the user.
 	// If successful, the allocated machine is returned.
 	AllocateMachine(AllocateMachineArgs) (Machine, ConstraintMatches, error)

@@ -439,6 +439,19 @@ func (c *controller) Machines(args MachinesArgs) ([]Machine, error) {
 	return result, nil
 }
 
+func (c *controller) GetMachine(systemID string) (Machine, error) {
+	source, err := c.getQuery("machines/"+systemID, url.Values{})
+	if err != nil {
+		return nil, NewUnexpectedError(err)
+	}
+	m, err := readMachine(c.apiVersion, source)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	m.controller = c
+	return m, nil
+}
+
 func ownerDataMatches(ownerData, filter map[string]string) bool {
 	for key, value := range filter {
 		if ownerData[key] != value {
