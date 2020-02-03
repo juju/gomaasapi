@@ -27,6 +27,7 @@ type machine struct {
 
 	operatingSystem string
 	distroSeries    string
+	hweKernel       string
 	architecture    string
 	memory          int
 	cpuCount        int
@@ -161,6 +162,11 @@ func (m *machine) OperatingSystem() string {
 // DistroSeries implements Machine.
 func (m *machine) DistroSeries() string {
 	return m.distroSeries
+}
+
+// HWEKernel implements Machine.
+func (m *machine) HWEKernel() string {
+	return m.hweKernel
 }
 
 // Architecture implements Machine.
@@ -666,6 +672,7 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 
 		"osystem":       schema.String(),
 		"distro_series": schema.String(),
+		"hwe_kernel":    schema.OneOf(schema.Nil(""), schema.String()),
 		"architecture":  schema.OneOf(schema.Nil(""), schema.String()),
 		"memory":        schema.ForceInt(),
 		"cpu_count":     schema.ForceInt(),
@@ -732,6 +739,7 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 	}
 	architecture, _ := valid["architecture"].(string)
 	statusMessage, _ := valid["status_message"].(string)
+	hweKernel, _ := valid["hwe_kernel"].(string)
 	result := &machine{
 		resourceURI: valid["resource_uri"].(string),
 
@@ -743,6 +751,7 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 
 		operatingSystem: valid["osystem"].(string),
 		distroSeries:    valid["distro_series"].(string),
+		hweKernel:       hweKernel,
 		architecture:    architecture,
 		memory:          valid["memory"].(int),
 		cpuCount:        valid["cpu_count"].(int),

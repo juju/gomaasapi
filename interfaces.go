@@ -223,6 +223,7 @@ type Machine interface {
 
 	OperatingSystem() string
 	DistroSeries() string
+	HWEKernel() string
 	Architecture() string
 	Memory() int
 	CPUCount() int
