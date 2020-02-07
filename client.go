@@ -12,27 +12,18 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
-	"strconv"
 	"strings"
-	"time"
 
+	"github.com/hashicorp/go-retryablehttp"
 	"github.com/juju/errors"
-)
-
-const (
-	// Number of retries performed when the server returns a 503
-	// response with a 'Retry-after' header.  A request will be issued
-	// at most NumberOfRetries + 1 times.
-	NumberOfRetries = 4
-
-	RetryAfterHeaderName = "Retry-After"
 )
 
 // Client represents a way to communicating with a MAAS API instance.
 // It is stateless, so it can have concurrent requests in progress.
 type Client struct {
-	APIURL *url.URL
-	Signer OAuthSigner
+	APIURL     *url.URL
+	Signer     OAuthSigner
+	httpClient *retryablehttp.Client
 }
 
 // ServerError is an http error (or at least, a non-2xx result) received from
@@ -70,48 +61,14 @@ func readAndClose(stream io.ReadCloser) ([]byte, error) {
 // returned error will be ServerError and the returned body will reflect the
 // server's response.  If the server returns a 503 response with a 'Retry-after'
 // header, the request will be transparenty retried.
-func (client Client) dispatchRequest(request *http.Request) ([]byte, error) {
-	// First, store the request's body into a byte[] to be able to restore it
-	// after each request.
-	bodyContent, err := readAndClose(request.Body)
-	if err != nil {
-		return nil, err
-	}
-	for retry := 0; retry < NumberOfRetries; retry++ {
-		// Restore body before issuing request.
-		newBody := ioutil.NopCloser(bytes.NewReader(bodyContent))
-		request.Body = newBody
-		body, err := client.dispatchSingleRequest(request)
-		// If this is a 503 response with a non-void "Retry-After" header: wait
-		// as instructed and retry the request.
-		if err != nil {
-			serverError, ok := errors.Cause(err).(ServerError)
-			if ok && serverError.StatusCode == http.StatusServiceUnavailable {
-				retry_time_int, errConv := strconv.Atoi(serverError.Header.Get(RetryAfterHeaderName))
-				if errConv == nil {
-					select {
-					case <-time.After(time.Duration(retry_time_int) * time.Second):
-					}
-					continue
-				}
-			}
-		}
-		return body, err
-	}
-	// Restore body before issuing request.
-	newBody := ioutil.NopCloser(bytes.NewReader(bodyContent))
-	request.Body = newBody
-	return client.dispatchSingleRequest(request)
-}
+func (client Client) dispatchRequest(request *retryablehttp.Request) ([]byte, error) {
+	client.Signer.OAuthSign(&request.Header)
 
-func (client Client) dispatchSingleRequest(request *http.Request) ([]byte, error) {
-	client.Signer.OAuthSign(request)
-	httpClient := http.Client{}
 	// See https://code.google.com/p/go/issues/detail?id=4677
 	// We need to force the connection to close each time so that we don't
 	// hit the above Go bug.
 	request.Close = true
-	response, err := httpClient.Do(request)
+	response, err := client.httpClient.Do(request)
 	if err != nil {
 		return nil, err
 	}
@@ -148,9 +105,9 @@ func (client Client) Get(uri *url.URL, operation string, parameters url.Values) 
 	if operation != "" {
 		parameters.Set("op", operation)
 	}
-	queryUrl := client.GetURL(uri)
-	queryUrl.RawQuery = parameters.Encode()
-	request, err := http.NewRequest("GET", queryUrl.String(), nil)
+	queryURL := client.GetURL(uri)
+	queryURL.RawQuery = parameters.Encode()
+	request, err := retryablehttp.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -204,7 +161,7 @@ func (client Client) nonIdempotentRequestFiles(method string, uri *url.URL, para
 	}
 	writer.Close()
 	url := client.GetURL(uri)
-	request, err := http.NewRequest(method, url.String(), buf)
+	request, err := retryablehttp.NewRequest(method, url.String(), buf)
 	if err != nil {
 		return nil, err
 	}
@@ -217,7 +174,7 @@ func (client Client) nonIdempotentRequestFiles(method string, uri *url.URL, para
 // requests (but not GET or DELETE requests).
 func (client Client) nonIdempotentRequest(method string, uri *url.URL, parameters url.Values) ([]byte, error) {
 	url := client.GetURL(uri)
-	request, err := http.NewRequest(method, url.String(), strings.NewReader(string(parameters.Encode())))
+	request, err := retryablehttp.NewRequest(method, url.String(), strings.NewReader(string(parameters.Encode())))
 	if err != nil {
 		return nil, err
 	}
@@ -245,7 +202,7 @@ func (client Client) Put(uri *url.URL, parameters url.Values) ([]byte, error) {
 // Delete deletes an object on the API, using an HTTP "DELETE" request.
 func (client Client) Delete(uri *url.URL) error {
 	url := client.GetURL(uri)
-	request, err := http.NewRequest("DELETE", url.String(), strings.NewReader(""))
+	request, err := retryablehttp.NewRequest("DELETE", url.String(), strings.NewReader(""))
 	if err != nil {
 		return err
 	}
@@ -259,7 +216,7 @@ func (client Client) Delete(uri *url.URL) error {
 // Anonymous "signature method" implementation.
 type anonSigner struct{}
 
-func (signer anonSigner) OAuthSign(request *http.Request) error {
+func (signer anonSigner) OAuthSign(request *http.Header) error {
 	return nil
 }
 
@@ -330,5 +287,16 @@ func NewAuthenticatedClient(versionedURL, apiKey string) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Client{Signer: signer, APIURL: parsedURL}, nil
+
+	httpClient := retryablehttp.NewClient()
+
+	// Need to re-sign the request before each retry
+	httpClient.RequestLogHook = func(logger retryablehttp.Logger, request *http.Request, count int) {
+		err := signer.OAuthSign(&request.Header)
+		if err != nil {
+			logger.Printf("[ERROR] Failed to sign request: %v", err)
+		}
+	}
+
+	return &Client{Signer: signer, APIURL: parsedURL, httpClient: httpClient}, nil
 }
