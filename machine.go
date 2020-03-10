@@ -22,6 +22,7 @@ type machine struct {
 	systemID  string
 	hostname  string
 	fqdn      string
+	owner     string
 	tags      []string
 	ownerData map[string]string
 
@@ -53,6 +54,7 @@ func (m *machine) updateFrom(other *machine) {
 	m.systemID = other.systemID
 	m.hostname = other.hostname
 	m.fqdn = other.fqdn
+	m.owner = other.owner
 	m.operatingSystem = other.operatingSystem
 	m.distroSeries = other.distroSeries
 	m.architecture = other.architecture
@@ -81,6 +83,11 @@ func (m *machine) Hostname() string {
 // FQDN implements Machine.
 func (m *machine) FQDN() string {
 	return m.fqdn
+}
+
+// Owner implements Machine.
+func (m *machine) Owner() string {
+	return m.owner
 }
 
 // Tags implements Machine.
@@ -667,6 +674,7 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 		"system_id":  schema.String(),
 		"hostname":   schema.String(),
 		"fqdn":       schema.String(),
+		"owner":      schema.String(),
 		"tag_names":  schema.List(schema.String()),
 		"owner_data": schema.StringMap(schema.String()),
 
@@ -746,6 +754,7 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 		systemID:  valid["system_id"].(string),
 		hostname:  valid["hostname"].(string),
 		fqdn:      valid["fqdn"].(string),
+		owner:     valid["owner"].(string),
 		tags:      convertToStringSlice(valid["tag_names"]),
 		ownerData: convertToStringMap(valid["owner_data"]),
 

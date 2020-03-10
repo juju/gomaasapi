@@ -219,6 +219,7 @@ type Machine interface {
 	SystemID() string
 	Hostname() string
 	FQDN() string
+	Owner() string
 	Tags() []string
 
 	OperatingSystem() string
