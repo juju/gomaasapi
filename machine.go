@@ -210,6 +210,7 @@ func (m *machine) PhysicalBlockDevice(id int) BlockDevice {
 func (m *machine) BlockDevices() []BlockDevice {
 	result := make([]BlockDevice, len(m.blockDevices))
 	for i, v := range m.blockDevices {
+		v.controller = m.controller
 		result[i] = v
 	}
 	return result
@@ -231,13 +232,17 @@ func blockDeviceById(id int, blockDevices []BlockDevice) BlockDevice {
 
 // Partition implements Machine.
 func (m *machine) Partition(id int) Partition {
-	return partitionById(id, m.BlockDevices())
+	p := partitionById(id, m.blockDevices)
+	if p != nil {
+		p.controller = m.controller
+	}
+	return p
 }
 
-func partitionById(id int, blockDevices []BlockDevice) Partition {
+func partitionById(id int, blockDevices []*blockdevice) *partition {
 	for _, blockDevice := range blockDevices {
-		for _, partition := range blockDevice.Partitions() {
-			if partition.ID() == id {
+		for _, partition := range blockDevice.partitions {
+			if partition.id == id {
 				return partition
 			}
 		}

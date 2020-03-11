@@ -4,12 +4,16 @@
 package gomaasapi
 
 import (
+	"fmt"
+	"net/http"
+
 	"github.com/juju/errors"
 	"github.com/juju/schema"
 	"github.com/juju/version"
 )
 
 type partition struct {
+	controller  *controller
 	resourceURI string
 
 	id      int
@@ -20,6 +24,17 @@ type partition struct {
 	tags    []string
 
 	filesystem *filesystem
+}
+
+func (p *partition) updateFrom(other *partition) {
+	p.resourceURI = other.resourceURI
+	p.id = other.id
+	p.path = other.path
+	p.uuid = other.uuid
+	p.usedFor = other.usedFor
+	p.size = other.size
+	p.tags = other.tags
+	p.filesystem = other.filesystem
 }
 
 // Type implements Partition.
@@ -63,6 +78,54 @@ func (p *partition) Size() uint64 {
 // Tags implements Partition.
 func (p *partition) Tags() []string {
 	return p.tags
+}
+
+type FormatPartitionArgs struct {
+	FSType string // Required. Type of filesystem.
+	UUID   string // Optional. The UUID for the filesystem.
+	Label  string // Optional. The label for the filesystem.
+}
+
+// Validate ensures correct args
+func (a *FormatPartitionArgs) Validate() error {
+	if a.FSType == "" {
+		return fmt.Errorf("A filesystem type must be specified")
+	}
+
+	return nil
+}
+
+func (p *partition) Format(args FormatPartitionArgs) error {
+	if err := args.Validate(); err != nil {
+		return errors.Trace(err)
+	}
+
+	params := NewURLParams()
+	params.MaybeAdd("fs_type", args.FSType)
+	params.MaybeAdd("uuid", args.UUID)
+	params.MaybeAdd("label", args.Label)
+
+	result, err := p.controller.post(p.resourceURI, "format", params.Values)
+	if err != nil {
+		if svrErr, ok := errors.Cause(err).(ServerError); ok {
+			switch svrErr.StatusCode {
+			case http.StatusNotFound:
+				return errors.Wrap(err, NewBadRequestError(svrErr.BodyMessage))
+			case http.StatusForbidden:
+				return errors.Wrap(err, NewPermissionError(svrErr.BodyMessage))
+			case http.StatusServiceUnavailable:
+				return errors.Wrap(err, NewCannotCompleteError(svrErr.BodyMessage))
+			}
+		}
+		return NewUnexpectedError(err)
+	}
+
+	partition, err := readPartition(p.controller.apiVersion, result)
+	if err != nil {
+		return errors.Trace(err)
+	}
+	p.updateFrom(partition)
+	return nil
 }
 
 func readPartition(controllerVersion version.Number, source interface{}) (*partition, error) {

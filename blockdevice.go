@@ -101,6 +101,7 @@ func (b *blockdevice) FileSystem() FileSystem {
 func (b *blockdevice) Partitions() []Partition {
 	result := make([]Partition, len(b.partitions))
 	for i, v := range b.partitions {
+		v.controller = b.controller
 		result[i] = v
 	}
 	return result

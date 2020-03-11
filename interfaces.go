@@ -421,7 +421,7 @@ type StorageDevice interface {
 type Partition interface {
 	StorageDevice
 
-	Format(FormatPartitionArgs) (Partition, error)
+	Format(FormatPartitionArgs) error
 }
 
 // BlockDevice represents an entire block device on the machine.
