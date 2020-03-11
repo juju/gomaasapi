@@ -1,6 +1,9 @@
 package gomaasapi
 
 import (
+	"fmt"
+	"net/http"
+
 	"github.com/juju/errors"
 	"github.com/juju/schema"
 	"github.com/juju/version"
@@ -8,7 +11,7 @@ import (
 
 type volumegroup struct {
 	// Add the controller in when we need to do things with the zone.
-	// controller Controller
+	controller *controller
 
 	resourceURI string
 
@@ -39,6 +42,57 @@ func (vg *volumegroup) Devices() []BlockDevice {
 		result[i] = v
 	}
 	return result
+}
+
+// CreateLogicalVolumeArgs creates a logical volume in a volume group
+type CreateLogicalVolumeArgs struct {
+	Name string // Required. Name of the logical volume.
+	UUID string // Optional. (optional) UUID of the logical volume.
+	Size int    // Required. Size of the logical volume. Must be larger than or equal to 4,194,304 bytes. E.g. 4194304.
+}
+
+// Validate ensures arguments are valid
+func (a *CreateLogicalVolumeArgs) Validate() error {
+	if a.Name == "" {
+		return fmt.Errorf("Name must be specified")
+	}
+	if a.Size <= 0 {
+		return fmt.Errorf("A size > 0 must be specified")
+	}
+	return nil
+}
+
+// CreateLogicalVolume creates a logical volume in a volume group
+func (vg *volumegroup) CreateLogicalVolume(args CreateLogicalVolumeArgs) (BlockDevice, error) {
+	if err := args.Validate(); err != nil {
+		return nil, errors.Trace(err)
+	}
+
+	params := NewURLParams()
+	params.MaybeAdd("name", args.Name)
+	params.MaybeAdd("uuid", args.UUID)
+	params.MaybeAddInt("size", args.Size)
+
+	result, err := vg.controller.post(vg.resourceURI, "create_logical_volume", params.Values)
+	if err != nil {
+		if svrErr, ok := errors.Cause(err).(ServerError); ok {
+			switch svrErr.StatusCode {
+			case http.StatusNotFound:
+				return nil, errors.Wrap(err, NewBadRequestError(svrErr.BodyMessage))
+			case http.StatusForbidden:
+				return nil, errors.Wrap(err, NewPermissionError(svrErr.BodyMessage))
+			case http.StatusServiceUnavailable:
+				return nil, errors.Wrap(err, NewCannotCompleteError(svrErr.BodyMessage))
+			}
+		}
+		return nil, NewUnexpectedError(err)
+	}
+
+	device, err := readBlockDevice(vg.controller.apiVersion, result)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	return device, nil
 }
 
 func readVolumeGroup(controllerVersion version.Number, source interface{}) (*volumegroup, error) {

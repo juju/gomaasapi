@@ -450,6 +450,7 @@ type VolumeGroup interface {
 	Size() uint64
 	UUID() string
 	Devices() []BlockDevice
+	CreateLogicalVolume(CreateLogicalVolumeArgs) (BlockDevice, error)
 }
 
 // OwnerDataHolder represents any MAAS object that can store key/value

@@ -254,6 +254,7 @@ func partitionById(id int, blockDevices []*blockdevice) *partition {
 func (m *machine) VolumeGroups() []VolumeGroup {
 	result := make([]VolumeGroup, len(m.volumeGroups))
 	for i, v := range m.volumeGroups {
+		v.controller = m.controller
 		result[i] = v
 	}
 	return result
