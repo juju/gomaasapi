@@ -277,8 +277,8 @@ type Machine interface {
 	// id specified. If there is no match, nil is returned.
 	Partition(id int) Partition
 
-	// VolumeGroups returns all volume groups on the machine
-	VolumeGroups() []VolumeGroup
+	// VolumeGroups returns all volume groups on the machine (dynamically loaded)
+	VolumeGroups() ([]VolumeGroup, error)
 
 	Zone() Zone
 	Pool() Pool

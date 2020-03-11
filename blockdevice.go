@@ -283,19 +283,19 @@ func blockdevice_2_0(source map[string]interface{}) (*blockdevice, error) {
 
 		"id":       schema.ForceInt(),
 		"uuid":     schema.OneOf(schema.Nil(""), schema.String()),
-		"name":     schema.String(),
+		"name":     schema.OneOf(schema.Nil(""), schema.String()),
 		"model":    schema.OneOf(schema.Nil(""), schema.String()),
 		"id_path":  schema.OneOf(schema.Nil(""), schema.String()),
 		"path":     schema.String(),
 		"used_for": schema.String(),
-		"tags":     schema.List(schema.String()),
+		"tags":     schema.OneOf(schema.Nil(""), schema.List(schema.String())),
 
-		"block_size": schema.ForceUint(),
-		"used_size":  schema.ForceUint(),
+		"block_size": schema.OneOf(schema.Nil(""), schema.ForceUint()),
+		"used_size":  schema.OneOf(schema.Nil(""), schema.ForceUint()),
 		"size":       schema.ForceUint(),
 
 		"filesystem": schema.OneOf(schema.Nil(""), schema.StringMap(schema.Any())),
-		"partitions": schema.List(schema.StringMap(schema.Any())),
+		"partitions": schema.OneOf(schema.Nil(""), schema.List(schema.StringMap(schema.Any()))),
 	}
 	checker := schema.FieldMap(fields, nil)
 	coerced, err := checker.Coerce(source, nil)
@@ -312,28 +312,36 @@ func blockdevice_2_0(source map[string]interface{}) (*blockdevice, error) {
 			return nil, errors.Trace(err)
 		}
 	}
-	partitions, err := readPartitionList(valid["partitions"].([]interface{}), partition_2_0)
-	if err != nil {
-		return nil, errors.Trace(err)
+
+	partitions := []*partition{}
+	if valid["partitions"] != nil {
+		var err error
+		partitions, err = readPartitionList(valid["partitions"].([]interface{}), partition_2_0)
+		if err != nil {
+			return nil, errors.Trace(err)
+		}
 	}
 
 	uuid, _ := valid["uuid"].(string)
 	model, _ := valid["model"].(string)
 	idPath, _ := valid["id_path"].(string)
+	name, _ := valid["name"].(string)
+	blockSize, _ := valid["block_size"].(uint64)
+	usedSize, _ := valid["used_size"].(uint64)
 	result := &blockdevice{
 		resourceURI: valid["resource_uri"].(string),
 
 		id:      valid["id"].(int),
 		uuid:    uuid,
-		name:    valid["name"].(string),
+		name:    name,
 		model:   model,
 		idPath:  idPath,
 		path:    valid["path"].(string),
 		usedFor: valid["used_for"].(string),
 		tags:    convertToStringSlice(valid["tags"]),
 
-		blockSize: valid["block_size"].(uint64),
-		usedSize:  valid["used_size"].(uint64),
+		blockSize: blockSize,
+		usedSize:  usedSize,
 		size:      valid["size"].(uint64),
 
 		filesystem: filesystem,

@@ -47,7 +47,6 @@ type machine struct {
 	// Don't really know the difference between these two lists:
 	physicalBlockDevices []*blockdevice
 	blockDevices         []*blockdevice
-	volumeGroups         []*volumegroup
 }
 
 func (m *machine) updateFrom(other *machine) {
@@ -69,6 +68,8 @@ func (m *machine) updateFrom(other *machine) {
 	m.pool = other.pool
 	m.tags = other.tags
 	m.ownerData = other.ownerData
+	m.physicalBlockDevices = other.physicalBlockDevices
+	m.blockDevices = other.blockDevices
 }
 
 // SystemID implements Machine.
@@ -250,14 +251,34 @@ func partitionById(id int, blockDevices []*blockdevice) *partition {
 	return nil
 }
 
-// BlockDevices implements Machine.
-func (m *machine) VolumeGroups() []VolumeGroup {
-	result := make([]VolumeGroup, len(m.volumeGroups))
-	for i, v := range m.volumeGroups {
+// BlockDevices implements Machine (loaded dynamically)
+func (m *machine) VolumeGroups() ([]VolumeGroup, error) {
+	source, err := m.controller.get(m.nodesURI() + "volume-groups/")
+	if err != nil {
+		if svrErr, ok := errors.Cause(err).(ServerError); ok {
+			switch svrErr.StatusCode {
+			case http.StatusNotFound, http.StatusConflict:
+				return nil, errors.Wrap(err, NewBadRequestError(svrErr.BodyMessage))
+			case http.StatusForbidden:
+				return nil, errors.Wrap(err, NewPermissionError(svrErr.BodyMessage))
+			case http.StatusServiceUnavailable:
+				return nil, errors.Wrap(err, NewCannotCompleteError(svrErr.BodyMessage))
+			}
+		}
+		return nil, NewUnexpectedError(err)
+	}
+
+	vgs, err := readVolumeGroups(m.controller.apiVersion, source)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+
+	result := make([]VolumeGroup, len(vgs))
+	for i, v := range vgs {
 		v.controller = m.controller
 		result[i] = v
 	}
-	return result
+	return result, nil
 }
 
 // Devices implements Machine.
@@ -690,7 +711,7 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 		"system_id":  schema.String(),
 		"hostname":   schema.String(),
 		"fqdn":       schema.String(),
-		"owner":      schema.String(),
+		"owner":      schema.OneOf(schema.Nil(""), schema.String()),
 		"tag_names":  schema.List(schema.String()),
 		"owner_data": schema.StringMap(schema.String()),
 
@@ -763,21 +784,17 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 		return nil, errors.Trace(err)
 	}
 
-	volumeGroups, err := readVolumeGroupList(valid["volume_groups"].([]interface{}), volumegroup_2_0)
-	if err != nil {
-		return nil, errors.Trace(err)
-	}
-
 	architecture, _ := valid["architecture"].(string)
 	statusMessage, _ := valid["status_message"].(string)
 	hweKernel, _ := valid["hwe_kernel"].(string)
+	owner, _ := valid["owner"].(string)
 	result := &machine{
 		resourceURI: valid["resource_uri"].(string),
 
 		systemID:  valid["system_id"].(string),
 		hostname:  valid["hostname"].(string),
 		fqdn:      valid["fqdn"].(string),
-		owner:     valid["owner"].(string),
+		owner:     owner,
 		tags:      convertToStringSlice(valid["tag_names"]),
 		ownerData: convertToStringMap(valid["owner_data"]),
 
@@ -799,7 +816,6 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 		pool:                 pool,
 		physicalBlockDevices: physicalBlockDevices,
 		blockDevices:         blockDevices,
-		volumeGroups:         volumeGroups,
 	}
 
 	return result, nil
@@ -868,7 +884,7 @@ func (a *CreateBlockDeviceArgs) Validate() error {
 }
 
 func (m *machine) nodesURI() string {
-	return strings.Replace(m.resourceURI, "devices", "nodes", 1)
+	return strings.Replace(m.resourceURI, "machines", "nodes", 1)
 }
 
 // CreateBlockDevice implementes Machine

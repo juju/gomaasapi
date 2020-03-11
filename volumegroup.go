@@ -169,6 +169,13 @@ func volumegroup_2_0(source map[string]interface{}) (*volumegroup, error) {
 		"uuid":         schema.OneOf(schema.Nil(""), schema.String()),
 		"size":         schema.ForceUint(),
 		"devices":      schema.List(schema.StringMap(schema.Any())),
+		//"used_size":            schema.String(),
+		//"human_size":           schema.ForceUint(),
+		//"system_id":            schema.String(),
+		//"available_size":       schema.String(),
+		//"logical_volumes":      schema.String(),
+		//"human_used_size":      schema.String(),
+		//"human_available_size": schema.String(),
 	}
 	defaults := schema.Defaults{
 		//"tags": []string{},
