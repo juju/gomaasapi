@@ -4,6 +4,7 @@
 package gomaasapi
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/juju/errors"
@@ -30,6 +31,24 @@ type blockdevice struct {
 
 	filesystem *filesystem
 	partitions []*partition
+}
+
+func (b *blockdevice) updateFrom(other *blockdevice) {
+	b.resourceURI = other.resourceURI
+	b.controller = other.controller
+	b.id = other.id
+	b.uuid = other.uuid
+	b.name = other.name
+	b.model = other.model
+	b.idPath = other.idPath
+	b.path = other.path
+	b.usedFor = other.usedFor
+	b.tags = other.tags
+	b.blockSize = other.blockSize
+	b.usedSize = other.usedSize
+	b.size = other.size
+	b.filesystem = other.filesystem
+	b.partitions = other.partitions
 }
 
 // Type implements BlockDevice
@@ -105,6 +124,53 @@ func (b *blockdevice) Partitions() []Partition {
 		result[i] = v
 	}
 	return result
+}
+
+// FormatBlockDeviceArgs are options for formatting a block device
+type FormatBlockDeviceArgs struct {
+	FSType string // Required. Type of filesystem.
+	UUID   string // Optional. UUID of the filesystem.
+}
+
+// Validate ensures correct args
+func (a *FormatBlockDeviceArgs) Validate() error {
+	if a.FSType == "" {
+		return fmt.Errorf("A filesystem type must be specified")
+	}
+
+	return nil
+}
+
+func (b *blockdevice) Format(args FormatBlockDeviceArgs) error {
+	if err := args.Validate(); err != nil {
+		return errors.Trace(err)
+	}
+
+	params := NewURLParams()
+	params.MaybeAdd("fs_type", args.FSType)
+	params.MaybeAdd("uuid", args.UUID)
+
+	result, err := b.controller.post(b.resourceURI, "format", params.Values)
+	if err != nil {
+		if svrErr, ok := errors.Cause(err).(ServerError); ok {
+			switch svrErr.StatusCode {
+			case http.StatusNotFound:
+				return errors.Wrap(err, NewBadRequestError(svrErr.BodyMessage))
+			case http.StatusForbidden:
+				return errors.Wrap(err, NewPermissionError(svrErr.BodyMessage))
+			case http.StatusServiceUnavailable:
+				return errors.Wrap(err, NewCannotCompleteError(svrErr.BodyMessage))
+			}
+		}
+		return NewUnexpectedError(err)
+	}
+
+	blockDevice, err := readBlockDevice(b.controller.apiVersion, result)
+	if err != nil {
+		return errors.Trace(err)
+	}
+	b.updateFrom(blockDevice)
+	return nil
 }
 
 // CreatePartitionArgs options for creating partitions

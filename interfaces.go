@@ -440,6 +440,9 @@ type BlockDevice interface {
 	// CreatePartition creates a partition on the provided block device
 	CreatePartition(CreatePartitionArgs) (Partition, error)
 
+	// Format places a filesystem on the block device
+	Format(FormatBlockDeviceArgs) error
+
 	// There are some other attributes for block devices, but we can
 	// expose them on an as needed basis.
 }
