@@ -270,9 +270,15 @@ type Machine interface {
 	// id specified. If there is no match, nil is returned.
 	BlockDevice(id int) BlockDevice
 
+	// CreateBlockDevice will create a new block device
+	CreateBlockDevice(args CreateBlockDeviceArgs) (BlockDevice, error)
+
 	// Partition returns the partition for the machine that matches the
 	// id specified. If there is no match, nil is returned.
 	Partition(id int) Partition
+
+	// VolumeGroups returns all volume groups on the machine
+	VolumeGroups() []VolumeGroup
 
 	Zone() Zone
 	Pool() Pool
@@ -414,6 +420,8 @@ type StorageDevice interface {
 // as a filesystem.
 type Partition interface {
 	StorageDevice
+
+	Format(FormatPartitionArgs) (Partition, error)
 }
 
 // BlockDevice represents an entire block device on the machine.
@@ -429,8 +437,19 @@ type BlockDevice interface {
 
 	Partitions() []Partition
 
+	// CreatePartition creates a partition on the provided block device
+	CreatePartition(CreatePartitionArgs) (Partition, error)
+
 	// There are some other attributes for block devices, but we can
 	// expose them on an as needed basis.
+}
+
+// VolumeGroup represents a collection of logical volumes
+type VolumeGroup interface {
+	Name() string
+	Size() uint64
+	UUID() string
+	Devices() []BlockDevice
 }
 
 // OwnerDataHolder represents any MAAS object that can store key/value

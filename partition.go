@@ -65,14 +65,22 @@ func (p *partition) Tags() []string {
 	return p.tags
 }
 
-func readPartitions(controllerVersion version.Number, source interface{}) ([]*partition, error) {
-	checker := schema.List(schema.StringMap(schema.Any()))
+func readPartition(controllerVersion version.Number, source interface{}) (*partition, error) {
+	readFunc, err := getPartitionDeserializationFunc(controllerVersion)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+
+	checker := schema.StringMap(schema.Any())
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
-		return nil, WrapWithDeserializationError(err, "partition base schema check failed")
+		return nil, WrapWithDeserializationError(err, "machine base schema check failed")
 	}
-	valid := coerced.([]interface{})
+	valid := coerced.(map[string]interface{})
+	return readFunc(valid)
+}
 
+func getPartitionDeserializationFunc(controllerVersion version.Number) (partitionDeserializationFunc, error) {
 	var deserialisationVersion version.Number
 	for v := range partitionDeserializationFuncs {
 		if v.Compare(deserialisationVersion) > 0 && v.Compare(controllerVersion) <= 0 {
@@ -82,7 +90,21 @@ func readPartitions(controllerVersion version.Number, source interface{}) ([]*pa
 	if deserialisationVersion == version.Zero {
 		return nil, NewUnsupportedVersionError("no partition read func for version %s", controllerVersion)
 	}
-	readFunc := partitionDeserializationFuncs[deserialisationVersion]
+	return partitionDeserializationFuncs[deserialisationVersion], nil
+}
+
+func readPartitions(controllerVersion version.Number, source interface{}) ([]*partition, error) {
+	checker := schema.List(schema.StringMap(schema.Any()))
+	coerced, err := checker.Coerce(source, nil)
+	if err != nil {
+		return nil, WrapWithDeserializationError(err, "partition base schema check failed")
+	}
+	valid := coerced.([]interface{})
+
+	readFunc, err := getPartitionDeserializationFunc(controllerVersion)
+	if err != nil {
+		return nil, err
+	}
 	return readPartitionList(valid, readFunc)
 }
 
