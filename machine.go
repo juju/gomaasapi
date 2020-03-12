@@ -197,6 +197,7 @@ func (m *machine) StatusMessage() string {
 func (m *machine) PhysicalBlockDevices() []BlockDevice {
 	result := make([]BlockDevice, len(m.physicalBlockDevices))
 	for i, v := range m.physicalBlockDevices {
+		v.controller = m.controller
 		result[i] = v
 	}
 	return result
@@ -859,7 +860,7 @@ type CreateBlockDeviceArgs struct {
 
 // ToParams converts arguments to URL parameters
 func (a *CreateBlockDeviceArgs) toParams() *URLParams {
-	params := &URLParams{}
+	params := NewURLParams()
 	params.MaybeAdd("name", a.Name)
 	params.MaybeAdd("model", a.Model)
 	params.MaybeAdd("serial", a.Serial)
@@ -916,21 +917,29 @@ func (m *machine) CreateBlockDevice(args CreateBlockDeviceArgs) (BlockDevice, er
 
 // CreateVolumeGroupArgs control creation of a volume group
 type CreateVolumeGroupArgs struct {
-	Name         string   // Required. Name of the volume group.
-	UUID         string   // Optional. (optional) UUID of the volume group.
-	BlockDevices []string // Optional. Block devices to add to the volume group.
-	Partitions   []string // Optional. Partitions to add to the volume group.
+	Name         string        // Required. Name of the volume group.
+	UUID         string        // Optional. (optional) UUID of the volume group.
+	BlockDevices []BlockDevice // Optional. Block devices to add to the volume group.
+	Partitions   []Partition   // Optional. Partitions to add to the volume group.
 }
 
 func (a *CreateVolumeGroupArgs) toParams() *URLParams {
-	params := &URLParams{}
+	params := NewURLParams()
 	params.MaybeAdd("name", a.Name)
 	params.MaybeAdd("uuid", a.UUID)
 	if a.BlockDevices != nil {
-		params.MaybeAdd("block_devices", strings.Join(a.BlockDevices, ","))
+		deviceIDs := []string{}
+		for _, device := range a.BlockDevices {
+			deviceIDs = append(deviceIDs, fmt.Sprintf("%d", device.ID()))
+		}
+		params.MaybeAdd("block_devices", strings.Join(deviceIDs, ","))
 	}
 	if a.Partitions != nil {
-		params.MaybeAdd("partitions", strings.Join(a.Partitions, ","))
+		partitionIDs := []string{}
+		for _, partition := range a.Partitions {
+			partitionIDs = append(partitionIDs, fmt.Sprintf("%d", partition.ID()))
+		}
+		params.MaybeAdd("partitions", strings.Join(partitionIDs, ","))
 	}
 	return params
 }

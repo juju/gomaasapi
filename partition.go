@@ -4,7 +4,6 @@
 package gomaasapi
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/juju/errors"
@@ -80,22 +79,7 @@ func (p *partition) Tags() []string {
 	return p.tags
 }
 
-type FormatPartitionArgs struct {
-	FSType string // Required. Type of filesystem.
-	UUID   string // Optional. The UUID for the filesystem.
-	Label  string // Optional. The label for the filesystem.
-}
-
-// Validate ensures correct args
-func (a *FormatPartitionArgs) Validate() error {
-	if a.FSType == "" {
-		return fmt.Errorf("A filesystem type must be specified")
-	}
-
-	return nil
-}
-
-func (p *partition) Format(args FormatPartitionArgs) error {
+func (p *partition) Format(args FormatStorageDeviceArgs) error {
 	if err := args.Validate(); err != nil {
 		return errors.Trace(err)
 	}
@@ -125,6 +109,29 @@ func (p *partition) Format(args FormatPartitionArgs) error {
 		return errors.Trace(err)
 	}
 	p.updateFrom(partition)
+	return nil
+}
+
+func (p *partition) Mount(args MountStorageDeviceArgs) error {
+	params := args.toParams()
+	source, err := p.controller.post(p.resourceURI, "mount", params.Values)
+	if err != nil {
+		if svrErr, ok := errors.Cause(err).(ServerError); ok {
+			switch svrErr.StatusCode {
+			case http.StatusNotFound:
+				return errors.Wrap(err, NewNoMatchError(svrErr.BodyMessage))
+			case http.StatusForbidden:
+				return errors.Wrap(err, NewPermissionError(svrErr.BodyMessage))
+			}
+		}
+		return NewUnexpectedError(err)
+	}
+
+	response, err := readPartition(p.controller.apiVersion, source)
+	if err != nil {
+		return errors.Trace(err)
+	}
+	p.updateFrom(response)
 	return nil
 }
 

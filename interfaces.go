@@ -280,6 +280,9 @@ type Machine interface {
 	// VolumeGroups returns all volume groups on the machine (dynamically loaded)
 	VolumeGroups() ([]VolumeGroup, error)
 
+	// CreateVolumeGroup creates a volume group with the provided block devices and partitions
+	CreateVolumeGroup(args CreateVolumeGroupArgs) (VolumeGroup, error)
+
 	Zone() Zone
 	Pool() Pool
 
@@ -414,14 +417,18 @@ type StorageDevice interface {
 
 	// FileSystem may be nil if not mounted.
 	FileSystem() FileSystem
+
+	// Format places a filesystem on the block device
+	Format(FormatStorageDeviceArgs) error
+
+	// Mount mounts device at a specific path
+	Mount(args MountStorageDeviceArgs) error
 }
 
 // Partition represents a partition of a block device. It may be mounted
 // as a filesystem.
 type Partition interface {
 	StorageDevice
-
-	Format(FormatPartitionArgs) error
 }
 
 // BlockDevice represents an entire block device on the machine.
@@ -439,9 +446,6 @@ type BlockDevice interface {
 
 	// CreatePartition creates a partition on the provided block device
 	CreatePartition(CreatePartitionArgs) (Partition, error)
-
-	// Format places a filesystem on the block device
-	Format(FormatBlockDeviceArgs) error
 
 	// There are some other attributes for block devices, but we can
 	// expose them on an as needed basis.

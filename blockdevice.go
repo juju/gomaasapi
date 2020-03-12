@@ -126,14 +126,15 @@ func (b *blockdevice) Partitions() []Partition {
 	return result
 }
 
-// FormatBlockDeviceArgs are options for formatting a block device
-type FormatBlockDeviceArgs struct {
+// FormatStorageDeviceArgs are options for formatting BlockDevices and Partitions
+type FormatStorageDeviceArgs struct {
 	FSType string // Required. Type of filesystem.
-	UUID   string // Optional. UUID of the filesystem.
+	UUID   string // Optional. The UUID for the filesystem.
+	Label  string // Optional. The label for the filesystem, only applies to partitions.
 }
 
 // Validate ensures correct args
-func (a *FormatBlockDeviceArgs) Validate() error {
+func (a *FormatStorageDeviceArgs) Validate() error {
 	if a.FSType == "" {
 		return fmt.Errorf("A filesystem type must be specified")
 	}
@@ -141,7 +142,7 @@ func (a *FormatBlockDeviceArgs) Validate() error {
 	return nil
 }
 
-func (b *blockdevice) Format(args FormatBlockDeviceArgs) error {
+func (b *blockdevice) Format(args FormatStorageDeviceArgs) error {
 	if err := args.Validate(); err != nil {
 		return errors.Trace(err)
 	}
@@ -181,7 +182,7 @@ type CreatePartitionArgs struct {
 }
 
 func (a *CreatePartitionArgs) toParams() *URLParams {
-	params := &URLParams{}
+	params := NewURLParams()
 	params.MaybeAddInt("size", a.Size)
 	params.MaybeAdd("uuid", a.UUID)
 	params.MaybeAddBool("bootable", a.Bootable)
@@ -190,7 +191,7 @@ func (a *CreatePartitionArgs) toParams() *URLParams {
 
 func (b *blockdevice) CreatePartition(args CreatePartitionArgs) (Partition, error) {
 	params := args.toParams()
-	source, err := b.controller.post(b.resourceURI+"/partitions/", "", params.Values)
+	source, err := b.controller.post(b.resourceURI+"partitions/", "", params.Values)
 	if err != nil {
 		if svrErr, ok := errors.Cause(err).(ServerError); ok {
 			switch svrErr.StatusCode {
@@ -207,7 +208,44 @@ func (b *blockdevice) CreatePartition(args CreatePartitionArgs) (Partition, erro
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
+	response.controller = b.controller
 	return response, nil
+}
+
+// MountStorageDeviceArgs options for creating partitions
+type MountStorageDeviceArgs struct {
+	MountPoint   string // Required. Path on the filesystem to mount.
+	MountOptions string // Optional. Options to pass to mount(8).
+}
+
+func (a *MountStorageDeviceArgs) toParams() *URLParams {
+	params := NewURLParams()
+	params.MaybeAdd("mount_point", a.MountPoint)
+	params.MaybeAdd("mount_options", a.MountOptions)
+	return params
+}
+
+func (b *blockdevice) Mount(args MountStorageDeviceArgs) error {
+	params := args.toParams()
+	source, err := b.controller.post(b.resourceURI, "mount", params.Values)
+	if err != nil {
+		if svrErr, ok := errors.Cause(err).(ServerError); ok {
+			switch svrErr.StatusCode {
+			case http.StatusNotFound:
+				return errors.Wrap(err, NewNoMatchError(svrErr.BodyMessage))
+			case http.StatusForbidden:
+				return errors.Wrap(err, NewPermissionError(svrErr.BodyMessage))
+			}
+		}
+		return NewUnexpectedError(err)
+	}
+
+	response, err := readBlockDevice(b.controller.apiVersion, source)
+	if err != nil {
+		return errors.Trace(err)
+	}
+	b.updateFrom(response)
+	return nil
 }
 
 func getBlockDeviceDeserializationFunc(controllerVersion version.Number) (blockdeviceDeserializationFunc, error) {
