@@ -293,6 +293,7 @@ func (m *machine) Start(args StartArgs) error {
 // given VLAN. On failure, returns an error satisfying errors.IsNotValid().
 type CreateMachineDeviceArgs struct {
 	Hostname      string
+	Domain        string
 	InterfaceName string
 	MACAddress    string
 	Subnet        Subnet
@@ -327,6 +328,7 @@ func (m *machine) CreateDevice(args CreateMachineDeviceArgs) (_ Device, err erro
 	}
 	device, err := m.controller.CreateDevice(CreateDeviceArgs{
 		Hostname:     args.Hostname,
+		Domain:       args.Domain,
 		MACAddresses: []string{args.MACAddress},
 		Parent:       m.SystemID(),
 	})
