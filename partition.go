@@ -4,12 +4,15 @@
 package gomaasapi
 
 import (
+	"net/http"
+
 	"github.com/juju/errors"
 	"github.com/juju/schema"
 	"github.com/juju/version"
 )
 
 type partition struct {
+	controller  *controller
 	resourceURI string
 
 	id      int
@@ -20,6 +23,17 @@ type partition struct {
 	tags    []string
 
 	filesystem *filesystem
+}
+
+func (p *partition) updateFrom(other *partition) {
+	p.resourceURI = other.resourceURI
+	p.id = other.id
+	p.path = other.path
+	p.uuid = other.uuid
+	p.usedFor = other.usedFor
+	p.size = other.size
+	p.tags = other.tags
+	p.filesystem = other.filesystem
 }
 
 // Type implements Partition.
@@ -65,14 +79,78 @@ func (p *partition) Tags() []string {
 	return p.tags
 }
 
-func readPartitions(controllerVersion version.Number, source interface{}) ([]*partition, error) {
-	checker := schema.List(schema.StringMap(schema.Any()))
+func (p *partition) Format(args FormatStorageDeviceArgs) error {
+	if err := args.Validate(); err != nil {
+		return errors.Trace(err)
+	}
+
+	params := NewURLParams()
+	params.MaybeAdd("fs_type", args.FSType)
+	params.MaybeAdd("uuid", args.UUID)
+	params.MaybeAdd("label", args.Label)
+
+	result, err := p.controller.post(p.resourceURI, "format", params.Values)
+	if err != nil {
+		if svrErr, ok := errors.Cause(err).(ServerError); ok {
+			switch svrErr.StatusCode {
+			case http.StatusNotFound:
+				return errors.Wrap(err, NewBadRequestError(svrErr.BodyMessage))
+			case http.StatusForbidden:
+				return errors.Wrap(err, NewPermissionError(svrErr.BodyMessage))
+			case http.StatusServiceUnavailable:
+				return errors.Wrap(err, NewCannotCompleteError(svrErr.BodyMessage))
+			}
+		}
+		return NewUnexpectedError(err)
+	}
+
+	partition, err := readPartition(p.controller.apiVersion, result)
+	if err != nil {
+		return errors.Trace(err)
+	}
+	p.updateFrom(partition)
+	return nil
+}
+
+func (p *partition) Mount(args MountStorageDeviceArgs) error {
+	params := args.toParams()
+	source, err := p.controller.post(p.resourceURI, "mount", params.Values)
+	if err != nil {
+		if svrErr, ok := errors.Cause(err).(ServerError); ok {
+			switch svrErr.StatusCode {
+			case http.StatusNotFound:
+				return errors.Wrap(err, NewNoMatchError(svrErr.BodyMessage))
+			case http.StatusForbidden:
+				return errors.Wrap(err, NewPermissionError(svrErr.BodyMessage))
+			}
+		}
+		return NewUnexpectedError(err)
+	}
+
+	response, err := readPartition(p.controller.apiVersion, source)
+	if err != nil {
+		return errors.Trace(err)
+	}
+	p.updateFrom(response)
+	return nil
+}
+
+func readPartition(controllerVersion version.Number, source interface{}) (*partition, error) {
+	readFunc, err := getPartitionDeserializationFunc(controllerVersion)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+
+	checker := schema.StringMap(schema.Any())
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
-		return nil, WrapWithDeserializationError(err, "partition base schema check failed")
+		return nil, WrapWithDeserializationError(err, "machine base schema check failed")
 	}
-	valid := coerced.([]interface{})
+	valid := coerced.(map[string]interface{})
+	return readFunc(valid)
+}
 
+func getPartitionDeserializationFunc(controllerVersion version.Number) (partitionDeserializationFunc, error) {
 	var deserialisationVersion version.Number
 	for v := range partitionDeserializationFuncs {
 		if v.Compare(deserialisationVersion) > 0 && v.Compare(controllerVersion) <= 0 {
@@ -82,7 +160,21 @@ func readPartitions(controllerVersion version.Number, source interface{}) ([]*pa
 	if deserialisationVersion == version.Zero {
 		return nil, NewUnsupportedVersionError("no partition read func for version %s", controllerVersion)
 	}
-	readFunc := partitionDeserializationFuncs[deserialisationVersion]
+	return partitionDeserializationFuncs[deserialisationVersion], nil
+}
+
+func readPartitions(controllerVersion version.Number, source interface{}) ([]*partition, error) {
+	checker := schema.List(schema.StringMap(schema.Any()))
+	coerced, err := checker.Coerce(source, nil)
+	if err != nil {
+		return nil, WrapWithDeserializationError(err, "partition base schema check failed")
+	}
+	valid := coerced.([]interface{})
+
+	readFunc, err := getPartitionDeserializationFunc(controllerVersion)
+	if err != nil {
+		return nil, err
+	}
 	return readPartitionList(valid, readFunc)
 }
 

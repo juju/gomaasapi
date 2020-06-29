@@ -54,4 +54,25 @@ const (
 
 	// The node failed to erase its disks.
 	NodeStatusFailedDiskErasing = "15"
+
+	// The node is in rescue mode.
+	NodeStatusRescueMode = "16"
+
+	// The node is entering rescue mode.
+	NodeStatusEnteringRescueMode = "17"
+
+	// The node failed to enter rescue mode.
+	NodeStatusFailedEnteringRescueMode = "18"
+
+	// The node is exiting rescue mode.
+	NodeStatusExitingRescueMode = "19"
+
+	// The node failed to exit rescue mode.
+	NodeStatusFailedExitingRescueMode = "20"
+
+	// Running tests on Node
+	NodeStatusTesting = "21"
+
+	// Testing has failed
+	NodeStatusFailedTesting = "22"
 )

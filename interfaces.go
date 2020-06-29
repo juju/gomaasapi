@@ -44,6 +44,9 @@ type Controller interface {
 	// Machines returns a list of machines that match the params.
 	Machines(MachinesArgs) ([]Machine, error)
 
+	// GetMachine gets a single machine
+	GetMachine(systemID string) (Machine, error)
+
 	// AllocateMachine will attempt to allocate a machine to the user.
 	// If successful, the allocated machine is returned.
 	AllocateMachine(AllocateMachineArgs) (Machine, ConstraintMatches, error)
@@ -51,6 +54,9 @@ type Controller interface {
 	// ReleaseMachines will stop the specified machines, and release them
 	// from the user making them available to be allocated again.
 	ReleaseMachines(ReleaseMachinesArgs) error
+
+	// CreateMachine will create a new machine with the provided parameters
+	CreateMachine(CreateMachineArgs) (Machine, error)
 
 	// Devices returns a list of devices that match the params.
 	Devices(DevicesArgs) ([]Device, error)
@@ -72,6 +78,15 @@ type Controller interface {
 
 	// Returns the DNS Domain Managed By MAAS
 	Domains() ([]Domain, error)
+
+	// Returns the set of all tags
+	Tags() ([]Tag, error)
+
+	// Retuns a aspecific tag or an error if it doesn't exist
+	GetTag(name string) (Tag, error)
+
+	// Creates a new tag, or returns an error if the tag already exists
+	CreateTag(args CreateTagArgs) (Tag, error)
 }
 
 // File represents a file stored in the MAAS controller.
@@ -204,10 +219,12 @@ type Machine interface {
 	SystemID() string
 	Hostname() string
 	FQDN() string
+	Owner() string
 	Tags() []string
 
 	OperatingSystem() string
 	DistroSeries() string
+	HWEKernel() string
 	Architecture() string
 	Memory() int
 	CPUCount() int
@@ -234,6 +251,13 @@ type Machine interface {
 	// specified. If there is no match, nil is returned.
 	Interface(id int) Interface
 
+	// Update allows editing of some of the machine's properties
+	Update(args UpdateMachineArgs) error
+
+	// CreateBond creates a bond with the provided interfaces and returns the
+	// newly created bond interface.
+	CreateBond(args CreateMachineBondArgs) (Interface, error)
+
 	// PhysicalBlockDevices returns all the physical block devices on the machine.
 	PhysicalBlockDevices() []BlockDevice
 	// PhysicalBlockDevice returns the physical block device for the machine
@@ -246,12 +270,24 @@ type Machine interface {
 	// id specified. If there is no match, nil is returned.
 	BlockDevice(id int) BlockDevice
 
+	// CreateBlockDevice will create a new block device
+	CreateBlockDevice(args CreateBlockDeviceArgs) (BlockDevice, error)
+
 	// Partition returns the partition for the machine that matches the
 	// id specified. If there is no match, nil is returned.
 	Partition(id int) Partition
 
+	// VolumeGroups returns all volume groups on the machine (dynamically loaded)
+	VolumeGroups() ([]VolumeGroup, error)
+
+	// CreateVolumeGroup creates a volume group with the provided block devices and partitions
+	CreateVolumeGroup(args CreateVolumeGroupArgs) (VolumeGroup, error)
+
 	Zone() Zone
 	Pool() Pool
+
+	// Commision makes a new node Ready
+	Commission(CommissionArgs) error
 
 	// Start the machine and install the operating system specified in the args.
 	Start(StartArgs) error
@@ -259,6 +295,9 @@ type Machine interface {
 	// CreateDevice creates a new Device with this Machine as the parent.
 	// The device will have one interface that is linked to the specified subnet.
 	CreateDevice(CreateMachineDeviceArgs) (Device, error)
+
+	// Delete removes the machine from maas
+	Delete() error
 }
 
 // Space is a name for a collection of Subnets.
@@ -378,6 +417,12 @@ type StorageDevice interface {
 
 	// FileSystem may be nil if not mounted.
 	FileSystem() FileSystem
+
+	// Format places a filesystem on the block device
+	Format(FormatStorageDeviceArgs) error
+
+	// Mount mounts device at a specific path
+	Mount(args MountStorageDeviceArgs) error
 }
 
 // Partition represents a partition of a block device. It may be mounted
@@ -399,8 +444,20 @@ type BlockDevice interface {
 
 	Partitions() []Partition
 
+	// CreatePartition creates a partition on the provided block device
+	CreatePartition(CreatePartitionArgs) (Partition, error)
+
 	// There are some other attributes for block devices, but we can
 	// expose them on an as needed basis.
+}
+
+// VolumeGroup represents a collection of logical volumes
+type VolumeGroup interface {
+	Name() string
+	Size() uint64
+	UUID() string
+	Devices() []BlockDevice
+	CreateLogicalVolume(CreateLogicalVolumeArgs) (BlockDevice, error)
 }
 
 // OwnerDataHolder represents any MAAS object that can store key/value
@@ -416,4 +473,14 @@ type OwnerDataHolder interface {
 	// its value to "". All owner data is cleared when the object is
 	// released.
 	SetOwnerData(map[string]string) error
+}
+
+// Tag represents a MaaS device tag
+type Tag interface {
+	Name() string
+	Definition() string
+	Comment() string
+	Machines() ([]Machine, error)
+	AddToMachine(systemID string) error
+	RemoveFromMachine(systemID string) error
 }

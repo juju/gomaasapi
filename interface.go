@@ -113,9 +113,17 @@ func (i *interface_) EffectiveMTU() int {
 
 // UpdateInterfaceArgs is an argument struct for calling Interface.Update.
 type UpdateInterfaceArgs struct {
-	Name       string
-	MACAddress string
-	VLAN       VLAN
+	Name               string
+	MACAddress         string
+	VLAN               VLAN
+	BridgeSTP          bool
+	BridgeFD           int
+	BondMiimon         int
+	BondDownDelay      int
+	BondUpDelay        int
+	BondLACPRate       string
+	BondXmitHashPolicy string
+	BondMode           string
 }
 
 func (a *UpdateInterfaceArgs) vlanID() int {
@@ -125,16 +133,32 @@ func (a *UpdateInterfaceArgs) vlanID() int {
 	return a.VLAN.ID()
 }
 
+func (a *UpdateInterfaceArgs) toParams() *URLParams {
+	params := NewURLParams()
+	params.MaybeAdd("name", a.Name)
+	params.MaybeAdd("mac_address", a.MACAddress)
+	params.MaybeAddInt("vlan", a.vlanID())
+	if a.BridgeSTP {
+		params.MaybeAdd("bridge_stp", "1")
+	}
+	params.MaybeAddInt("bridge_fd", a.BridgeFD)
+	params.MaybeAddInt("bond_miimon ", a.BondMiimon)
+	params.MaybeAddInt("bond_down_delay", a.BondDownDelay)
+	params.MaybeAddInt("bond_up_delay", a.BondUpDelay)
+	params.MaybeAdd("bond_lacp_rate", a.BondLACPRate)
+	params.MaybeAdd("bond_xmit_hash_policy", a.BondXmitHashPolicy)
+	params.MaybeAdd("bond_mode", a.BondMode)
+	return params
+}
+
 // Update implements Interface.
 func (i *interface_) Update(args UpdateInterfaceArgs) error {
 	var empty UpdateInterfaceArgs
 	if args == empty {
 		return nil
 	}
-	params := NewURLParams()
-	params.MaybeAdd("name", args.Name)
-	params.MaybeAdd("mac_address", args.MACAddress)
-	params.MaybeAddInt("vlan", args.vlanID())
+
+	params := args.toParams()
 	source, err := i.controller.put(i.resourceURI, params.Values)
 	if err != nil {
 		if svrErr, ok := errors.Cause(err).(ServerError); ok {

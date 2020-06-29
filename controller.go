@@ -335,6 +335,67 @@ func (c *controller) CreateDevice(args CreateDeviceArgs) (Device, error) {
 	return device, nil
 }
 
+// CreateMachineArgs is a argument struct for passing information into CreateDevice.
+type CreateMachineArgs struct {
+	UpdateMachineArgs
+	Architecture string
+	Description  string
+	Commission   bool
+	MACAddresses []string
+}
+
+// Validate ensures the arguments are acceptable
+func (a *CreateMachineArgs) Validate() error {
+	if err := a.UpdateMachineArgs.Validate(); err != nil {
+		return err
+	}
+	if len(a.MACAddresses) == 0 {
+		return fmt.Errorf("at least one MAC address must be specified")
+	}
+
+	return nil
+}
+
+// ToParams converts arguments to URL parameters
+func (a *CreateMachineArgs) ToParams() *URLParams {
+	params := a.UpdateMachineArgs.ToParams()
+	params.MaybeAdd("architecture", a.Architecture)
+	params.MaybeAdd("description", a.Description)
+	params.MaybeAddMany("mac_addresses", a.MACAddresses)
+	if a.Commission {
+		params.MaybeAdd("commission", "true")
+	} else {
+		params.MaybeAdd("commission", "false")
+	}
+	return params
+}
+
+// CreateMachine implements Controller.
+func (c *controller) CreateMachine(args CreateMachineArgs) (Machine, error) {
+	// There must be at least one mac address.
+	if err := args.Validate(); err != nil {
+		return nil, errors.NewBadRequest(err, "Invalid CreateMachine arguments")
+	}
+	params := args.ToParams()
+	result, err := c.post("machines", "", params.Values)
+	if err != nil {
+		if svrErr, ok := errors.Cause(err).(ServerError); ok {
+			if svrErr.StatusCode == http.StatusBadRequest {
+				return nil, errors.Wrap(err, NewBadRequestError(svrErr.BodyMessage))
+			}
+		}
+		// Translate http errors.
+		return nil, NewUnexpectedError(err)
+	}
+
+	machine, err := readMachine(c.apiVersion, result)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	machine.controller = c
+	return machine, nil
+}
+
 // MachinesArgs is a argument struct for selecting Machines.
 // Only machines that match the specified criteria are returned.
 type MachinesArgs struct {
@@ -376,6 +437,19 @@ func (c *controller) Machines(args MachinesArgs) ([]Machine, error) {
 		}
 	}
 	return result, nil
+}
+
+func (c *controller) GetMachine(systemID string) (Machine, error) {
+	source, err := c.getQuery("machines/"+systemID, url.Values{})
+	if err != nil {
+		return nil, NewUnexpectedError(err)
+	}
+	m, err := readMachine(c.apiVersion, source)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	m.controller = c
+	return m, nil
 }
 
 func ownerDataMatches(ownerData, filter map[string]string) bool {
@@ -617,8 +691,12 @@ func (c *controller) AllocateMachine(args AllocateMachineArgs) (Machine, Constra
 // ReleaseMachinesArgs is an argument struct for passing the machine system IDs
 // and an optional comment into the ReleaseMachines method.
 type ReleaseMachinesArgs struct {
-	SystemIDs []string
-	Comment   string
+	SystemIDs   []string
+	Comment     string
+	Erase       bool
+	SecureErase bool
+	QuickErase  bool
+	Force       bool
 }
 
 // ReleaseMachines implements Controller.
@@ -631,6 +709,10 @@ func (c *controller) ReleaseMachines(args ReleaseMachinesArgs) error {
 	params := NewURLParams()
 	params.MaybeAddMany("machines", args.SystemIDs)
 	params.MaybeAdd("comment", args.Comment)
+	params.MaybeAddBool("erase", args.Erase)
+	params.MaybeAddBool("secure_erase", args.SecureErase)
+	params.MaybeAddBool("quick_erase", args.QuickErase)
+	params.MaybeAddBool("force", args.Force)
 	_, err := c.post("machines", "release", params.Values)
 	if err != nil {
 		if svrErr, ok := errors.Cause(err).(ServerError); ok {
@@ -752,6 +834,66 @@ func (c *controller) AddFile(args AddFileArgs) error {
 		return NewUnexpectedError(err)
 	}
 	return nil
+}
+
+func (c *controller) Tags() ([]Tag, error) {
+	source, err := c.getQuery("tags", url.Values{})
+	if err != nil {
+		return nil, NewUnexpectedError(err)
+	}
+	tags, err := readTags(c.apiVersion, source)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	var result []Tag
+	for _, t := range tags {
+		t.controller = c
+		result = append(result, t)
+	}
+	return result, nil
+}
+
+func (c *controller) GetTag(name string) (Tag, error) {
+	source, err := c.getQuery("tags/"+name, url.Values{})
+	if err != nil {
+		return nil, NewUnexpectedError(err)
+	}
+	tag, err := readTag(c.apiVersion, source)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	tag.controller = c
+	return tag, nil
+}
+
+// CreateTagArgs are creation parameters
+type CreateTagArgs struct {
+	Name       string
+	Comment    string
+	Definition string
+}
+
+// Validate ensures arguments are valid
+func (a *CreateTagArgs) Validate() error {
+	if a.Name == "" {
+		return fmt.Errorf("Missing name value")
+	}
+	return nil
+}
+
+func (c *controller) CreateTag(args CreateTagArgs) (Tag, error) {
+	if err := args.Validate(); err != nil {
+		return nil, err
+	}
+	params := NewURLParams()
+	params.MaybeAdd("name", args.Name)
+	params.MaybeAdd("comment", args.Comment)
+	params.MaybeAdd("definition", args.Definition)
+	result, err := c.post("tags", "", params.Values)
+	if err != nil {
+		return nil, err
+	}
+	return readTag(c.apiVersion, result)
 }
 
 func (c *controller) checkCreds() error {

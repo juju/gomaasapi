@@ -28,7 +28,7 @@ func generateTimestamp() string {
 }
 
 type OAuthSigner interface {
-	OAuthSign(request *http.Request) error
+	OAuthSign(headers *http.Header) error
 }
 
 type OAuthToken struct {
@@ -52,7 +52,7 @@ func NewPlainTestOAuthSigner(token *OAuthToken, realm string) (OAuthSigner, erro
 
 // OAuthSignPLAINTEXT signs the provided request using the OAuth PLAINTEXT
 // method: http://oauth.net/core/1.0/#anchor22.
-func (signer plainTextOAuthSigner) OAuthSign(request *http.Request) error {
+func (signer plainTextOAuthSigner) OAuthSign(headers *http.Header) error {
 
 	signature := signer.token.ConsumerSecret + `&` + signer.token.TokenSecret
 	nonce, err := generateNonce()
@@ -75,6 +75,6 @@ func (signer plainTextOAuthSigner) OAuthSign(request *http.Request) error {
 		authHeader = append(authHeader, fmt.Sprintf(`%s="%s"`, key, url.QueryEscape(value)))
 	}
 	strHeader := "OAuth " + strings.Join(authHeader, ", ")
-	request.Header.Add("Authorization", strHeader)
+	headers.Add("Authorization", strHeader)
 	return nil
 }
