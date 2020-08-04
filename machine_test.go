@@ -67,6 +67,7 @@ func (*machineSuite) TestReadMachines(c *gc.C) {
 	c.Check(machine.OperatingSystem(), gc.Equals, "ubuntu")
 	c.Check(machine.DistroSeries(), gc.Equals, "trusty")
 	c.Check(machine.Architecture(), gc.Equals, "amd64/generic")
+	c.Check(machine.Status(), gc.Equals, NodeStatusDeployed)
 	c.Check(machine.StatusName(), gc.Equals, "Deployed")
 	c.Check(machine.StatusMessage(), gc.Equals, "From 'Deploying' to 'Deployed'")
 
