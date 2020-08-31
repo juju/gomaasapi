@@ -1027,7 +1027,8 @@ func nodeDeploymentStatusHandler(server *TestServer, w http.ResponseWriter, r *h
 		if err != nil {
 			continue
 		}
-		switch field {
+		status, _ := strconv.Atoi(field)
+		switch status {
 		case NodeStatusDeployed:
 			nodeStatus[systemId] = "Deployed"
 		case NodeStatusFailedDeployment:
