@@ -23,7 +23,7 @@ import (
 	"text/template"
 	"time"
 
-	"gopkg.in/mgo.v2/bson"
+	"github.com/juju/mgo/v2/bson"
 )
 
 // TestMAASObject is a fake MAAS server MAASObject.
