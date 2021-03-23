@@ -1,4 +1,4 @@
-module github.com/juju/gomaasapi/v1
+module github.com/juju/gomaasapi/v2
 
 go 1.14
 

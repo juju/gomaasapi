@@ -13,7 +13,7 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/juju/gomaasapi/v1"
+	"github.com/juju/gomaasapi/v2"
 )
 
 var apiKey string
