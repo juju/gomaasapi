@@ -9,4 +9,4 @@ API in Go programs.
 
 For more information see the `project homepage`_.
 
-.. _project homepage: https://github.com/juju/gomaasapi/v1
+.. _project homepage: https://github.com/juju/gomaasapi/v2

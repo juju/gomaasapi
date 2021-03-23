@@ -4,7 +4,7 @@
 package gomaasapi_test
 
 import (
-	"github.com/juju/gomaasapi/v1"
+	"github.com/juju/gomaasapi/v2"
 	gc "gopkg.in/check.v1"
 )
 
