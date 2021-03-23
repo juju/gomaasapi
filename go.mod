@@ -1,6 +1,6 @@
 module github.com/juju/gomaasapi/v1
 
-go 1.16
+go 1.14
 
 require (
 	github.com/juju/collections v0.0.0-20200605021417-0d0ec82b7271
