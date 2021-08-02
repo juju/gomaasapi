@@ -742,8 +742,11 @@ func (s *controllerSuite) TestReleaseMachines(c *gc.C) {
 	s.server.AddPostResponse("/api/2.0/machines/?op=release", http.StatusOK, "[]")
 	controller := s.getController(c)
 	err := controller.ReleaseMachines(ReleaseMachinesArgs{
-		SystemIDs: []string{"this", "that"},
-		Comment:   "all good",
+		SystemIDs:   []string{"this", "that"},
+		Comment:     "all good",
+		Erase:       true,
+		SecureErase: true,
+		QuickErase:  true,
 	})
 	c.Assert(err, jc.ErrorIsNil)
 
@@ -751,6 +754,9 @@ func (s *controllerSuite) TestReleaseMachines(c *gc.C) {
 	// There should be one entry in the form values for each of the args.
 	c.Assert(request.PostForm["machines"], jc.SameContents, []string{"this", "that"})
 	c.Assert(request.PostForm.Get("comment"), gc.Equals, "all good")
+	c.Assert(request.PostForm.Get("erase"), gc.Equals, "true")
+	c.Assert(request.PostForm.Get("secure_erase"), gc.Equals, "true")
+	c.Assert(request.PostForm.Get("quick_erase"), gc.Equals, "true")
 }
 
 func (s *controllerSuite) TestReleaseMachinesBadRequest(c *gc.C) {

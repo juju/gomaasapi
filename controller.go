@@ -617,8 +617,11 @@ func (c *controller) AllocateMachine(args AllocateMachineArgs) (Machine, Constra
 // ReleaseMachinesArgs is an argument struct for passing the machine system IDs
 // and an optional comment into the ReleaseMachines method.
 type ReleaseMachinesArgs struct {
-	SystemIDs []string
-	Comment   string
+	SystemIDs   []string
+	Comment     string
+	Erase       bool
+	SecureErase bool
+	QuickErase  bool
 }
 
 // ReleaseMachines implements Controller.
@@ -631,6 +634,9 @@ func (c *controller) ReleaseMachines(args ReleaseMachinesArgs) error {
 	params := NewURLParams()
 	params.MaybeAddMany("machines", args.SystemIDs)
 	params.MaybeAdd("comment", args.Comment)
+	params.MaybeAddBool("erase", args.Erase)
+	params.MaybeAddBool("secure_erase", args.SecureErase)
+	params.MaybeAddBool("quick_erase", args.QuickErase)
 	_, err := c.post("machines", "release", params.Values)
 	if err != nil {
 		if svrErr, ok := errors.Cause(err).(ServerError); ok {
