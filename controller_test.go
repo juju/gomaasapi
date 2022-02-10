@@ -246,6 +246,15 @@ func (s *controllerSuite) TestBootResources(c *gc.C) {
 	c.Assert(resources, gc.HasLen, 5)
 }
 
+func (s *controllerSuite) TestAPIVersionInfo(c *gc.C) {
+	s.server.AddGetResponse("/api/2.0/version/", http.StatusOK, versionResponse)
+	controller := s.getController(c)
+	version, subversion, err := controller.APIVersionInfo()
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(version, gc.Equals, "2.5.0 from source")
+	c.Assert(subversion, gc.Equals, "git+2f25a2cc0930c0e411106f119bc455c161d75b1a")
+}
+
 func (s *controllerSuite) TestDevices(c *gc.C) {
 	controller := s.getController(c)
 	devices, err := controller.Devices(DevicesArgs{})
@@ -931,7 +940,7 @@ func (s *controllerSuite) TestAddFileReader(c *gc.C) {
 	s.assertFile(c, request, "foo.txt", "test\n")
 }
 
-var versionResponse = `{"version": "unknown", "subversion": "", "capabilities": ["networks-management", "static-ipaddresses", "ipv6-deployment-ubuntu", "devices-management", "storage-deployment-ubuntu", "network-deployment-ubuntu"]}`
+var versionResponse = `{"version": "2.5.0 from source", "subversion": "git+2f25a2cc0930c0e411106f119bc455c161d75b1a", "capabilities": ["networks-management", "static-ipaddresses", "ipv6-deployment-ubuntu", "devices-management", "storage-deployment-ubuntu", "network-deployment-ubuntu"]}`
 
 type cleanup interface {
 	AddCleanup(func(*gc.C))

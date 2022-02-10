@@ -19,6 +19,9 @@ const (
 // is restful, there is no long held connection to the API server, but instead
 // HTTP calls are made and JSON response structures parsed.
 type Controller interface {
+	// APIVersionInfo returns the version and subversion strings for the MAAS
+	// controller.
+	APIVersionInfo() (string, string, error)
 
 	// Capabilities returns a set of capabilities as defined by the string
 	// constants.
