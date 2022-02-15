@@ -94,7 +94,7 @@ func newControllerWithVersion(baseURL, apiVersion, apiKey string) (Controller, e
 		Minor: minor,
 	}
 	controller := &controller{client: client, apiVersion: controllerVersion}
-	controller.capabilities, err = controller.readAPIVersionInfo()
+	_, _, controller.capabilities, err = controller.readAPIVersionInfo()
 	if err != nil {
 		logger.Debugf("read version failed: %#v", err)
 		return nil, errors.Trace(err)
@@ -116,7 +116,7 @@ func newControllerUnknownVersion(args ControllerArgs) (Controller, error) {
 		case err == nil:
 			return controller, nil
 		case IsUnsupportedVersionError(err):
-			// This will only come back from readAPIVersionInfo for 410/404.
+			// This will only come back from APIVersionInfo for 410/404.
 			continue
 		default:
 			return nil, errors.Trace(err)
@@ -907,22 +907,30 @@ func indicatesUnsupportedVersion(err error) bool {
 	return false
 }
 
-func (c *controller) readAPIVersionInfo() (set.Strings, error) {
+// APIVersionInfo returns the version and subversion strings for the MAAS
+// controller.
+func (c *controller) APIVersionInfo() (string, string, error) {
+	version, subversion, _, err := c.readAPIVersionInfo()
+	return version, subversion, err
+}
+
+func (c *controller) readAPIVersionInfo() (string, string, set.Strings, error) {
 	parsed, err := c.get("version")
 	if indicatesUnsupportedVersion(err) {
-		return nil, WrapWithUnsupportedVersionError(err)
+		return "", "", nil, WrapWithUnsupportedVersionError(err)
 	} else if err != nil {
-		return nil, errors.Trace(err)
+		return "", "", nil, errors.Trace(err)
 	}
 
-	// As we care about other fields, add them.
 	fields := schema.Fields{
 		"capabilities": schema.List(schema.String()),
+		"version":      schema.String(),
+		"subversion":   schema.String(),
 	}
 	checker := schema.FieldMap(fields, nil) // no defaults
 	coerced, err := checker.Coerce(parsed, nil)
 	if err != nil {
-		return nil, WrapWithDeserializationError(err, "version response")
+		return "", "", nil, WrapWithDeserializationError(err, "version response")
 	}
 	// For now, we don't append any subversion, but as it becomes used, we
 	// should parse and check.
@@ -936,7 +944,10 @@ func (c *controller) readAPIVersionInfo() (set.Strings, error) {
 		capabilities.Add(value.(string))
 	}
 
-	return capabilities, nil
+	version := valid["version"].(string)
+	subversion := valid["subversion"].(string)
+
+	return version, subversion, capabilities, nil
 }
 
 func parseAllocateConstraintsResponse(source interface{}, machine *machine) (ConstraintMatches, error) {
