@@ -75,6 +75,9 @@ type Controller interface {
 
 	// Returns the DNS Domain Managed By MAAS
 	Domains() ([]Domain, error)
+
+	// Returns the list of MAAS tags
+	Tags() ([]Tag, error)
 }
 
 // File represents a file stored in the MAAS controller.

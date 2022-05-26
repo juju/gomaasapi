@@ -1056,3 +1056,23 @@ func convertConstraintMatchesAny(source interface{}) map[string][]interface{} {
 	}
 	return result
 }
+
+// Tags implements Controller.
+func (c *controller) Tags() ([]Tag, error) {
+	source, err := c.getQuery("tags", nil)
+	if err != nil {
+		return nil, NewUnexpectedError(err)
+	}
+
+	tags, err := readTags(c.apiVersion, source)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+
+	result := make([]Tag, len(tags))
+	for i, tag := range tags {
+		result[i] = tag
+	}
+
+	return result, nil
+}
