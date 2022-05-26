@@ -217,6 +217,7 @@ type Machine interface {
 	Architecture() string
 	Memory() int
 	CPUCount() int
+	HardwareInfo() map[string]string
 
 	IPAddresses() []string
 	PowerState() string
