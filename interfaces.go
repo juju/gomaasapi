@@ -420,3 +420,11 @@ type OwnerDataHolder interface {
 	// released.
 	SetOwnerData(map[string]string) error
 }
+
+// Tag represents a MAAS tag.
+type Tag interface {
+	Name() string
+	Comment() string
+	Definition() string
+	KernelOpts() string
+}
