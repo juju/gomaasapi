@@ -345,6 +345,7 @@ type MachinesArgs struct {
 	Zone         string
 	Pool         string
 	AgentName    string
+	Tags         []string
 	OwnerData    map[string]string
 }
 
@@ -358,6 +359,7 @@ func (c *controller) Machines(args MachinesArgs) ([]Machine, error) {
 	params.MaybeAdd("zone", args.Zone)
 	params.MaybeAdd("pool", args.Pool)
 	params.MaybeAdd("agent_name", args.AgentName)
+	params.MaybeAddMany("tags", args.Tags)
 	// At the moment the MAAS API doesn't support filtering by owner
 	// data so we do that ourselves below.
 	source, err := c.getQuery("machines", params.Values)
