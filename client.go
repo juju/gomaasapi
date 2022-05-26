@@ -31,8 +31,9 @@ const (
 // Client represents a way to communicating with a MAAS API instance.
 // It is stateless, so it can have concurrent requests in progress.
 type Client struct {
-	APIURL *url.URL
-	Signer OAuthSigner
+	APIURL     *url.URL
+	Signer     OAuthSigner
+	HTTPClient *http.Client
 }
 
 // ServerError is an http error (or at least, a non-2xx result) received from
@@ -106,7 +107,11 @@ func (client Client) dispatchRequest(request *http.Request) ([]byte, error) {
 
 func (client Client) dispatchSingleRequest(request *http.Request) ([]byte, error) {
 	client.Signer.OAuthSign(request)
-	httpClient := http.Client{}
+	httpClient := &http.Client{}
+	if client.HTTPClient != nil {
+		httpClient = client.HTTPClient
+	}
+
 	// See https://code.google.com/p/go/issues/detail?id=4677
 	// We need to force the connection to close each time so that we don't
 	// hit the above Go bug.
