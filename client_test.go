@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	jc "github.com/juju/testing/checkers"
 	gc "gopkg.in/check.v1"
@@ -38,7 +39,7 @@ func (*ClientSuite) TestReadAndCloseReturnsContents(c *gc.C) {
 func (suite *ClientSuite) TestClientdispatchRequestReturnsServerError(c *gc.C) {
 	URI := "/some/url/?param1=test"
 	expectedResult := "expected:result"
-	server := newSingleServingServer(URI, expectedResult, http.StatusBadRequest)
+	server := newSingleServingServer(URI, expectedResult, http.StatusBadRequest, -1)
 	defer server.Close()
 	client, err := NewAnonymousClient(server.URL, "1.0")
 	c.Assert(err, jc.ErrorIsNil)
@@ -126,7 +127,7 @@ func (suite *ClientSuite) TestClientDispatchRequestReturnsNonServerError(c *gc.C
 func (suite *ClientSuite) TestClientdispatchRequestSignsRequest(c *gc.C) {
 	URI := "/some/url/?param1=test"
 	expectedResult := "expected:result"
-	server := newSingleServingServer(URI, expectedResult, http.StatusOK)
+	server := newSingleServingServer(URI, expectedResult, http.StatusOK, -1)
 	defer server.Close()
 	client, err := NewAuthenticatedClient(server.URL, "the:api:key")
 	c.Assert(err, jc.ErrorIsNil)
@@ -146,7 +147,7 @@ func (suite *ClientSuite) TestClientGetFormatsGetParameters(c *gc.C) {
 	expectedResult := "expected:result"
 	params := url.Values{"test": {"123"}}
 	fullURI := URI.String() + "?test=123"
-	server := newSingleServingServer(fullURI, expectedResult, http.StatusOK)
+	server := newSingleServingServer(fullURI, expectedResult, http.StatusOK, -1)
 	defer server.Close()
 	client, err := NewAnonymousClient(server.URL, "1.0")
 	c.Assert(err, jc.ErrorIsNil)
@@ -162,7 +163,7 @@ func (suite *ClientSuite) TestClientGetFormatsOperationAsGetParameter(c *gc.C) {
 	c.Assert(err, jc.ErrorIsNil)
 	expectedResult := "expected:result"
 	fullURI := URI.String() + "?op=list"
-	server := newSingleServingServer(fullURI, expectedResult, http.StatusOK)
+	server := newSingleServingServer(fullURI, expectedResult, http.StatusOK, -1)
 	defer server.Close()
 	client, err := NewAnonymousClient(server.URL, "1.0")
 	c.Assert(err, jc.ErrorIsNil)
@@ -179,7 +180,7 @@ func (suite *ClientSuite) TestClientPostSendsRequestWithParams(c *gc.C) {
 	expectedResult := "expected:result"
 	fullURI := URI.String() + "?op=list"
 	params := url.Values{"test": {"123"}}
-	server := newSingleServingServer(fullURI, expectedResult, http.StatusOK)
+	server := newSingleServingServer(fullURI, expectedResult, http.StatusOK, -1)
 	defer server.Close()
 	client, err := NewAnonymousClient(server.URL, "1.0")
 	c.Assert(err, jc.ErrorIsNil)
@@ -221,7 +222,7 @@ func (suite *ClientSuite) TestClientPostSendsMultipartRequest(c *gc.C) {
 	c.Assert(err, jc.ErrorIsNil)
 	expectedResult := "expected:result"
 	fullURI := URI.String() + "?op=add"
-	server := newSingleServingServer(fullURI, expectedResult, http.StatusOK)
+	server := newSingleServingServer(fullURI, expectedResult, http.StatusOK, -1)
 	defer server.Close()
 	client, err := NewAnonymousClient(server.URL, "1.0")
 	c.Assert(err, jc.ErrorIsNil)
@@ -242,7 +243,7 @@ func (suite *ClientSuite) TestClientPutSendsRequest(c *gc.C) {
 	c.Assert(err, jc.ErrorIsNil)
 	expectedResult := "expected:result"
 	params := url.Values{"test": {"123"}}
-	server := newSingleServingServer(URI.String(), expectedResult, http.StatusOK)
+	server := newSingleServingServer(URI.String(), expectedResult, http.StatusOK, -1)
 	defer server.Close()
 	client, err := NewAnonymousClient(server.URL, "1.0")
 	c.Assert(err, jc.ErrorIsNil)
@@ -258,7 +259,7 @@ func (suite *ClientSuite) TestClientDeleteSendsRequest(c *gc.C) {
 	URI, err := url.Parse("/some/url")
 	c.Assert(err, jc.ErrorIsNil)
 	expectedResult := "expected:result"
-	server := newSingleServingServer(URI.String(), expectedResult, http.StatusOK)
+	server := newSingleServingServer(URI.String(), expectedResult, http.StatusOK, -1)
 	defer server.Close()
 	client, err := NewAnonymousClient(server.URL, "1.0")
 	c.Assert(err, jc.ErrorIsNil)
