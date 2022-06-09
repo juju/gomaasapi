@@ -141,6 +141,25 @@ func (suite *ClientSuite) TestClientdispatchRequestSignsRequest(c *gc.C) {
 	c.Check((*server.requestHeader)["Authorization"][0], gc.Matches, "^OAuth .*")
 }
 
+func (suite *ClientSuite) TestClientdispatchRequestUsesConfiguredHTTPClient(c *gc.C) {
+	URI := "/some/url/"
+
+	server := newSingleServingServer(URI, "", 0, 2*time.Second)
+	defer server.Close()
+
+	client, err := NewAnonymousClient(server.URL, "2.0")
+	c.Assert(err, jc.ErrorIsNil)
+
+	client.HTTPClient = &http.Client{Timeout: time.Second}
+
+	request, err := http.NewRequest("GET", server.URL+URI, nil)
+	c.Assert(err, jc.ErrorIsNil)
+
+	_, err = client.dispatchRequest(request)
+
+	c.Assert(err, gc.ErrorMatches, `Get "http://127.0.0.1:\d+/some/url/": context deadline exceeded \(Client\.Timeout exceeded while awaiting headers\)`)
+}
+
 func (suite *ClientSuite) TestClientGetFormatsGetParameters(c *gc.C) {
 	URI, err := url.Parse("/some/url")
 	c.Assert(err, jc.ErrorIsNil)
