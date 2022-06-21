@@ -348,6 +348,7 @@ type MachinesArgs struct {
 	Zone         string
 	Pool         string
 	AgentName    string
+	Tags         []string
 	OwnerData    map[string]string
 }
 
@@ -361,6 +362,7 @@ func (c *controller) Machines(args MachinesArgs) ([]Machine, error) {
 	params.MaybeAdd("zone", args.Zone)
 	params.MaybeAdd("pool", args.Pool)
 	params.MaybeAdd("agent_name", args.AgentName)
+	params.MaybeAddMany("tags", args.Tags)
 	// At the moment the MAAS API doesn't support filtering by owner
 	// data so we do that ourselves below.
 	source, err := c.getQuery("machines", params.Values)
@@ -1058,4 +1060,24 @@ func convertConstraintMatchesAny(source interface{}) map[string][]interface{} {
 		}
 	}
 	return result
+}
+
+// Tags implements Controller.
+func (c *controller) Tags() ([]Tag, error) {
+	source, err := c.getQuery("tags", nil)
+	if err != nil {
+		return nil, NewUnexpectedError(err)
+	}
+
+	tags, err := readTags(c.apiVersion, source)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+
+	result := make([]Tag, len(tags))
+	for i, tag := range tags {
+		result[i] = tag
+	}
+
+	return result, nil
 }

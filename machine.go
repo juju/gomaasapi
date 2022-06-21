@@ -29,6 +29,7 @@ type machine struct {
 	architecture    string
 	memory          int
 	cpuCount        int
+	hardwareInfo    map[string]string
 
 	ipAddresses []string
 	powerState  string
@@ -56,6 +57,7 @@ func (m *machine) updateFrom(other *machine) {
 	m.architecture = other.architecture
 	m.memory = other.memory
 	m.cpuCount = other.cpuCount
+	m.hardwareInfo = other.hardwareInfo
 	m.ipAddresses = other.ipAddresses
 	m.powerState = other.powerState
 	m.statusName = other.statusName
@@ -107,6 +109,16 @@ func (m *machine) Memory() int {
 // CPUCount implements Machine.
 func (m *machine) CPUCount() int {
 	return m.cpuCount
+}
+
+// HardwareInfo implements Machine.
+func (m *machine) HardwareInfo() map[string]string {
+	info := make(map[string]string, len(m.hardwareInfo))
+	for k, v := range m.hardwareInfo {
+		info[k] = v
+	}
+
+	return info
 }
 
 // PowerState implements Machine.
@@ -513,6 +525,7 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 		"architecture":  schema.OneOf(schema.Nil(""), schema.String()),
 		"memory":        schema.ForceInt(),
 		"cpu_count":     schema.ForceInt(),
+		"hardware_info": schema.StringMap(schema.String()),
 
 		"ip_addresses":   schema.List(schema.String()),
 		"power_state":    schema.String(),
@@ -574,6 +587,22 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
+
+	validHardwareInfo, ok := valid["hardware_info"].(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("field \"hardware_info\" is not valid")
+	}
+
+	hardwareInfo := make(map[string]string, len(validHardwareInfo))
+	for key, value := range validHardwareInfo {
+		v, ok := value.(string)
+		if !ok {
+			return nil, fmt.Errorf("invalid field %q in \"hardware_info\"", key)
+		}
+
+		hardwareInfo[key] = v
+	}
+
 	architecture, _ := valid["architecture"].(string)
 	statusMessage, _ := valid["status_message"].(string)
 	result := &machine{
@@ -590,6 +619,7 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 		architecture:    architecture,
 		memory:          valid["memory"].(int),
 		cpuCount:        valid["cpu_count"].(int),
+		hardwareInfo:    hardwareInfo,
 
 		ipAddresses:   convertToStringSlice(valid["ip_addresses"]),
 		powerState:    valid["power_state"].(string),

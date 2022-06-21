@@ -75,6 +75,9 @@ type Controller interface {
 
 	// Returns the DNS Domain Managed By MAAS
 	Domains() ([]Domain, error)
+
+	// Returns the list of MAAS tags
+	Tags() ([]Tag, error)
 }
 
 // File represents a file stored in the MAAS controller.
@@ -214,6 +217,7 @@ type Machine interface {
 	Architecture() string
 	Memory() int
 	CPUCount() int
+	HardwareInfo() map[string]string
 
 	IPAddresses() []string
 	PowerState() string
@@ -419,4 +423,12 @@ type OwnerDataHolder interface {
 	// its value to "". All owner data is cleared when the object is
 	// released.
 	SetOwnerData(map[string]string) error
+}
+
+// Tag represents a MAAS tag.
+type Tag interface {
+	Name() string
+	Comment() string
+	Definition() string
+	KernelOpts() string
 }
