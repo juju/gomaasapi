@@ -41,8 +41,9 @@ var (
 // ControllerArgs is an argument struct for passing the required parameters
 // to the NewController method.
 type ControllerArgs struct {
-	BaseURL string
-	APIKey  string
+	BaseURL    string
+	APIKey     string
+	HTTPClient *http.Client
 }
 
 // NewController creates an authenticated client to the MAAS API, and
@@ -59,7 +60,7 @@ func NewController(args ControllerArgs) (Controller, error) {
 		if !supportedVersion(apiVersion) {
 			return nil, NewUnsupportedVersionError("version %s", apiVersion)
 		}
-		return newControllerWithVersion(base, apiVersion, args.APIKey)
+		return newControllerWithVersion(base, apiVersion, args.APIKey, args.HTTPClient)
 	}
 	return newControllerUnknownVersion(args)
 }
@@ -73,7 +74,7 @@ func supportedVersion(value string) bool {
 	return false
 }
 
-func newControllerWithVersion(baseURL, apiVersion, apiKey string) (Controller, error) {
+func newControllerWithVersion(baseURL, apiVersion, apiKey string, httpClient *http.Client) (Controller, error) {
 	major, minor, err := version.ParseMajorMinor(apiVersion)
 	// We should not get an error here. See the test.
 	if err != nil {
@@ -89,6 +90,8 @@ func newControllerWithVersion(baseURL, apiVersion, apiKey string) (Controller, e
 		// is an unexpected error and return now.
 		return nil, NewUnexpectedError(err)
 	}
+
+	client.HTTPClient = httpClient
 	controllerVersion := version.Number{
 		Major: major,
 		Minor: minor,
@@ -111,7 +114,7 @@ func newControllerUnknownVersion(args ControllerArgs) (Controller, error) {
 	// some time in the future, we will try the most up to date version and then
 	// work our way backwards.
 	for _, apiVersion := range supportedAPIVersions {
-		controller, err := newControllerWithVersion(args.BaseURL, apiVersion, args.APIKey)
+		controller, err := newControllerWithVersion(args.BaseURL, apiVersion, args.APIKey, args.HTTPClient)
 		switch {
 		case err == nil:
 			return controller, nil

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"time"
 )
 
 type singleServingServer struct {
@@ -18,7 +19,7 @@ type singleServingServer struct {
 
 // newSingleServingServer creates a single-serving test http server which will
 // return only one response as defined by the passed arguments.
-func newSingleServingServer(uri string, response string, code int) *singleServingServer {
+func newSingleServingServer(uri string, response string, code int, delay time.Duration) *singleServingServer {
 	var requestContent string
 	var requestHeader http.Header
 	var requested bool
@@ -36,6 +37,7 @@ func newSingleServingServer(uri string, response string, code int) *singleServin
 			errorMsg := fmt.Sprintf("Error 404: page not found (expected '%v', got '%v').", uri, request.URL.String())
 			http.Error(writer, errorMsg, http.StatusNotFound)
 		} else {
+			time.Sleep(delay)
 			writer.WriteHeader(code)
 			fmt.Fprint(writer, response)
 		}
