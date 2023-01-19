@@ -5,8 +5,9 @@ package gomaasapi
 
 import (
 	"bytes"
+	"crypto/tls"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -20,15 +21,15 @@ type ClientSuite struct{}
 
 var _ = gc.Suite(&ClientSuite{})
 
-func (*ClientSuite) TestReadAndCloseReturnsEmptyStringForNil(c *gc.C) {
+func (*ClientSuite) TestReadAndCloseReturnsNilForNilBuffer(c *gc.C) {
 	data, err := readAndClose(nil)
 	c.Assert(err, jc.ErrorIsNil)
-	c.Check(string(data), gc.Equals, "")
+	c.Check(data, gc.IsNil)
 }
 
 func (*ClientSuite) TestReadAndCloseReturnsContents(c *gc.C) {
 	content := "Stream contents."
-	stream := ioutil.NopCloser(strings.NewReader(content))
+	stream := io.NopCloser(strings.NewReader(content))
 
 	data, err := readAndClose(stream)
 	c.Assert(err, jc.ErrorIsNil)
@@ -36,7 +37,7 @@ func (*ClientSuite) TestReadAndCloseReturnsContents(c *gc.C) {
 	c.Check(string(data), gc.Equals, content)
 }
 
-func (suite *ClientSuite) TestClientdispatchRequestReturnsServerError(c *gc.C) {
+func (suite *ClientSuite) TestClientDispatchRequestReturnsServerError(c *gc.C) {
 	URI := "/some/url/?param1=test"
 	expectedResult := "expected:result"
 	server := newSingleServingServer(URI, expectedResult, http.StatusBadRequest, -1)
@@ -56,14 +57,15 @@ func (suite *ClientSuite) TestClientdispatchRequestReturnsServerError(c *gc.C) {
 	c.Check(string(result), gc.Equals, expectedResult)
 }
 
-func (suite *ClientSuite) TestClientdispatchRequestRetries503(c *gc.C) {
+func (suite *ClientSuite) TestClientDispatchRequestRetries503(c *gc.C) {
 	URI := "/some/url/?param1=test"
 	server := newFlakyServer(URI, 503, NumberOfRetries)
 	defer server.Close()
 	client, err := NewAnonymousClient(server.URL, "1.0")
 	c.Assert(err, jc.ErrorIsNil)
 	content := "content"
-	request, err := http.NewRequest("GET", server.URL+URI, ioutil.NopCloser(strings.NewReader(content)))
+	request, err := http.NewRequest("GET", server.URL+URI, io.NopCloser(strings.NewReader(content)))
+	c.Assert(err, jc.ErrorIsNil)
 
 	_, err = client.dispatchRequest(request)
 
@@ -76,7 +78,28 @@ func (suite *ClientSuite) TestClientdispatchRequestRetries503(c *gc.C) {
 	c.Check(*server.requests, jc.DeepEquals, expectedRequestsContent)
 }
 
-func (suite *ClientSuite) TestClientdispatchRequestDoesntRetry200(c *gc.C) {
+func (suite *ClientSuite) TestTLSClientDispatchRequestRetries503NilBody(c *gc.C) {
+	URI := "/some/path"
+	server := newFlakyTLSServer(URI, 503, NumberOfRetries)
+	defer server.Close()
+	client, err := NewAnonymousClient(server.URL, "2.0")
+	c.Assert(err, jc.ErrorIsNil)
+
+	client.HTTPClient = &http.Client{Transport: http.DefaultTransport}
+	client.HTTPClient.Transport.(*http.Transport).TLSClientConfig = &tls.Config{
+		InsecureSkipVerify: true,
+	}
+
+	request, err := http.NewRequest("GET", server.URL+URI, nil)
+	c.Assert(err, jc.ErrorIsNil)
+
+	_, err = client.dispatchRequest(request)
+	c.Assert(err, jc.ErrorIsNil)
+
+	c.Check(*server.nbRequests, gc.Equals, NumberOfRetries+1)
+}
+
+func (suite *ClientSuite) TestClientDispatchRequestDoesntRetry200(c *gc.C) {
 	URI := "/some/url/?param1=test"
 	server := newFlakyServer(URI, 200, 10)
 	defer server.Close()
@@ -84,6 +107,7 @@ func (suite *ClientSuite) TestClientdispatchRequestDoesntRetry200(c *gc.C) {
 	c.Assert(err, jc.ErrorIsNil)
 
 	request, err := http.NewRequest("GET", server.URL+URI, nil)
+	c.Assert(err, jc.ErrorIsNil)
 
 	_, err = client.dispatchRequest(request)
 
@@ -91,7 +115,7 @@ func (suite *ClientSuite) TestClientdispatchRequestDoesntRetry200(c *gc.C) {
 	c.Check(*server.nbRequests, gc.Equals, 1)
 }
 
-func (suite *ClientSuite) TestClientdispatchRequestRetriesIsLimited(c *gc.C) {
+func (suite *ClientSuite) TestClientDispatchRequestRetriesIsLimited(c *gc.C) {
 	URI := "/some/url/?param1=test"
 	// Make the server return 503 responses NumberOfRetries + 1 times.
 	server := newFlakyServer(URI, 503, NumberOfRetries+1)
@@ -99,6 +123,7 @@ func (suite *ClientSuite) TestClientdispatchRequestRetriesIsLimited(c *gc.C) {
 	client, err := NewAnonymousClient(server.URL, "1.0")
 	c.Assert(err, jc.ErrorIsNil)
 	request, err := http.NewRequest("GET", server.URL+URI, nil)
+	c.Assert(err, jc.ErrorIsNil)
 
 	_, err = client.dispatchRequest(request)
 
@@ -124,7 +149,7 @@ func (suite *ClientSuite) TestClientDispatchRequestReturnsNonServerError(c *gc.C
 	c.Check(result, gc.IsNil)
 }
 
-func (suite *ClientSuite) TestClientdispatchRequestSignsRequest(c *gc.C) {
+func (suite *ClientSuite) TestClientDispatchRequestSignsRequest(c *gc.C) {
 	URI := "/some/url/?param1=test"
 	expectedResult := "expected:result"
 	server := newSingleServingServer(URI, expectedResult, http.StatusOK, -1)
@@ -141,7 +166,7 @@ func (suite *ClientSuite) TestClientdispatchRequestSignsRequest(c *gc.C) {
 	c.Check((*server.requestHeader)["Authorization"][0], gc.Matches, "^OAuth .*")
 }
 
-func (suite *ClientSuite) TestClientdispatchRequestUsesConfiguredHTTPClient(c *gc.C) {
+func (suite *ClientSuite) TestClientDispatchRequestUsesConfiguredHTTPClient(c *gc.C) {
 	URI := "/some/url/"
 
 	server := newSingleServingServer(URI, "", 0, 2*time.Second)
@@ -217,7 +242,7 @@ func (suite *ClientSuite) TestClientPostSendsRequestWithParams(c *gc.C) {
 
 // extractFileContent extracts from the request built using 'requestContent',
 // 'requestHeader' and 'requestURL', the file named 'filename'.
-func extractFileContent(requestContent string, requestHeader *http.Header, requestURL string, filename string) ([]byte, error) {
+func extractFileContent(requestContent string, requestHeader *http.Header, requestURL string, _ string) ([]byte, error) {
 	// Recreate the request from server.requestContent to use the parsing
 	// utility from the http package (http.Request.FormFile).
 	request, err := http.NewRequest("POST", requestURL, bytes.NewBufferString(requestContent))
@@ -229,7 +254,7 @@ func extractFileContent(requestContent string, requestHeader *http.Header, reque
 	if err != nil {
 		return nil, err
 	}
-	fileContent, err := ioutil.ReadAll(file)
+	fileContent, err := io.ReadAll(file)
 	if err != nil {
 		return nil, err
 	}
