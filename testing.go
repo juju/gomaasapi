@@ -84,6 +84,36 @@ func newFlakyServer(uri string, code int, nbFlakyResponses int) *flakyServer {
 	return &flakyServer{server, &nbRequests, &requests}
 }
 
+func newFlakyTLSServer(uri string, code int, nbFlakyResponses int) *flakyServer {
+	nbRequests := 0
+	requests := make([][]byte, nbFlakyResponses+1)
+	var server *httptest.Server
+
+	handler := func(writer http.ResponseWriter, request *http.Request) {
+		nbRequests += 1
+		body, err := readAndClose(request.Body)
+		if err != nil {
+			panic(err)
+		}
+		requests[nbRequests-1] = body
+		if request.URL.String() != uri {
+			errorMsg := fmt.Sprintf("Error 404: page not found (expected '%v', got '%v').", uri, request.URL.String())
+			http.Error(writer, errorMsg, http.StatusNotFound)
+		} else if nbRequests <= nbFlakyResponses {
+			if code == http.StatusServiceUnavailable {
+				writer.Header().Set("Retry-After", "0")
+			}
+			writer.WriteHeader(code)
+			fmt.Fprint(writer, "flaky")
+		} else {
+			writer.WriteHeader(http.StatusOK)
+			fmt.Fprint(writer, "ok")
+		}
+	}
+	server = httptest.NewTLSServer(http.HandlerFunc(handler))
+	return &flakyServer{server, &nbRequests, &requests}
+}
+
 type simpleResponse struct {
 	status int
 	body   string

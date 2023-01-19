@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -62,7 +61,7 @@ func readAndClose(stream io.ReadCloser) ([]byte, error) {
 		return nil, nil
 	}
 	defer stream.Close()
-	return ioutil.ReadAll(stream)
+	return io.ReadAll(stream)
 }
 
 // dispatchRequest sends a request to the server, and interprets the response.
@@ -70,7 +69,7 @@ func readAndClose(stream io.ReadCloser) ([]byte, error) {
 // server-side errors however (i.e. responses with a non 2XX status code), the
 // returned error will be ServerError and the returned body will reflect the
 // server's response.  If the server returns a 503 response with a 'Retry-after'
-// header, the request will be transparenty retried.
+// header, the request will be transparently retried.
 func (client Client) dispatchRequest(request *http.Request) ([]byte, error) {
 	// First, store the request's body into a byte[] to be able to restore it
 	// after each request.
@@ -80,18 +79,21 @@ func (client Client) dispatchRequest(request *http.Request) ([]byte, error) {
 	}
 	for retry := 0; retry < NumberOfRetries; retry++ {
 		// Restore body before issuing request.
-		newBody := ioutil.NopCloser(bytes.NewReader(bodyContent))
-		request.Body = newBody
+		if request.Body != nil {
+			newBody := io.NopCloser(bytes.NewReader(bodyContent))
+			request.Body = newBody
+		}
+
 		body, err := client.dispatchSingleRequest(request)
 		// If this is a 503 response with a non-void "Retry-After" header: wait
 		// as instructed and retry the request.
 		if err != nil {
 			serverError, ok := errors.Cause(err).(ServerError)
 			if ok && serverError.StatusCode == http.StatusServiceUnavailable {
-				retry_time_int, errConv := strconv.Atoi(serverError.Header.Get(RetryAfterHeaderName))
+				retryTimeInt, errConv := strconv.Atoi(serverError.Header.Get(RetryAfterHeaderName))
 				if errConv == nil {
 					select {
-					case <-time.After(time.Duration(retry_time_int) * time.Second):
+					case <-time.After(time.Duration(retryTimeInt) * time.Second):
 					}
 					continue
 				}
@@ -100,8 +102,11 @@ func (client Client) dispatchRequest(request *http.Request) ([]byte, error) {
 		return body, err
 	}
 	// Restore body before issuing request.
-	newBody := ioutil.NopCloser(bytes.NewReader(bodyContent))
-	request.Body = newBody
+	if request.Body != nil {
+		newBody := io.NopCloser(bytes.NewReader(bodyContent))
+		request.Body = newBody
+	}
+
 	return client.dispatchSingleRequest(request)
 }
 
