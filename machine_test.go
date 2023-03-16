@@ -42,13 +42,32 @@ func (*machineSuite) TestReadMachinesBadSchema(c *gc.C) {
 	c.Assert(err, gc.ErrorMatches, `machine 0: machine 2.0 schema check failed: .*`)
 }
 
-func (*machineSuite) TestReadMachines(c *gc.C) {
+func (s *machineSuite) TestReadMachines(c *gc.C) {
 	machines, err := readMachines(twoDotOh, parseJSON(c, machinesResponse))
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(machines, gc.HasLen, 3)
 
 	machine := machines[0]
+	s.checkMachine(c, machine)
 
+	hardwareInfo := machine.HardwareInfo()
+	c.Check(hardwareInfo, gc.NotNil)
+	c.Check(hardwareInfo["chassis_serial"], gc.Equals, "#dabeef")
+}
+
+func (s *machineSuite) TestReadMachinesWithoutHardwareInfo(c *gc.C) {
+	machines, err := readMachines(twoDotOh, parseJSON(c, machinesResponseWithoutHardwareInfo))
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(machines, gc.HasLen, 3)
+
+	machine := machines[0]
+	s.checkMachine(c, machine)
+
+	hardwareInfo := machine.HardwareInfo()
+	c.Check(hardwareInfo, gc.IsNil)
+}
+
+func (*machineSuite) checkMachine(c *gc.C, machine Machine) {
 	c.Check(machine.SystemID(), gc.Equals, "4y3ha3")
 	c.Check(machine.Hostname(), gc.Equals, "untasted-markita")
 	c.Check(machine.FQDN(), gc.Equals, "untasted-markita.maas")
@@ -107,6 +126,7 @@ func (*machineSuite) TestReadMachinesNilValues(c *gc.C) {
 	data["status_message"] = nil
 	data["boot_interface"] = nil
 	data["pool"] = nil
+	data["hardware_info"] = nil
 	machines, err := readMachines(twoDotOh, json)
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(machines, gc.HasLen, 3)
@@ -115,6 +135,7 @@ func (*machineSuite) TestReadMachinesNilValues(c *gc.C) {
 	c.Check(machine.StatusMessage(), gc.Equals, "")
 	c.Check(machine.BootInterface(), gc.IsNil)
 	c.Check(machine.Pool(), gc.IsNil)
+	c.Check(machine.HardwareInfo(), gc.IsNil)
 }
 
 func (*machineSuite) TestLowVersion(c *gc.C) {
@@ -404,9 +425,9 @@ func (s *machineSuite) TestOwnerDataCopies(c *gc.C) {
 	c.Assert(machine.OwnerData(), gc.DeepEquals, map[string]string{})
 }
 
-func (s *machineSuite) TestSetOwnerData(c *gc.C) {
+func (s *machineSuite) TestSetOwnerDataWithHardwareInfo(c *gc.C) {
 	server, machine := s.getServerAndMachine(c)
-	server.AddPostResponse(machine.resourceURI+"?op=set_owner_data", 200, machineWithOwnerData(`{"returned": "data"}`))
+	server.AddPostResponse(machine.resourceURI+"?op=set_owner_data", 200, machineWithOwnerDataWithHardwareInfo(`{"returned": "data"}`))
 	err := machine.SetOwnerData(map[string]string{
 		"draco": "malfoy",
 		"empty": "", // Check that empty strings get passed along.
@@ -420,11 +441,53 @@ func (s *machineSuite) TestSetOwnerData(c *gc.C) {
 	c.Check(form["empty"], gc.DeepEquals, []string{""})
 }
 
-func machineWithOwnerData(data string) string {
-	return fmt.Sprintf(machineOwnerDataTemplate, data)
+func (s *machineSuite) TestSetOwnerDataWithoutHardwareInfo(c *gc.C) {
+	server, machine := s.getServerAndMachine(c)
+	server.AddPostResponse(machine.resourceURI+"?op=set_owner_data", 200, machineWithOwnerDataWithoutHardwareInfo(`{"returned": "data"}`))
+	err := machine.SetOwnerData(map[string]string{
+		"draco": "malfoy",
+		"empty": "", // Check that empty strings get passed along.
+	})
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(machine.OwnerData(), gc.DeepEquals, map[string]string{"returned": "data"})
+	form := server.LastRequest().PostForm
+	// Looking at the map directly so we can tell the difference
+	// between no value and an explicit empty string.
+	c.Check(form["draco"], gc.DeepEquals, []string{"malfoy"})
+	c.Check(form["empty"], gc.DeepEquals, []string{""})
+}
+
+func machineWithOwnerDataWithHardwareInfo(data string) string {
+	return fmt.Sprintf(machineOwnerDataTemplate, data, hardwareInfo)
+}
+
+func machineWithOwnerDataWithoutHardwareInfo(data string) string {
+	return fmt.Sprintf(machineOwnerDataTemplate, data, "")
 }
 
 const (
+	hardwareInfo = `,
+        "hardware_info": {
+            "chassis_serial": "#dabeef",
+            "chassis_type": "Unknown",
+            "chassis_vendor": "Unknown",
+            "chassis_version": "Unknown",
+            "cpu_model": "Unknown",
+            "mainboard_firmware_date": "Unknown",
+            "mainboard_firmware_vendor": "Unknown",
+            "mainboard_firmware_version": "Unknown",
+            "mainboard_product": "Unknown",
+            "mainboard_serial": "Unknown",
+            "mainboard_vendor": "Unknown",
+            "mainboard_version": "Unknown",
+            "system_family": "Unknown",
+            "system_product": "Unknown",
+            "system_serial": "Unknown",
+            "system_sku": "Unknown",
+            "system_vendor": "Unknown",
+            "system_version": "Unknown"
+        }
+    `
 	machineOwnerDataTemplate = `
 	{
         "netboot": false,
@@ -861,26 +924,6 @@ const (
             "name": "default"
         },
         "fqdn": "untasted-markita.maas",
-		"hardware_info": {
-			"chassis_serial": "Unknown",
-			"chassis_type": "Unknown",
-			"chassis_vendor": "Unknown",
-			"chassis_version": "Unknown",
-			"cpu_model": "Unknown",
-			"mainboard_firmware_date": "Unknown",
-			"mainboard_firmware_vendor": "Unknown",
-			"mainboard_firmware_version": "Unknown",
-			"mainboard_product": "Unknown",
-			"mainboard_serial": "Unknown",
-			"mainboard_vendor": "Unknown",
-			"mainboard_version": "Unknown",
-			"system_family": "Unknown",
-			"system_product": "Unknown",
-			"system_serial": "Unknown",
-			"system_sku": "Unknown",
-			"system_vendor": "Unknown",
-			"system_version": "Unknown"
-		},
         "storage": 8589.934592,
         "node_type": 0,
         "boot_disk": null,
@@ -893,7 +936,7 @@ const (
             "ttl": null,
             "authoritative": true
         },
-        "owner_data": %s
+        "owner_data": %s%s
     }
 `
 
@@ -962,14 +1005,18 @@ const (
 )
 
 var (
-	machineResponse = machineWithOwnerData(`{
+	machineResponse = machineWithOwnerDataWithHardwareInfo(`{
+            "fez": "phil fish",
+            "frog-fractions": "jim crawford"
+        }
+`)
+	machineResponseWithoutHardwareInfo = machineWithOwnerDataWithoutHardwareInfo(`{
             "fez": "phil fish",
             "frog-fractions": "jim crawford"
         }
 `)
 
-	machinesResponse = "[" + machineResponse + `,
-    {
+	altMachineResponse = `{
         "netboot": true,
         "system_id": "4y3ha4",
         "ip_addresses": [],
@@ -1204,7 +1251,7 @@ var (
         },
         "fqdn": "lowlier-glady.maas",
 		"hardware_info": {
-			"chassis_serial": "Unknown",
+			"chassis_serial": "#dabeef",
 			"chassis_type": "Unknown",
 			"chassis_vendor": "Unknown",
 			"chassis_version": "Unknown",
@@ -1511,6 +1558,8 @@ var (
             "fez": "phil fish"
         }
     }
-]
 `
+
+	machinesResponse                    = "[" + machineResponse + ", " + altMachineResponse + "]"
+	machinesResponseWithoutHardwareInfo = "[" + machineResponseWithoutHardwareInfo + ", " + altMachineResponse + "]"
 )
