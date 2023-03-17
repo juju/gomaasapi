@@ -113,11 +113,14 @@ func (m *machine) CPUCount() int {
 
 // HardwareInfo implements Machine.
 func (m *machine) HardwareInfo() map[string]string {
+	if m.hardwareInfo == nil {
+		return nil
+	}
+
 	info := make(map[string]string, len(m.hardwareInfo))
 	for k, v := range m.hardwareInfo {
 		info[k] = v
 	}
-
 	return info
 }
 
@@ -525,7 +528,7 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 		"architecture":  schema.OneOf(schema.Nil(""), schema.String()),
 		"memory":        schema.ForceInt(),
 		"cpu_count":     schema.ForceInt(),
-		"hardware_info": schema.StringMap(schema.String()),
+		"hardware_info": schema.OneOf(schema.Nil(""), schema.StringMap(schema.String())),
 
 		"ip_addresses":   schema.List(schema.String()),
 		"power_state":    schema.String(),
@@ -588,19 +591,16 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 		return nil, errors.Trace(err)
 	}
 
-	validHardwareInfo, ok := valid["hardware_info"].(map[string]interface{})
-	if !ok {
-		return nil, fmt.Errorf("field \"hardware_info\" is not valid")
-	}
-
-	hardwareInfo := make(map[string]string, len(validHardwareInfo))
-	for key, value := range validHardwareInfo {
-		v, ok := value.(string)
-		if !ok {
-			return nil, fmt.Errorf("invalid field %q in \"hardware_info\"", key)
+	var hardwareInfo map[string]string
+	if validHardwareInfo, ok := valid["hardware_info"].(map[string]interface{}); ok {
+		hardwareInfo = make(map[string]string, len(validHardwareInfo))
+		for key, value := range validHardwareInfo {
+			v, ok := value.(string)
+			if !ok {
+				return nil, fmt.Errorf("invalid field %q in \"hardware_info\"", key)
+			}
+			hardwareInfo[key] = v
 		}
-
-		hardwareInfo[key] = v
 	}
 
 	architecture, _ := valid["architecture"].(string)
