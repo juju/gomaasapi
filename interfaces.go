@@ -3,7 +3,10 @@
 
 package gomaasapi
 
-import "github.com/juju/collections/set"
+import (
+	"github.com/juju/collections/set"
+	"github.com/juju/version/v2"
+)
 
 const (
 	// Capability constants.
@@ -21,7 +24,7 @@ const (
 type Controller interface {
 	// APIVersionInfo returns the version and subversion strings for the MAAS
 	// controller.
-	APIVersionInfo() (string, string, error)
+	APIVersionInfo() (version.Number, string, error)
 
 	// Capabilities returns a set of capabilities as defined by the string
 	// constants.

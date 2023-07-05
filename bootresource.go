@@ -9,7 +9,7 @@ import (
 	"github.com/juju/collections/set"
 	"github.com/juju/errors"
 	"github.com/juju/schema"
-	"github.com/juju/version"
+	"github.com/juju/version/v2"
 )
 
 type bootResource struct {

@@ -6,7 +6,7 @@ package gomaasapi
 import (
 	"github.com/juju/collections/set"
 	jc "github.com/juju/testing/checkers"
-	"github.com/juju/version"
+	"github.com/juju/version/v2"
 	gc "gopkg.in/check.v1"
 )
 

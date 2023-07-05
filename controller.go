@@ -19,7 +19,7 @@ import (
 	"github.com/juju/errors"
 	"github.com/juju/loggo"
 	"github.com/juju/schema"
-	"github.com/juju/version"
+	"github.com/juju/version/v2"
 )
 
 var (
@@ -97,7 +97,7 @@ func newControllerWithVersion(baseURL, apiVersion, apiKey string, httpClient *ht
 		Minor: minor,
 	}
 	controller := &controller{client: client, apiVersion: controllerVersion}
-	_, _, controller.capabilities, err = controller.readAPIVersionInfo()
+	controller.maasVersion, _, controller.capabilities, err = controller.readAPIVersionInfo()
 	if err != nil {
 		logger.Debugf("read version failed: %#v", err)
 		return nil, errors.Trace(err)
@@ -132,6 +132,7 @@ func newControllerUnknownVersion(args ControllerArgs) (Controller, error) {
 type controller struct {
 	client       *Client
 	apiVersion   version.Number
+	maasVersion  version.Number
 	capabilities set.Strings
 }
 
@@ -914,17 +915,17 @@ func indicatesUnsupportedVersion(err error) bool {
 
 // APIVersionInfo returns the version and subversion strings for the MAAS
 // controller.
-func (c *controller) APIVersionInfo() (string, string, error) {
+func (c *controller) APIVersionInfo() (version.Number, string, error) {
 	version, subversion, _, err := c.readAPIVersionInfo()
 	return version, subversion, err
 }
 
-func (c *controller) readAPIVersionInfo() (string, string, set.Strings, error) {
+func (c *controller) readAPIVersionInfo() (version.Number, string, set.Strings, error) {
 	parsed, err := c.get("version")
 	if indicatesUnsupportedVersion(err) {
-		return "", "", nil, WrapWithUnsupportedVersionError(err)
+		return version.Zero, "", nil, WrapWithUnsupportedVersionError(err)
 	} else if err != nil {
-		return "", "", nil, errors.Trace(err)
+		return version.Zero, "", nil, errors.Trace(err)
 	}
 
 	fields := schema.Fields{
@@ -935,7 +936,7 @@ func (c *controller) readAPIVersionInfo() (string, string, set.Strings, error) {
 	checker := schema.FieldMap(fields, nil) // no defaults
 	coerced, err := checker.Coerce(parsed, nil)
 	if err != nil {
-		return "", "", nil, WrapWithDeserializationError(err, "version response")
+		return version.Zero, "", nil, WrapWithDeserializationError(err, "version response")
 	}
 	// For now, we don't append any subversion, but as it becomes used, we
 	// should parse and check.
@@ -949,10 +950,13 @@ func (c *controller) readAPIVersionInfo() (string, string, set.Strings, error) {
 		capabilities.Add(value.(string))
 	}
 
-	version := valid["version"].(string)
+	maasVersion, err := version.Parse(valid["version"].(string))
+	if err != nil {
+		return version.Zero, "", nil, WrapWithDeserializationError(err, "version response")
+	}
 	subversion := valid["subversion"].(string)
 
-	return version, subversion, capabilities, nil
+	return maasVersion, subversion, capabilities, nil
 }
 
 func parseAllocateConstraintsResponse(source interface{}, machine *machine) (ConstraintMatches, error) {
