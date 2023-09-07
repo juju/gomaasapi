@@ -69,7 +69,7 @@ func newFlakyServer(uri string, code int, nbFlakyResponses int) *flakyServer {
 			errorMsg := fmt.Sprintf("Error 404: page not found (expected '%v', got '%v').", uri, request.URL.String())
 			http.Error(writer, errorMsg, http.StatusNotFound)
 		} else if nbRequests <= nbFlakyResponses {
-			if code == http.StatusServiceUnavailable {
+			if code == http.StatusServiceUnavailable || code == http.StatusConflict {
 				writer.Header().Set("Retry-After", "0")
 			}
 			writer.WriteHeader(code)
