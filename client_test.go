@@ -78,6 +78,22 @@ func (suite *ClientSuite) TestClientDispatchRequestRetries503(c *gc.C) {
 	c.Check(*server.requests, jc.DeepEquals, expectedRequestsContent)
 }
 
+func (suite *ClientSuite) TestClientDispatchRequestRetries409(c *gc.C) {
+	URI := "/some/url/?param1=test"
+	server := newFlakyServer(URI, 409, NumberOfRetries)
+	defer server.Close()
+	client, err := NewAnonymousClient(server.URL, "1.0")
+	c.Assert(err, jc.ErrorIsNil)
+	content := "content"
+	request, err := http.NewRequest("GET", server.URL+URI, io.NopCloser(strings.NewReader(content)))
+	c.Assert(err, jc.ErrorIsNil)
+
+	_, err = client.dispatchRequest(request)
+
+	c.Assert(err, jc.ErrorIsNil)
+	c.Check(*server.nbRequests, gc.Equals, NumberOfRetries+1)
+}
+
 func (suite *ClientSuite) TestTLSClientDispatchRequestRetries503NilBody(c *gc.C) {
 	URI := "/some/path"
 	server := newFlakyTLSServer(URI, 503, NumberOfRetries)

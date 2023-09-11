@@ -89,7 +89,7 @@ func (client Client) dispatchRequest(request *http.Request) ([]byte, error) {
 		// as instructed and retry the request.
 		if err != nil {
 			serverError, ok := errors.Cause(err).(ServerError)
-			if ok && serverError.StatusCode == http.StatusServiceUnavailable {
+			if ok && (serverError.StatusCode == http.StatusServiceUnavailable || serverError.StatusCode == http.StatusConflict) {
 				retryTimeInt, errConv := strconv.Atoi(serverError.Header.Get(RetryAfterHeaderName))
 				if errConv == nil {
 					select {
