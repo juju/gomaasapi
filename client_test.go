@@ -170,7 +170,7 @@ func (suite *ClientSuite) TestClientDispatchRequestSignsRequest(c *gc.C) {
 	expectedResult := "expected:result"
 	server := newSingleServingServer(URI, expectedResult, http.StatusOK, -1)
 	defer server.Close()
-	client, err := NewAuthenticatedClient(server.URL, "the:api:key")
+	client, err := NewAuthenticatedClient(server.URL, "the:api:key", false)
 	c.Assert(err, jc.ErrorIsNil)
 	request, err := http.NewRequest("GET", server.URL+URI, nil)
 	c.Assert(err, jc.ErrorIsNil)
@@ -338,7 +338,7 @@ func (suite *ClientSuite) TestNewAnonymousClientEnsuresTrailingSlash(c *gc.C) {
 }
 
 func (suite *ClientSuite) TestNewAuthenticatedClientEnsuresTrailingSlash(c *gc.C) {
-	client, err := NewAuthenticatedClient("http://example.com/api/1.0", "a:b:c")
+	client, err := NewAuthenticatedClient("http://example.com/api/1.0", "a:b:c", false)
 	c.Assert(err, jc.ErrorIsNil)
 	expectedURL, err := url.Parse("http://example.com/api/1.0/")
 	c.Assert(err, jc.ErrorIsNil)
@@ -354,7 +354,7 @@ func (suite *ClientSuite) TestNewAuthenticatedClientParsesApiKey(c *gc.C) {
 	keyElements := []string{consumerKey, tokenKey, tokenSecret}
 	apiKey := strings.Join(keyElements, ":")
 
-	client, err := NewAuthenticatedClient("http://example.com/api/1.0/", apiKey)
+	client, err := NewAuthenticatedClient("http://example.com/api/1.0/", apiKey, false)
 
 	c.Assert(err, jc.ErrorIsNil)
 	signer := client.Signer.(*plainTextOAuthSigner)
@@ -364,7 +364,7 @@ func (suite *ClientSuite) TestNewAuthenticatedClientParsesApiKey(c *gc.C) {
 }
 
 func (suite *ClientSuite) TestNewAuthenticatedClientFailsIfInvalidKey(c *gc.C) {
-	client, err := NewAuthenticatedClient("", "invalid-key")
+	client, err := NewAuthenticatedClient("", "invalid-key", false)
 
 	c.Check(err, gc.ErrorMatches, "invalid API key.*")
 	c.Check(client, gc.IsNil)
