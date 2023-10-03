@@ -5,6 +5,7 @@ package gomaasapi
 
 import (
 	"bytes"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -304,13 +305,16 @@ func SplitVersionedURL(url string) (string, string, bool) {
 // BaseURL should refer to the root of the MAAS server path, e.g.
 // http://my.maas.server.example.com/MAAS/
 // apiVersion should contain the version of the MAAS API that you want to use.
-func NewAnonymousClient(BaseURL string, apiVersion string) (*Client, error) {
+func NewAnonymousClient(BaseURL string, apiVersion string, insecure bool) (*Client, error) {
 	versionedURL := AddAPIVersionToURL(BaseURL, apiVersion)
 	parsedURL, err := url.Parse(versionedURL)
 	if err != nil {
 		return nil, err
 	}
-	return &Client{Signer: &anonSigner{}, APIURL: parsedURL}, nil
+	httpClient := &http.Client{Transport: &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: insecure},
+	}}
+	return &Client{Signer: &anonSigner{}, APIURL: parsedURL, HTTPClient: httpClient}, nil
 }
 
 // NewAuthenticatedClient parses the given MAAS API key into the
@@ -319,7 +323,7 @@ func NewAnonymousClient(BaseURL string, apiVersion string) (*Client, error) {
 // versionedURL should be the location of the versioned API root of
 // the MAAS server, e.g.:
 // http://my.maas.server.example.com/MAAS/api/2.0/
-func NewAuthenticatedClient(versionedURL, apiKey string) (*Client, error) {
+func NewAuthenticatedClient(versionedURL, apiKey string, insecure bool) (*Client, error) {
 	elements := strings.Split(apiKey, ":")
 	if len(elements) != 3 {
 		errString := fmt.Sprintf("invalid API key %q; expected \"<consumer secret>:<token key>:<token secret>\"", apiKey)
@@ -340,5 +344,8 @@ func NewAuthenticatedClient(versionedURL, apiKey string) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Client{Signer: signer, APIURL: parsedURL}, nil
+	httpClient := &http.Client{Transport: &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: insecure},
+	}}
+	return &Client{Signer: signer, APIURL: parsedURL, HTTPClient: httpClient}, nil
 }

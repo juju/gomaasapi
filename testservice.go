@@ -44,7 +44,7 @@ func checkError(err error) {
 // by gomaasapi.NewMAAS().
 func NewTestMAAS(version string) *TestMAASObject {
 	server := NewTestServer(version)
-	authClient, err := NewAnonymousClient(server.URL, version)
+	authClient, err := NewAnonymousClient(server.URL, version, false)
 	checkError(err)
 	maas := NewMAAS(*authClient)
 	return &TestMAASObject{*maas, server}
@@ -663,7 +663,7 @@ func NewTestServer(version string) *TestServer {
 	}
 
 	newServer := httptest.NewServer(http.HandlerFunc(singleFile))
-	client, err := NewAnonymousClient(newServer.URL, "1.0")
+	client, err := NewAnonymousClient(newServer.URL, "1.0", false)
 	checkError(err)
 	server.Server = newServer
 	server.serveMux = serveMux

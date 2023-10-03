@@ -80,7 +80,7 @@ func newControllerWithVersion(baseURL, apiVersion, apiKey string, httpClient *ht
 	if err != nil {
 		return nil, errors.Errorf("bad version defined in supported versions: %q", apiVersion)
 	}
-	client, err := NewAuthenticatedClient(AddAPIVersionToURL(baseURL, apiVersion), apiKey)
+	client, err := NewAuthenticatedClient(AddAPIVersionToURL(baseURL, apiVersion), apiKey, false)
 	if err != nil {
 		// If the credentials aren't valid, return now.
 		if errors.IsNotValid(err) {
@@ -556,7 +556,7 @@ func (a *AllocateMachineArgs) notSubnets() []string {
 }
 
 // ConstraintMatches provides a way for the caller of AllocateMachine to determine
-//.how the allocated machine matched the storage and interfaces constraints specified.
+// .how the allocated machine matched the storage and interfaces constraints specified.
 // The labels that were used in the constraints are the keys in the maps.
 type ConstraintMatches struct {
 	// Interface is a mapping of the constraint label specified to the Interfaces
@@ -629,9 +629,9 @@ type ReleaseMachinesArgs struct {
 // ReleaseMachines implements Controller.
 //
 // Release multiple machines at once. Returns
-//  - BadRequestError if any of the machines cannot be found
-//  - PermissionError if the user does not have permission to release any of the machines
-//  - CannotCompleteError if any of the machines could not be released due to their current state
+//   - BadRequestError if any of the machines cannot be found
+//   - PermissionError if the user does not have permission to release any of the machines
+//   - CannotCompleteError if any of the machines could not be released due to their current state
 func (c *controller) ReleaseMachines(args ReleaseMachinesArgs) error {
 	params := NewURLParams()
 	params.MaybeAddMany("machines", args.SystemIDs)
