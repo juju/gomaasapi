@@ -94,6 +94,26 @@ func (suite *ClientSuite) TestClientDispatchRequestRetries409(c *gc.C) {
 	c.Check(*server.nbRequests, gc.Equals, NumberOfRetries+1)
 }
 
+// See https://bugs.launchpad.net/maas/+bug/2039105
+func (suite *ClientSuite) TestClientDispatchRequestRetries409WithoutDuplicatedHeaders(c *gc.C) {
+	URI := "/some/url/?param1=test"
+	server := newFlakyServer(URI, 409, NumberOfRetries)
+	defer server.Close()
+	client, err := NewAuthenticatedClient(server.URL, "the:api:key")
+	c.Assert(err, jc.ErrorIsNil)
+	content := "content"
+	request, err := http.NewRequest("GET", server.URL+URI, io.NopCloser(strings.NewReader(content)))
+	c.Assert(err, jc.ErrorIsNil)
+
+	_, err = client.dispatchRequest(request)
+
+	c.Assert(err, jc.ErrorIsNil)
+	c.Check(*server.nbRequests, gc.Equals, NumberOfRetries+1)
+	for _, headers := range *server.headers {
+		c.Check(len(headers.Values("Authorization")), gc.Equals, 1)
+	}
+}
+
 func (suite *ClientSuite) TestTLSClientDispatchRequestRetries503NilBody(c *gc.C) {
 	URI := "/some/path"
 	server := newFlakyTLSServer(URI, 503, NumberOfRetries)

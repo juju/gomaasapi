@@ -75,6 +75,6 @@ func (signer plainTextOAuthSigner) OAuthSign(request *http.Request) error {
 		authHeader = append(authHeader, fmt.Sprintf(`%s="%s"`, key, url.QueryEscape(value)))
 	}
 	strHeader := "OAuth " + strings.Join(authHeader, ", ")
-	request.Header.Add("Authorization", strHeader)
+	request.Header.Set("Authorization", strHeader)
 	return nil
 }

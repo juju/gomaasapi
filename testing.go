@@ -51,6 +51,7 @@ type flakyServer struct {
 	*httptest.Server
 	nbRequests *int
 	requests   *[][]byte
+	headers    *[]http.Header
 }
 
 // newFlakyServer creates a "flaky" test http server which will
@@ -58,6 +59,7 @@ type flakyServer struct {
 func newFlakyServer(uri string, code int, nbFlakyResponses int) *flakyServer {
 	nbRequests := 0
 	requests := make([][]byte, nbFlakyResponses+1)
+	headers := make([]http.Header, nbFlakyResponses+1)
 	handler := func(writer http.ResponseWriter, request *http.Request) {
 		nbRequests += 1
 		body, err := readAndClose(request.Body)
@@ -65,6 +67,7 @@ func newFlakyServer(uri string, code int, nbFlakyResponses int) *flakyServer {
 			panic(err)
 		}
 		requests[nbRequests-1] = body
+		headers[nbRequests-1] = request.Header
 		if request.URL.String() != uri {
 			errorMsg := fmt.Sprintf("Error 404: page not found (expected '%v', got '%v').", uri, request.URL.String())
 			http.Error(writer, errorMsg, http.StatusNotFound)
@@ -81,12 +84,13 @@ func newFlakyServer(uri string, code int, nbFlakyResponses int) *flakyServer {
 
 	}
 	server := httptest.NewServer(http.HandlerFunc(handler))
-	return &flakyServer{server, &nbRequests, &requests}
+	return &flakyServer{server, &nbRequests, &requests, &headers}
 }
 
 func newFlakyTLSServer(uri string, code int, nbFlakyResponses int) *flakyServer {
 	nbRequests := 0
 	requests := make([][]byte, nbFlakyResponses+1)
+	headers := make([]http.Header, nbFlakyResponses+1)
 	var server *httptest.Server
 
 	handler := func(writer http.ResponseWriter, request *http.Request) {
@@ -96,6 +100,7 @@ func newFlakyTLSServer(uri string, code int, nbFlakyResponses int) *flakyServer 
 			panic(err)
 		}
 		requests[nbRequests-1] = body
+		headers[nbRequests-1] = request.Header
 		if request.URL.String() != uri {
 			errorMsg := fmt.Sprintf("Error 404: page not found (expected '%v', got '%v').", uri, request.URL.String())
 			http.Error(writer, errorMsg, http.StatusNotFound)
@@ -111,7 +116,7 @@ func newFlakyTLSServer(uri string, code int, nbFlakyResponses int) *flakyServer 
 		}
 	}
 	server = httptest.NewTLSServer(http.HandlerFunc(handler))
-	return &flakyServer{server, &nbRequests, &requests}
+	return &flakyServer{server, &nbRequests, &requests, &headers}
 }
 
 type simpleResponse struct {
