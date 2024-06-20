@@ -10,7 +10,7 @@ import (
 
 	"github.com/juju/errors"
 	"github.com/juju/schema"
-	"github.com/juju/version"
+	"github.com/juju/version/v2"
 )
 
 type machine struct {
@@ -266,19 +266,30 @@ func (m *machine) Devices(args DevicesArgs) ([]Device, error) {
 // method.
 type StartArgs struct {
 	// UserData needs to be Base64 encoded user data for cloud-init.
-	UserData     string
-	DistroSeries string
-	Kernel       string
-	Comment      string
+	UserData string
+	Base     Base
+	Kernel   string
+	Comment  string
 }
 
 // Start implements Machine.
 func (m *machine) Start(args StartArgs) error {
 	params := NewURLParams()
 	params.MaybeAdd("user_data", args.UserData)
-	params.MaybeAdd("distro_series", args.DistroSeries)
 	params.MaybeAdd("hwe_kernel", args.Kernel)
 	params.MaybeAdd("comment", args.Comment)
+
+	var distroVersion string
+	if m.controller.maasVersion.Compare(VersionDeploySupportsBases) > 0 {
+		distroVersion = args.Base.String()
+	} else {
+		var err error
+		distroVersion, err = args.Base.toSeries()
+		if err != nil {
+			return errors.Trace(err)
+		}
+	}
+	params.MaybeAdd("distro_series", distroVersion)
 	result, err := m.controller.post(m.resourceURI, "deploy", params.Values)
 	if err != nil {
 		if svrErr, ok := errors.Cause(err).(ServerError); ok {
