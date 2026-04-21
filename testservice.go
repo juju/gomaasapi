@@ -22,8 +22,6 @@ import (
 	"sync"
 	"text/template"
 	"time"
-
-	"github.com/juju/mgo/v2/bson"
 )
 
 // TestMAASObject is a fake MAAS server MAASObject.
@@ -1219,9 +1217,9 @@ func nodeDetailsHandler(server *TestServer, w http.ResponseWriter, r *http.Reque
 	attrs["lldp"] = lldpXML
 	xmlText, _ := server.nodeDetails[systemId]
 	attrs["lshw"] = []byte(xmlText)
-	res, err := bson.Marshal(attrs)
+	res, err := json.Marshal(attrs)
 	checkError(err)
-	w.Header().Set("Content-Type", "application/bson")
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, string(res))
 }

@@ -81,6 +81,10 @@ func (*machineSuite) checkMachine(c *gc.C, machine Machine) {
 	c.Check(machine.Memory(), gc.Equals, 1024)
 	c.Check(machine.CPUCount(), gc.Equals, 1)
 	c.Check(machine.PowerState(), gc.Equals, "on")
+	c.Check(machine.PowerType(), gc.Equals, "virsh")
+	c.Check(machine.Pod(), gc.NotNil)
+	c.Check(machine.Pod().ID(), gc.Equals, 42)
+	c.Check(machine.Pod().Name(), gc.Equals, "test-pod")
 	c.Check(machine.Zone().Name(), gc.Equals, "default")
 	c.Check(machine.Pool().Name(), gc.Equals, "default")
 	c.Check(machine.OperatingSystem(), gc.Equals, "ubuntu")
@@ -795,6 +799,12 @@ const (
         "power_state": "on",
         "architecture": "amd64/generic",
         "power_type": "virsh",
+        "pod": {
+            "id": 42,
+            "name": "test-pod",
+            "type": "lxd",
+            "resource_uri": "/MAAS/api/2.0/pods/42/"
+        },
         "distro_series": "trusty",
         "tag_names": [
            "virtual", "magic"

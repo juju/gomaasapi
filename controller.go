@@ -556,7 +556,7 @@ func (a *AllocateMachineArgs) notSubnets() []string {
 }
 
 // ConstraintMatches provides a way for the caller of AllocateMachine to determine
-//.how the allocated machine matched the storage and interfaces constraints specified.
+// how the allocated machine matched the storage and interfaces constraints specified.
 // The labels that were used in the constraints are the keys in the maps.
 type ConstraintMatches struct {
 	// Interface is a mapping of the constraint label specified to the Interfaces
@@ -629,9 +629,9 @@ type ReleaseMachinesArgs struct {
 // ReleaseMachines implements Controller.
 //
 // Release multiple machines at once. Returns
-//  - BadRequestError if any of the machines cannot be found
-//  - PermissionError if the user does not have permission to release any of the machines
-//  - CannotCompleteError if any of the machines could not be released due to their current state
+//   - BadRequestError if any of the machines cannot be found
+//   - PermissionError if the user does not have permission to release any of the machines
+//   - CannotCompleteError if any of the machines could not be released due to their current state
 func (c *controller) ReleaseMachines(args ReleaseMachinesArgs) error {
 	params := NewURLParams()
 	params.MaybeAddMany("machines", args.SystemIDs)
@@ -651,6 +651,31 @@ func (c *controller) ReleaseMachines(args ReleaseMachinesArgs) error {
 		return NewUnexpectedError(err)
 	}
 
+	return nil
+}
+
+// DeleteMachine implements Controller. Returns
+//   - BadRequestError if any of the machines cannot be found
+//   - PermissionError if the user does not have permission to delete the machine
+//   - CannotCompleteError if the machine could not be deleted due to its current state
+func (c *controller) DeleteMachine(systemID string) error {
+	if systemID == "" {
+		return errors.NotValidf("missing systemID")
+	}
+	err := c.delete("machines/" + systemID)
+	if err != nil {
+		if svrErr, ok := errors.Cause(err).(ServerError); ok {
+			switch svrErr.StatusCode {
+			case http.StatusBadRequest:
+				return errors.Wrap(err, NewBadRequestError(svrErr.BodyMessage))
+			case http.StatusForbidden:
+				return errors.Wrap(err, NewPermissionError(svrErr.BodyMessage))
+			case http.StatusConflict:
+				return errors.Wrap(err, NewCannotCompleteError(svrErr.BodyMessage))
+			}
+		}
+		return NewUnexpectedError(err)
+	}
 	return nil
 }
 
@@ -955,7 +980,7 @@ func (c *controller) readAPIVersionInfo() (string, string, set.Strings, error) {
 	return version, subversion, capabilities, nil
 }
 
-func parseAllocateConstraintsResponse(source interface{}, machine *machine) (ConstraintMatches, error) {
+func parseAllocateConstraintsResponse(source interface{}, machine Machine) (ConstraintMatches, error) {
 	var empty ConstraintMatches
 	matchFields := schema.Fields{
 		"storage":    schema.StringMap(schema.List(schema.Any())),

@@ -33,6 +33,7 @@ type machine struct {
 
 	ipAddresses []string
 	powerState  string
+	powerType   string
 
 	// NOTE: consider some form of status struct
 	statusName    string
@@ -42,6 +43,7 @@ type machine struct {
 	interfaceSet  []*interface_
 	zone          *zone
 	pool          *pool
+	pod           *pod
 	// Don't really know the difference between these two lists:
 	physicalBlockDevices []*blockdevice
 	blockDevices         []*blockdevice
@@ -50,6 +52,7 @@ type machine struct {
 func (m *machine) updateFrom(other *machine) {
 	m.resourceURI = other.resourceURI
 	m.systemID = other.systemID
+	m.pod = other.pod
 	m.hostname = other.hostname
 	m.fqdn = other.fqdn
 	m.operatingSystem = other.operatingSystem
@@ -60,6 +63,7 @@ func (m *machine) updateFrom(other *machine) {
 	m.hardwareInfo = other.hardwareInfo
 	m.ipAddresses = other.ipAddresses
 	m.powerState = other.powerState
+	m.powerType = other.powerType
 	m.statusName = other.statusName
 	m.statusMessage = other.statusMessage
 	m.zone = other.zone
@@ -127,6 +131,16 @@ func (m *machine) HardwareInfo() map[string]string {
 // PowerState implements Machine.
 func (m *machine) PowerState() string {
 	return m.powerState
+}
+
+// PowerType implements Machine.
+func (m *machine) PowerType() string {
+	return m.powerType
+}
+
+// Pod implements Machine.
+func (m *machine) Pod() Pod {
+	return m.pod
 }
 
 // Zone implements Machine.
@@ -518,6 +532,7 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 		"resource_uri": schema.String(),
 
 		"system_id":  schema.String(),
+		"pod":        schema.OneOf(schema.Nil(""), schema.StringMap(schema.Any())),
 		"hostname":   schema.String(),
 		"fqdn":       schema.String(),
 		"tag_names":  schema.List(schema.String()),
@@ -532,6 +547,7 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 
 		"ip_addresses":   schema.List(schema.String()),
 		"power_state":    schema.String(),
+		"power_type":     schema.OneOf(schema.Nil(""), schema.String()),
 		"status_name":    schema.String(),
 		"status_message": schema.OneOf(schema.Nil(""), schema.String()),
 
@@ -581,6 +597,13 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 		}
 	}
 
+	var pod *pod
+	if valid["pod"] != nil {
+		if pod, err = pod_2_0(valid["pod"].(map[string]interface{})); err != nil {
+			return nil, errors.Trace(err)
+		}
+	}
+
 	physicalBlockDevices, err := readBlockDeviceList(valid["physicalblockdevice_set"].([]interface{}), blockdevice_2_0)
 	if err != nil {
 		return nil, errors.Trace(err)
@@ -623,6 +646,7 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 
 		ipAddresses:   convertToStringSlice(valid["ip_addresses"]),
 		powerState:    valid["power_state"].(string),
+		powerType:     valid["power_type"].(string),
 		statusName:    valid["status_name"].(string),
 		statusMessage: statusMessage,
 
@@ -630,6 +654,7 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 		interfaceSet:         interfaceSet,
 		zone:                 zone,
 		pool:                 pool,
+		pod:                  pod,
 		physicalBlockDevices: physicalBlockDevices,
 		blockDevices:         blockDevices,
 	}
