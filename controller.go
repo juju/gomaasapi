@@ -225,6 +225,36 @@ func (c *controller) Zones() ([]Zone, error) {
 	return result, nil
 }
 
+func (c *controller) zoneIDByName(name string) (int, error) {
+	source, err := c.get("zones/" + name)
+	if err != nil {
+		if svrErr, ok := errors.Cause(err).(ServerError); ok {
+			switch svrErr.StatusCode {
+			case http.StatusNotFound:
+				message := svrErr.BodyMessage
+				if message == "" {
+					message = fmt.Sprintf("zone %q not found", name)
+				}
+				return 0, errors.Wrap(err, NewNoMatchError(message))
+			case http.StatusBadRequest:
+				message := svrErr.BodyMessage
+				if message == "" {
+					message = fmt.Sprintf("zone %q not found", name)
+				}
+				return 0, errors.Wrap(err, NewBadRequestError(message))
+			case http.StatusForbidden:
+				return 0, errors.Wrap(err, NewPermissionError(svrErr.BodyMessage))
+			}
+		}
+		return 0, NewUnexpectedError(err)
+	}
+	z, err := readZone(c.apiVersion, source)
+	if err != nil {
+		return 0, WrapWithDeserializationError(err, "zone id schema check failed")
+	}
+	return z.id, nil
+}
+
 // Pools implements Controller.
 func (c *controller) Pools() ([]Pool, error) {
 	var result []Pool

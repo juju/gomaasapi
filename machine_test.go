@@ -924,6 +924,7 @@ const (
             }
         ],
         "zone": {
+            "id": 1,
             "description": "",
             "resource_uri": "/MAAS/api/2.0/zones/default/",
             "name": "default"
@@ -953,6 +954,7 @@ const (
 	createDeviceResponse = `
 {
 	"zone": {
+		"id": 1,
 		"description": "",
 		"resource_uri": "/MAAS/api/2.0/zones/default/",
 		"name": "default"
@@ -1250,6 +1252,7 @@ var (
             }
         ],
         "zone": {
+            "id": 1,
             "description": "",
             "resource_uri": "/MAAS/api/2.0/zones/default/",
             "name": "default"
@@ -1521,6 +1524,7 @@ var (
             }
         ],
         "zone": {
+            "id": 1,
             "description": "",
             "resource_uri": "/MAAS/api/2.0/zones/default/",
             "name": "default"

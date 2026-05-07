@@ -773,6 +773,7 @@ const (
 	    }{{end}}
 	],
 	"zone": {
+	    "id": 1,
 	    "resource_uri": "/MAAS/api/{{.APIVersion}}/zones/default/",
 	    "name": "default",
 	    "description": ""

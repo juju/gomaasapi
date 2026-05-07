@@ -15,6 +15,7 @@ type zone struct {
 
 	resourceURI string
 
+	id          int
 	name        string
 	description string
 }
@@ -29,6 +30,25 @@ func (z *zone) Description() string {
 	return z.description
 }
 
+func readZone(controllerVersion version.Number, source interface{}) (*zone, error) {
+	checker := schema.StringMap(schema.Any())
+	coerced, err := checker.Coerce(source, nil)
+	if err != nil {
+		return nil, errors.Annotatef(err, "zone base schema check failed")
+	}
+	valid := coerced.(map[string]interface{})
+
+	readFunc, err := zoneReadFuncForVersion(controllerVersion)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	zone, err := readFunc(valid)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	return zone, nil
+}
+
 func readZones(controllerVersion version.Number, source interface{}) ([]*zone, error) {
 	checker := schema.List(schema.StringMap(schema.Any()))
 	coerced, err := checker.Coerce(source, nil)
@@ -37,6 +57,14 @@ func readZones(controllerVersion version.Number, source interface{}) ([]*zone, e
 	}
 	valid := coerced.([]interface{})
 
+	readFunc, err := zoneReadFuncForVersion(controllerVersion)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	return readZoneList(valid, readFunc)
+}
+
+func zoneReadFuncForVersion(controllerVersion version.Number) (zoneDeserializationFunc, error) {
 	var deserialisationVersion version.Number
 	for v := range zoneDeserializationFuncs {
 		if v.Compare(deserialisationVersion) > 0 && v.Compare(controllerVersion) <= 0 {
@@ -46,8 +74,7 @@ func readZones(controllerVersion version.Number, source interface{}) ([]*zone, e
 	if deserialisationVersion == version.Zero {
 		return nil, errors.Errorf("no zone read func for version %s", controllerVersion)
 	}
-	readFunc := zoneDeserializationFuncs[deserialisationVersion]
-	return readZoneList(valid, readFunc)
+	return zoneDeserializationFuncs[deserialisationVersion], nil
 }
 
 // readZoneList expects the values of the sourceList to be string maps.
@@ -75,6 +102,7 @@ var zoneDeserializationFuncs = map[version.Number]zoneDeserializationFunc{
 
 func zone_2_0(source map[string]interface{}) (*zone, error) {
 	fields := schema.Fields{
+		"id":           schema.ForceInt(),
 		"name":         schema.String(),
 		"description":  schema.String(),
 		"resource_uri": schema.String(),
@@ -89,6 +117,7 @@ func zone_2_0(source map[string]interface{}) (*zone, error) {
 	// contains fields of the right type.
 
 	result := &zone{
+		id:          valid["id"].(int),
 		name:        valid["name"].(string),
 		description: valid["description"].(string),
 		resourceURI: valid["resource_uri"].(string),

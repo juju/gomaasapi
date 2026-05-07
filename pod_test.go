@@ -14,7 +14,7 @@ type podSuite struct{}
 var _ = Suite(&podSuite{})
 
 func (s *podSuite) TestPod20Read(c *C) {
-	sourceJSON := `{"id": 42, "name": "test-pod", "type": "lxd", "resource_uri": "/MAAS/api/2.0/pods/42/", "zone": {"name": "zone1", "description": "", "resource_uri": "/MAAS/api/2.0/zones/zone1/"}, "pool": {"name": "pool1", "description": "", "resource_uri": "/MAAS/api/2.0/resourcepool/pool1/"}}`
+	sourceJSON := `{"id": 42, "name": "test-pod", "type": "lxd", "resource_uri": "/MAAS/api/2.0/pods/42/", "zone": {"id": 1, "name": "zone1", "description": "", "resource_uri": "/MAAS/api/2.0/zones/zone1/"}, "pool": {"name": "pool1", "description": "", "resource_uri": "/MAAS/api/2.0/resourcepool/pool1/"}}`
 	var source map[string]interface{}
 	err := json.Unmarshal([]byte(sourceJSON), &source)
 	c.Assert(err, IsNil)

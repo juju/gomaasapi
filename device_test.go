@@ -235,6 +235,7 @@ const (
 	deviceResponse = `
     {
         "zone": {
+            "id": 1,
             "description": "",
             "resource_uri": "/MAAS/api/2.0/zones/default/",
             "name": "default"

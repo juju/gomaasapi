@@ -862,6 +862,36 @@ func (s *controllerSuite) TestComposeMachineWrapped(c *gc.C) { // MAAS 3.x
 	c.Assert(machine.SystemID(), gc.Equals, "sys-id-3x")
 }
 
+func (s *controllerSuite) TestComposeMachineResolvesZoneNameToID(c *gc.C) {
+	s.server.AddGetResponse("/api/2.0/zones/test/", http.StatusOK, `{"id": 7, "name": "test", "description": "", "resource_uri": "/MAAS/api/2.0/zones/test/"}`)
+	s.server.AddPostResponse("/api/2.0/pods/42/?op=compose", http.StatusOK, `{"system_id": "sys-id-zone"}`)
+
+	controller := s.getController(c)
+	machine, err := controller.ComposeMachine(42, ComposeMachineArgs{Zone: "test"})
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(machine.SystemID(), gc.Equals, "sys-id-zone")
+
+	requests := s.server.LastNRequests(2)
+	c.Assert(requests, gc.HasLen, 2)
+	c.Assert(requests[1].Form.Get("zone"), gc.Equals, "7")
+}
+
+func (s *controllerSuite) TestComposeMachineZoneLookupNotFound(c *gc.C) {
+	s.server.AddGetResponse("/api/2.0/zones/test/", http.StatusNotFound, `"not found"`)
+
+	controller := s.getController(c)
+	_, err := controller.ComposeMachine(42, ComposeMachineArgs{Zone: "test"})
+	c.Assert(err, jc.Satisfies, IsNoMatchError)
+}
+
+func (s *controllerSuite) TestComposeMachineZoneLookupBadSchema(c *gc.C) {
+	s.server.AddGetResponse("/api/2.0/zones/test/", http.StatusOK, `{"name": "test"}`)
+
+	controller := s.getController(c)
+	_, err := controller.ComposeMachine(42, ComposeMachineArgs{Zone: "test"})
+	c.Assert(err, jc.Satisfies, IsDeserializationError)
+}
+
 func (s *controllerSuite) TestComposeMachineErrors(c *gc.C) {
 	s.server.AddPostResponse("/api/2.0/pods/42/?op=compose", http.StatusConflict, `"conflict"`)
 	s.server.AddPostResponse("/api/2.0/pods/43/?op=compose", http.StatusBadRequest, `"bad req"`)

@@ -244,7 +244,13 @@ func (c *controller) ComposeMachine(podID int, args ComposeMachineArgs) (Machine
 	params.MaybeAddInt("memory", args.MinMemory)
 	params.MaybeAdd("storage", args.storage())
 	params.MaybeAdd("interfaces", args.interfaces())
-	params.MaybeAdd("zone", args.Zone)
+	if args.Zone != "" {
+		zoneID, err := c.zoneIDByName(args.Zone)
+		if err != nil {
+			return nil, errors.Trace(err)
+		}
+		params.MaybeAddInt("zone", zoneID)
+	}
 	params.MaybeAdd("pool", args.Pool)
 
 	podPath := fmt.Sprintf("pods/%d", podID)
