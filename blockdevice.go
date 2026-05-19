@@ -103,13 +103,13 @@ func (b *blockdevice) Partitions() []Partition {
 	return result
 }
 
-func readBlockDevices(controllerVersion version.Number, source interface{}) ([]*blockdevice, error) {
+func readBlockDevices(controllerVersion version.Number, source any) ([]*blockdevice, error) {
 	checker := schema.List(schema.StringMap(schema.Any()))
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
 		return nil, WrapWithDeserializationError(err, "blockdevice base schema check failed")
 	}
-	valid := coerced.([]interface{})
+	valid := coerced.([]any)
 
 	var deserialisationVersion version.Number
 	for v := range blockdeviceDeserializationFuncs {
@@ -125,10 +125,10 @@ func readBlockDevices(controllerVersion version.Number, source interface{}) ([]*
 }
 
 // readBlockDeviceList expects the values of the sourceList to be string maps.
-func readBlockDeviceList(sourceList []interface{}, readFunc blockdeviceDeserializationFunc) ([]*blockdevice, error) {
+func readBlockDeviceList(sourceList []any, readFunc blockdeviceDeserializationFunc) ([]*blockdevice, error) {
 	result := make([]*blockdevice, 0, len(sourceList))
 	for i, value := range sourceList {
-		source, ok := value.(map[string]interface{})
+		source, ok := value.(map[string]any)
 		if !ok {
 			return nil, NewDeserializationError("unexpected value for blockdevice %d, %T", i, value)
 		}
@@ -141,13 +141,13 @@ func readBlockDeviceList(sourceList []interface{}, readFunc blockdeviceDeseriali
 	return result, nil
 }
 
-type blockdeviceDeserializationFunc func(map[string]interface{}) (*blockdevice, error)
+type blockdeviceDeserializationFunc func(map[string]any) (*blockdevice, error)
 
 var blockdeviceDeserializationFuncs = map[version.Number]blockdeviceDeserializationFunc{
 	twoDotOh: blockdevice_2_0,
 }
 
-func blockdevice_2_0(source map[string]interface{}) (*blockdevice, error) {
+func blockdevice_2_0(source map[string]any) (*blockdevice, error) {
 	fields := schema.Fields{
 		"resource_uri": schema.String(),
 
@@ -172,17 +172,17 @@ func blockdevice_2_0(source map[string]interface{}) (*blockdevice, error) {
 	if err != nil {
 		return nil, WrapWithDeserializationError(err, "blockdevice 2.0 schema check failed")
 	}
-	valid := coerced.(map[string]interface{})
+	valid := coerced.(map[string]any)
 	// From here we know that the map returned from the schema coercion
 	// contains fields of the right type.
 
 	var filesystem *filesystem
-	if fsSource, ok := valid["filesystem"].(map[string]interface{}); ok {
+	if fsSource, ok := valid["filesystem"].(map[string]any); ok {
 		if filesystem, err = filesystem2_0(fsSource); err != nil {
 			return nil, errors.Trace(err)
 		}
 	}
-	partitions, err := readPartitionList(valid["partitions"].([]interface{}), partition_2_0)
+	partitions, err := readPartitionList(valid["partitions"].([]any), partition_2_0)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}

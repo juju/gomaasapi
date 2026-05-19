@@ -219,22 +219,19 @@ func (server *TestServer) subnetUnreservedIPRanges(subnet TestSubnet) []AddressR
 	for _, endIP = range ipAddresses {
 		end := endIP.UInt64()
 
-		if endIP.UInt64() == startIP.UInt64() {
-			if endIP.UInt64() != lastUsableIP.UInt64() {
-				startIP.SetUInt64(end + 1)
-			}
+		if end > lastUsableIP.UInt64() {
 			continue
 		}
 
-		if end == lastUsableIP.UInt64() {
-			continue
+		if end > startIP.UInt64() {
+			ranges.Append(startIP, IPFromInt64(end-1))
 		}
-
-		ranges.Append(startIP, IPFromInt64(end-1))
-		startIP.SetUInt64(end + 1)
+		if end >= startIP.UInt64() {
+			startIP.SetUInt64(end + 1)
+		}
 	}
 
-	if startIP.UInt64() != lastUsableIP.UInt64() {
+	if startIP.UInt64() <= lastUsableIP.UInt64() {
 		ranges.Append(startIP, lastUsableIP)
 	}
 
@@ -388,7 +385,7 @@ func subnetFromCreateSubnet(postedSubnet CreateSubnet) TestSubnet {
 	newSubnet.DNSServers = postedSubnet.DNSServers
 	newSubnet.Name = postedSubnet.Name
 	newSubnet.Space = postedSubnet.Space
-	//TODO: newSubnet.VLAN = server.postedSubnetVLAN
+	// TODO: newSubnet.VLAN = server.postedSubnetVLAN
 	newSubnet.GatewayIP = postedSubnet.GatewayIP
 	newSubnet.CIDR = postedSubnet.CIDR
 	newSubnet.ID = postedSubnet.ID

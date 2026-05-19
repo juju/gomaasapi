@@ -46,13 +46,13 @@ func (f *fabric) VLANs() []VLAN {
 	return result
 }
 
-func readFabrics(controllerVersion version.Number, source interface{}) ([]*fabric, error) {
+func readFabrics(controllerVersion version.Number, source any) ([]*fabric, error) {
 	checker := schema.List(schema.StringMap(schema.Any()))
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
 		return nil, errors.Annotatef(err, "fabric base schema check failed")
 	}
-	valid := coerced.([]interface{})
+	valid := coerced.([]any)
 
 	var deserialisationVersion version.Number
 	for v := range fabricDeserializationFuncs {
@@ -68,10 +68,10 @@ func readFabrics(controllerVersion version.Number, source interface{}) ([]*fabri
 }
 
 // readFabricList expects the values of the sourceList to be string maps.
-func readFabricList(sourceList []interface{}, readFunc fabricDeserializationFunc) ([]*fabric, error) {
+func readFabricList(sourceList []any, readFunc fabricDeserializationFunc) ([]*fabric, error) {
 	result := make([]*fabric, 0, len(sourceList))
 	for i, value := range sourceList {
-		source, ok := value.(map[string]interface{})
+		source, ok := value.(map[string]any)
 		if !ok {
 			return nil, errors.Errorf("unexpected value for fabric %d, %T", i, value)
 		}
@@ -84,13 +84,13 @@ func readFabricList(sourceList []interface{}, readFunc fabricDeserializationFunc
 	return result, nil
 }
 
-type fabricDeserializationFunc func(map[string]interface{}) (*fabric, error)
+type fabricDeserializationFunc func(map[string]any) (*fabric, error)
 
 var fabricDeserializationFuncs = map[version.Number]fabricDeserializationFunc{
 	twoDotOh: fabric_2_0,
 }
 
-func fabric_2_0(source map[string]interface{}) (*fabric, error) {
+func fabric_2_0(source map[string]any) (*fabric, error) {
 	fields := schema.Fields{
 		"resource_uri": schema.String(),
 		"id":           schema.ForceInt(),
@@ -103,11 +103,11 @@ func fabric_2_0(source map[string]interface{}) (*fabric, error) {
 	if err != nil {
 		return nil, errors.Annotatef(err, "fabric 2.0 schema check failed")
 	}
-	valid := coerced.(map[string]interface{})
+	valid := coerced.(map[string]any)
 	// From here we know that the map returned from the schema coercion
 	// contains fields of the right type.
 
-	vlans, err := readVLANList(valid["vlans"].([]interface{}), vlan_2_0)
+	vlans, err := readVLANList(valid["vlans"].([]any), vlan_2_0)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}

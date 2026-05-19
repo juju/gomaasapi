@@ -205,7 +205,7 @@ func (suite *ClientSuite) TestClientDispatchRequestSignsRequest(c *gc.C) {
 func (suite *ClientSuite) TestClientDispatchRequestUsesConfiguredHTTPClient(c *gc.C) {
 	URI := "/some/url/"
 
-	server := newSingleServingServer(URI, "", 0, 2*time.Second)
+	server := newSingleServingServer(URI, "", http.StatusOK, 2*time.Second)
 	defer server.Close()
 
 	client, err := NewAnonymousClient(server.URL, "2.0")

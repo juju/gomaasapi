@@ -67,13 +67,13 @@ func (v *vlan) SecondaryRack() string {
 	return v.secondaryRack
 }
 
-func readVLANs(controllerVersion version.Number, source interface{}) ([]*vlan, error) {
+func readVLANs(controllerVersion version.Number, source any) ([]*vlan, error) {
 	checker := schema.List(schema.StringMap(schema.Any()))
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
 		return nil, errors.Annotatef(err, "vlan base schema check failed")
 	}
-	valid := coerced.([]interface{})
+	valid := coerced.([]any)
 
 	var deserialisationVersion version.Number
 	for v := range vlanDeserializationFuncs {
@@ -88,10 +88,10 @@ func readVLANs(controllerVersion version.Number, source interface{}) ([]*vlan, e
 	return readVLANList(valid, readFunc)
 }
 
-func readVLANList(sourceList []interface{}, readFunc vlanDeserializationFunc) ([]*vlan, error) {
+func readVLANList(sourceList []any, readFunc vlanDeserializationFunc) ([]*vlan, error) {
 	result := make([]*vlan, 0, len(sourceList))
 	for i, value := range sourceList {
-		source, ok := value.(map[string]interface{})
+		source, ok := value.(map[string]any)
 		if !ok {
 			return nil, errors.Errorf("unexpected value for vlan %d, %T", i, value)
 		}
@@ -104,13 +104,13 @@ func readVLANList(sourceList []interface{}, readFunc vlanDeserializationFunc) ([
 	return result, nil
 }
 
-type vlanDeserializationFunc func(map[string]interface{}) (*vlan, error)
+type vlanDeserializationFunc func(map[string]any) (*vlan, error)
 
 var vlanDeserializationFuncs = map[version.Number]vlanDeserializationFunc{
 	twoDotOh: vlan_2_0,
 }
 
-func vlan_2_0(source map[string]interface{}) (*vlan, error) {
+func vlan_2_0(source map[string]any) (*vlan, error) {
 	fields := schema.Fields{
 		"id":           schema.ForceInt(),
 		"resource_uri": schema.String(),
@@ -128,7 +128,7 @@ func vlan_2_0(source map[string]interface{}) (*vlan, error) {
 	if err != nil {
 		return nil, errors.Annotatef(err, "vlan 2.0 schema check failed")
 	}
-	valid := coerced.(map[string]interface{})
+	valid := coerced.(map[string]any)
 	// From here we know that the map returned from the schema coercion
 	// contains fields of the right type.
 

@@ -18,7 +18,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/juju/mgo/v2/bson"
 	jc "github.com/juju/testing/checkers"
 	. "gopkg.in/check.v1"
 )
@@ -538,7 +537,7 @@ func (suite *TestServerSuite) TestHandlesFile(c *C) {
 
 	content, err := readAndClose(resp.Body)
 	c.Assert(err, IsNil)
-	var obj map[string]interface{}
+	var obj map[string]any
 	err = json.Unmarshal(content, &obj)
 	c.Assert(err, IsNil)
 	anon_url, ok := obj["anon_resource_uri"]
@@ -1757,15 +1756,16 @@ func (suite *TestMAASObjectSuite) TestNodeDetails(c *C) {
 	result, err := obj.client.Get(uri, "details", nil)
 	c.Assert(err, IsNil)
 
-	bsonObj := map[string]interface{}{}
-	err = bson.Unmarshal(result, &bsonObj)
+	jsonObj := map[string]any{}
+	err = json.Unmarshal(result, &jsonObj)
 	c.Assert(err, IsNil)
 
-	_, ok := bsonObj["lldp"]
+	_, ok := jsonObj["lldp"]
 	c.Check(ok, Equals, true)
-	gotXMLText, ok := bsonObj["lshw"]
+	gotXMLText, ok := jsonObj["lshw"]
 	c.Check(ok, Equals, true)
-	c.Check(string(gotXMLText.([]byte)), Equals, string(nodeDetailsXML))
+	decoded, _ := base64.StdEncoding.DecodeString(gotXMLText.(string))
+	c.Check(string(decoded), Equals, string(nodeDetailsXML))
 }
 
 func (suite *TestMAASObjectSuite) TestListNodegroups(c *C) {

@@ -65,13 +65,13 @@ func (p *partition) Tags() []string {
 	return p.tags
 }
 
-func readPartitions(controllerVersion version.Number, source interface{}) ([]*partition, error) {
+func readPartitions(controllerVersion version.Number, source any) ([]*partition, error) {
 	checker := schema.List(schema.StringMap(schema.Any()))
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
 		return nil, WrapWithDeserializationError(err, "partition base schema check failed")
 	}
-	valid := coerced.([]interface{})
+	valid := coerced.([]any)
 
 	var deserialisationVersion version.Number
 	for v := range partitionDeserializationFuncs {
@@ -87,10 +87,10 @@ func readPartitions(controllerVersion version.Number, source interface{}) ([]*pa
 }
 
 // readPartitionList expects the values of the sourceList to be string maps.
-func readPartitionList(sourceList []interface{}, readFunc partitionDeserializationFunc) ([]*partition, error) {
+func readPartitionList(sourceList []any, readFunc partitionDeserializationFunc) ([]*partition, error) {
 	result := make([]*partition, 0, len(sourceList))
 	for i, value := range sourceList {
-		source, ok := value.(map[string]interface{})
+		source, ok := value.(map[string]any)
 		if !ok {
 			return nil, NewDeserializationError("unexpected value for partition %d, %T", i, value)
 		}
@@ -103,13 +103,13 @@ func readPartitionList(sourceList []interface{}, readFunc partitionDeserializati
 	return result, nil
 }
 
-type partitionDeserializationFunc func(map[string]interface{}) (*partition, error)
+type partitionDeserializationFunc func(map[string]any) (*partition, error)
 
 var partitionDeserializationFuncs = map[version.Number]partitionDeserializationFunc{
 	twoDotOh: partition_2_0,
 }
 
-func partition_2_0(source map[string]interface{}) (*partition, error) {
+func partition_2_0(source map[string]any) (*partition, error) {
 	fields := schema.Fields{
 		"resource_uri": schema.String(),
 
@@ -130,12 +130,12 @@ func partition_2_0(source map[string]interface{}) (*partition, error) {
 	if err != nil {
 		return nil, WrapWithDeserializationError(err, "partition 2.0 schema check failed")
 	}
-	valid := coerced.(map[string]interface{})
+	valid := coerced.(map[string]any)
 	// From here we know that the map returned from the schema coercion
 	// contains fields of the right type.
 
 	var filesystem *filesystem
-	if fsSource, ok := valid["filesystem"].(map[string]interface{}); ok {
+	if fsSource, ok := valid["filesystem"].(map[string]any); ok {
 		if filesystem, err = filesystem2_0(fsSource); err != nil {
 			return nil, errors.Trace(err)
 		}

@@ -34,15 +34,15 @@ func (suite *GomaasapiTestSuite) TestEnsureTrailingSlashReturnsSlashIfEmpty(c *g
 	c.Check(EnsureTrailingSlash(""), gc.Equals, "/")
 }
 
-func parseJSON(c *gc.C, source string) interface{} {
-	var parsed interface{}
+func parseJSON(c *gc.C, source string) any {
+	var parsed any
 	err := json.Unmarshal([]byte(source), &parsed)
 	c.Assert(err, jc.ErrorIsNil)
 	return parsed
 }
 
-func updateJSONMap(c *gc.C, source string, changes map[string]interface{}) string {
-	var parsed map[string]interface{}
+func updateJSONMap(c *gc.C, source string, changes map[string]any) string {
+	var parsed map[string]any
 	err := json.Unmarshal([]byte(source), &parsed)
 	c.Assert(err, jc.ErrorIsNil)
 	for key, value := range changes {

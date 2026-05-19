@@ -182,7 +182,7 @@ func (d *device) Delete() error {
 	return nil
 }
 
-func readDevice(controllerVersion version.Number, source interface{}) (*device, error) {
+func readDevice(controllerVersion version.Number, source any) (*device, error) {
 	readFunc, err := getDeviceDeserializationFunc(controllerVersion)
 	if err != nil {
 		return nil, errors.Trace(err)
@@ -193,11 +193,11 @@ func readDevice(controllerVersion version.Number, source interface{}) (*device, 
 	if err != nil {
 		return nil, WrapWithDeserializationError(err, "device base schema check failed")
 	}
-	valid := coerced.(map[string]interface{})
+	valid := coerced.(map[string]any)
 	return readFunc(valid)
 }
 
-func readDevices(controllerVersion version.Number, source interface{}) ([]*device, error) {
+func readDevices(controllerVersion version.Number, source any) ([]*device, error) {
 	readFunc, err := getDeviceDeserializationFunc(controllerVersion)
 	if err != nil {
 		return nil, errors.Trace(err)
@@ -208,7 +208,7 @@ func readDevices(controllerVersion version.Number, source interface{}) ([]*devic
 	if err != nil {
 		return nil, WrapWithDeserializationError(err, "device base schema check failed")
 	}
-	valid := coerced.([]interface{})
+	valid := coerced.([]any)
 	return readDeviceList(valid, readFunc)
 }
 
@@ -226,10 +226,10 @@ func getDeviceDeserializationFunc(controllerVersion version.Number) (deviceDeser
 }
 
 // readDeviceList expects the values of the sourceList to be string maps.
-func readDeviceList(sourceList []interface{}, readFunc deviceDeserializationFunc) ([]*device, error) {
+func readDeviceList(sourceList []any, readFunc deviceDeserializationFunc) ([]*device, error) {
 	result := make([]*device, 0, len(sourceList))
 	for i, value := range sourceList {
-		source, ok := value.(map[string]interface{})
+		source, ok := value.(map[string]any)
 		if !ok {
 			return nil, NewDeserializationError("unexpected value for device %d, %T", i, value)
 		}
@@ -242,13 +242,13 @@ func readDeviceList(sourceList []interface{}, readFunc deviceDeserializationFunc
 	return result, nil
 }
 
-type deviceDeserializationFunc func(map[string]interface{}) (*device, error)
+type deviceDeserializationFunc func(map[string]any) (*device, error)
 
 var deviceDeserializationFuncs = map[version.Number]deviceDeserializationFunc{
 	twoDotOh: device_2_0,
 }
 
-func device_2_0(source map[string]interface{}) (*device, error) {
+func device_2_0(source map[string]any) (*device, error) {
 	fields := schema.Fields{
 		"resource_uri": schema.String(),
 
@@ -272,23 +272,23 @@ func device_2_0(source map[string]interface{}) (*device, error) {
 	if err != nil {
 		return nil, WrapWithDeserializationError(err, "device 2.0 schema check failed")
 	}
-	valid := coerced.(map[string]interface{})
+	valid := coerced.(map[string]any)
 	// From here we know that the map returned from the schema coercion
 	// contains fields of the right type.
 
-	interfaceSet, err := readInterfaceList(valid["interface_set"].([]interface{}), interface_2_0)
+	interfaceSet, err := readInterfaceList(valid["interface_set"].([]any), interface_2_0)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
 
-	zone, err := zone_2_0(valid["zone"].(map[string]interface{}))
+	zone, err := zone_2_0(valid["zone"].(map[string]any))
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
 
 	var pool *pool
 	if valid["pool"] != nil {
-		if pool, err = pool_2_0(valid["pool"].(map[string]interface{})); err != nil {
+		if pool, err = pool_2_0(valid["pool"].(map[string]any)); err != nil {
 			return nil, errors.Trace(err)
 		}
 	}

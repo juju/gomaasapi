@@ -29,7 +29,7 @@ func (*interfaceSuite) TestReadInterfacesBadSchema(c *gc.C) {
 	c.Check(err, jc.Satisfies, IsDeserializationError)
 	c.Assert(err.Error(), gc.Equals, `interface base schema check failed: expected list, got string("wat?")`)
 
-	_, err = readInterfaces(twoDotOh, []map[string]interface{}{
+	_, err = readInterfaces(twoDotOh, []map[string]any{
 		{
 			"wat": "?",
 		},
@@ -84,7 +84,7 @@ func (s *interfaceSuite) TestReadInterface(c *gc.C) {
 
 func (s *interfaceSuite) TestReadInterfaceNilMAC(c *gc.C) {
 	json := parseJSON(c, interfaceResponse)
-	json.(map[string]interface{})["mac_address"] = nil
+	json.(map[string]any)["mac_address"] = nil
 	result, err := readInterface(twoDotOh, json)
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(result.MACAddress(), gc.Equals, "")
@@ -226,7 +226,7 @@ func (s *interfaceSuite) TestLinkSubnetGood(c *gc.C) {
 	server, iface := s.getServerAndNewInterface(c)
 	// The changed information is there just for the test to show that the response
 	// is parsed and the interface updated
-	response := updateJSONMap(c, interfaceResponse, map[string]interface{}{
+	response := updateJSONMap(c, interfaceResponse, map[string]any{
 		"name": "eth42",
 	})
 	server.AddPostResponse(iface.resourceURI+"?op=link_subnet", http.StatusOK, response)
@@ -312,7 +312,7 @@ func (s *interfaceSuite) TestUnlinkSubnetGood(c *gc.C) {
 	server, iface := s.getServerAndNewInterface(c)
 	// The changed information is there just for the test to show that the response
 	// is parsed and the interface updated
-	response := updateJSONMap(c, interfaceResponse, map[string]interface{}{
+	response := updateJSONMap(c, interfaceResponse, map[string]any{
 		"name": "eth42",
 	})
 	server.AddPostResponse(iface.resourceURI+"?op=unlink_subnet", http.StatusOK, response)
@@ -382,7 +382,7 @@ func (s *interfaceSuite) TestUpdateGood(c *gc.C) {
 	server, iface := s.getServerAndNewInterface(c)
 	// The changed information is there just for the test to show that the response
 	// is parsed and the interface updated
-	response := updateJSONMap(c, interfaceResponse, map[string]interface{}{
+	response := updateJSONMap(c, interfaceResponse, map[string]any{
 		"name": "eth42",
 	})
 	server.AddPutResponse(iface.resourceURI, http.StatusOK, response)

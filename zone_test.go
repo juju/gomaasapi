@@ -42,10 +42,12 @@ func (*zoneSuite) TestHighVersion(c *gc.C) {
 var zoneResponse = `
 [
     {
+        "id": 1,
         "description": "default description",
         "resource_uri": "/MAAS/api/2.0/zones/default/",
         "name": "default"
     }, {
+        "id": 2,
         "description": "special description",
         "resource_uri": "/MAAS/api/2.0/zones/special/",
         "name": "special"

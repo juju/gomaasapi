@@ -44,13 +44,13 @@ func (s *staticRoute) Metric() int {
 	return s.metric
 }
 
-func readStaticRoutes(controllerVersion version.Number, source interface{}) ([]*staticRoute, error) {
+func readStaticRoutes(controllerVersion version.Number, source any) ([]*staticRoute, error) {
 	checker := schema.List(schema.StringMap(schema.Any()))
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
 		return nil, errors.Annotatef(err, "static-route base schema check failed")
 	}
-	valid := coerced.([]interface{})
+	valid := coerced.([]any)
 
 	var deserialisationVersion version.Number
 	for v := range staticRouteDeserializationFuncs {
@@ -66,10 +66,10 @@ func readStaticRoutes(controllerVersion version.Number, source interface{}) ([]*
 }
 
 // readStaticRouteList expects the values of the sourceList to be string maps.
-func readStaticRouteList(sourceList []interface{}, readFunc staticRouteDeserializationFunc) ([]*staticRoute, error) {
+func readStaticRouteList(sourceList []any, readFunc staticRouteDeserializationFunc) ([]*staticRoute, error) {
 	result := make([]*staticRoute, 0, len(sourceList))
 	for i, value := range sourceList {
-		source, ok := value.(map[string]interface{})
+		source, ok := value.(map[string]any)
 		if !ok {
 			return nil, errors.Errorf("unexpected value for static-route %d, %T", i, value)
 		}
@@ -82,13 +82,13 @@ func readStaticRouteList(sourceList []interface{}, readFunc staticRouteDeseriali
 	return result, nil
 }
 
-type staticRouteDeserializationFunc func(map[string]interface{}) (*staticRoute, error)
+type staticRouteDeserializationFunc func(map[string]any) (*staticRoute, error)
 
 var staticRouteDeserializationFuncs = map[version.Number]staticRouteDeserializationFunc{
 	twoDotOh: staticRoute_2_0,
 }
 
-func staticRoute_2_0(source map[string]interface{}) (*staticRoute, error) {
+func staticRoute_2_0(source map[string]any) (*staticRoute, error) {
 	fields := schema.Fields{
 		"resource_uri": schema.String(),
 		"id":           schema.ForceInt(),
@@ -102,14 +102,14 @@ func staticRoute_2_0(source map[string]interface{}) (*staticRoute, error) {
 	if err != nil {
 		return nil, errors.Annotatef(err, "static-route 2.0 schema check failed")
 	}
-	valid := coerced.(map[string]interface{})
+	valid := coerced.(map[string]any)
 	// From here we know that the map returned from the schema coercion
 	// contains fields of the right type.
 
 	// readSubnetList takes a list of interfaces. We happen to have 2 subnets
 	// to parse, that are in different keys, but we might as well wrap them up
 	// together and pass them in.
-	subnets, err := readSubnetList([]interface{}{valid["source"], valid["destination"]}, subnet_2_0)
+	subnets, err := readSubnetList([]any{valid["source"], valid["destination"]}, subnet_2_0)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}

@@ -581,14 +581,14 @@ func (s *controllerSuite) TestAllocateMachineArgs(c *gc.C) {
 type constraintMatchInfo map[string][]int
 
 func (s *controllerSuite) addAllocateResponse(c *gc.C, status int, interfaceMatches, storageMatches constraintMatchInfo) {
-	constraints := make(map[string]interface{})
+	constraints := make(map[string]any)
 	if interfaceMatches != nil {
 		constraints["interfaces"] = interfaceMatches
 	}
 	if storageMatches != nil {
 		constraints["storage"] = storageMatches
 	}
-	allocateJSON := updateJSONMap(c, machineResponse, map[string]interface{}{
+	allocateJSON := updateJSONMap(c, machineResponse, map[string]any{
 		"constraints_by_type": constraints,
 	})
 	s.server.AddPostResponse("/api/2.0/machines/?op=allocate", status, allocateJSON)
@@ -675,9 +675,9 @@ func (s *controllerSuite) TestAllocateMachineStorageLogicalMatches(c *gc.C) {
 	var virtualDeviceID = 23
 	var partitionID = 1
 
-	//matches storage must contain the "raid0" virtual block device
+	// matches storage must contain the "raid0" virtual block device
 	c.Assert(matches.Storage["0"][0], gc.Equals, machine.BlockDevice(virtualDeviceID))
-	//matches storage must contain the partition from physical block device
+	// matches storage must contain the partition from physical block device
 	c.Assert(matches.Storage["1"][0], gc.Equals, machine.Partition(partitionID))
 }
 
@@ -800,6 +800,108 @@ func (s *controllerSuite) TestReleaseMachinesUnexpected(c *gc.C) {
 	})
 	c.Assert(err, jc.Satisfies, IsUnexpectedError)
 	c.Assert(err.Error(), gc.Equals, "unexpected: ServerError: 502 Bad Gateway (wat)")
+}
+
+func (s *controllerSuite) TestDeleteMachine(c *gc.C) {
+	s.server.AddDeleteResponse("/api/2.0/machines/test-id/", http.StatusOK, "{}")
+	controller := s.getController(c)
+	err := controller.DeleteMachine("test-id")
+	c.Assert(err, jc.ErrorIsNil)
+}
+
+func (s *controllerSuite) TestDeleteMachineErrors(c *gc.C) {
+	s.server.AddDeleteResponse("/api/2.0/machines/bad-req/", http.StatusBadRequest, `"bad req"`)
+	s.server.AddDeleteResponse("/api/2.0/machines/forbidden/", http.StatusForbidden, `"forbidden"`)
+	s.server.AddDeleteResponse("/api/2.0/machines/conflict/", http.StatusConflict, `"conflict"`)
+
+	controller := s.getController(c)
+
+	err := controller.DeleteMachine("bad-req")
+	c.Assert(err, jc.Satisfies, IsBadRequestError)
+
+	err = controller.DeleteMachine("forbidden")
+	c.Assert(err, jc.Satisfies, IsPermissionError)
+
+	err = controller.DeleteMachine("conflict")
+	c.Assert(err, jc.Satisfies, IsCannotCompleteError)
+
+	err = controller.DeleteMachine("")
+	c.Assert(err, jc.Satisfies, errors.IsNotValid)
+	c.Assert(err.Error(), gc.Equals, "missing systemID not valid")
+}
+
+func (s *controllerSuite) TestPods(c *gc.C) {
+	s.server.AddGetResponse("/api/2.0/pods/", http.StatusOK, `[{"id": 42, "name": "test-pod", "resource_uri": "/MAAS/api/2.0/pods/42/"}]`)
+	controller := s.getController(c)
+	pods, err := controller.Pods()
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(pods, gc.HasLen, 1)
+	c.Assert(pods[0].ID(), gc.Equals, 42)
+}
+
+func (s *controllerSuite) TestPodsNotFound(c *gc.C) {
+	s.server.AddGetResponse("/api/2.0/pods/", http.StatusNotFound, `"Not Found"`)
+	controller := s.getController(c)
+	_, err := controller.Pods()
+	c.Assert(err.Error(), gc.Equals, "pods API not available on this MAAS controller")
+}
+
+func (s *controllerSuite) TestComposeMachineBare(c *gc.C) { // MAAS 2.x
+	s.server.AddPostResponse("/api/2.0/pods/42/?op=compose", http.StatusOK, `{"system_id": "sys-id-2x"}`)
+	controller := s.getController(c)
+	machine, err := controller.ComposeMachine(42, ComposeMachineArgs{})
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(machine.SystemID(), gc.Equals, "sys-id-2x")
+}
+
+func (s *controllerSuite) TestComposeMachineWrapped(c *gc.C) { // MAAS 3.x
+	s.server.AddPostResponse("/api/2.0/pods/42/?op=compose", http.StatusOK, `{"machine": {"system_id": "sys-id-3x"}}`)
+	controller := s.getController(c)
+	machine, err := controller.ComposeMachine(42, ComposeMachineArgs{})
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(machine.SystemID(), gc.Equals, "sys-id-3x")
+}
+
+func (s *controllerSuite) TestComposeMachineResolvesZoneNameToID(c *gc.C) {
+	s.server.AddGetResponse("/api/2.0/zones/test/", http.StatusOK, `{"id": 7, "name": "test", "description": "", "resource_uri": "/MAAS/api/2.0/zones/test/"}`)
+	s.server.AddPostResponse("/api/2.0/pods/42/?op=compose", http.StatusOK, `{"system_id": "sys-id-zone"}`)
+
+	controller := s.getController(c)
+	machine, err := controller.ComposeMachine(42, ComposeMachineArgs{Zone: "test"})
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(machine.SystemID(), gc.Equals, "sys-id-zone")
+
+	requests := s.server.LastNRequests(2)
+	c.Assert(requests, gc.HasLen, 2)
+	c.Assert(requests[1].Form.Get("zone"), gc.Equals, "7")
+}
+
+func (s *controllerSuite) TestComposeMachineZoneLookupNotFound(c *gc.C) {
+	s.server.AddGetResponse("/api/2.0/zones/test/", http.StatusNotFound, `"not found"`)
+
+	controller := s.getController(c)
+	_, err := controller.ComposeMachine(42, ComposeMachineArgs{Zone: "test"})
+	c.Assert(err, jc.Satisfies, IsNoMatchError)
+}
+
+func (s *controllerSuite) TestComposeMachineZoneLookupBadSchema(c *gc.C) {
+	s.server.AddGetResponse("/api/2.0/zones/test/", http.StatusOK, `{"name": "test"}`)
+
+	controller := s.getController(c)
+	_, err := controller.ComposeMachine(42, ComposeMachineArgs{Zone: "test"})
+	c.Assert(err, jc.Satisfies, IsDeserializationError)
+}
+
+func (s *controllerSuite) TestComposeMachineErrors(c *gc.C) {
+	s.server.AddPostResponse("/api/2.0/pods/42/?op=compose", http.StatusConflict, `"conflict"`)
+	s.server.AddPostResponse("/api/2.0/pods/43/?op=compose", http.StatusBadRequest, `"bad req"`)
+
+	controller := s.getController(c)
+	_, err := controller.ComposeMachine(42, ComposeMachineArgs{})
+	c.Assert(err, jc.Satisfies, IsNoMatchError)
+
+	_, err = controller.ComposeMachine(43, ComposeMachineArgs{})
+	c.Assert(err, jc.Satisfies, IsBadRequestError)
 }
 
 func (s *controllerSuite) TestFiles(c *gc.C) {

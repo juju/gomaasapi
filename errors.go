@@ -18,7 +18,7 @@ type NoMatchError struct {
 
 // NewNoMatchError constructs a new NoMatchError and sets the location.
 func NewNoMatchError(message string) error {
-	err := &NoMatchError{Err: errors.NewErr(message)}
+	err := &NoMatchError{Err: errors.NewErr("%s", message)}
 	err.SetLocation(1)
 	return err
 }
@@ -53,7 +53,7 @@ type UnsupportedVersionError struct {
 }
 
 // NewUnsupportedVersionError constructs a new UnsupportedVersionError and sets the location.
-func NewUnsupportedVersionError(format string, args ...interface{}) error {
+func NewUnsupportedVersionError(format string, args ...any) error {
 	err := &UnsupportedVersionError{Err: errors.NewErr(format, args...)}
 	err.SetLocation(1)
 	return err
@@ -80,7 +80,7 @@ type DeserializationError struct {
 }
 
 // NewDeserializationError constructs a new DeserializationError and sets the location.
-func NewDeserializationError(format string, args ...interface{}) error {
+func NewDeserializationError(format string, args ...any) error {
 	err := &DeserializationError{Err: errors.NewErr(format, args...)}
 	err.SetLocation(1)
 	return err
@@ -89,11 +89,11 @@ func NewDeserializationError(format string, args ...interface{}) error {
 // WrapWithDeserializationError constructs a new DeserializationError with the
 // specified message, and sets the location and returns a new error with the
 // full error stack set including the error passed in.
-func WrapWithDeserializationError(err error, format string, args ...interface{}) error {
+func WrapWithDeserializationError(err error, format string, args ...any) error {
 	message := fmt.Sprintf(format, args...)
 	// We want the deserialization error message to include the error text of the
 	// previous error, but wrap it in the new type.
-	derr := &DeserializationError{Err: errors.NewErr(message + ": " + err.Error())}
+	derr := &DeserializationError{Err: errors.NewErr("%s: %s", message, err.Error())}
 	derr.SetLocation(1)
 	wrapped := errors.Wrap(err, derr)
 	// We want the location of the wrapped error to be the caller of this function,
@@ -119,7 +119,7 @@ type BadRequestError struct {
 
 // NewBadRequestError constructs a new BadRequestError and sets the location.
 func NewBadRequestError(message string) error {
-	err := &BadRequestError{Err: errors.NewErr(message)}
+	err := &BadRequestError{Err: errors.NewErr("%s", message)}
 	err.SetLocation(1)
 	return err
 }
@@ -138,7 +138,7 @@ type PermissionError struct {
 
 // NewPermissionError constructs a new PermissionError and sets the location.
 func NewPermissionError(message string) error {
-	err := &PermissionError{Err: errors.NewErr(message)}
+	err := &PermissionError{Err: errors.NewErr("%s", message)}
 	err.SetLocation(1)
 	return err
 }
@@ -157,7 +157,7 @@ type CannotCompleteError struct {
 
 // NewCannotCompleteError constructs a new CannotCompleteError and sets the location.
 func NewCannotCompleteError(message string) error {
-	err := &CannotCompleteError{Err: errors.NewErr(message)}
+	err := &CannotCompleteError{Err: errors.NewErr("%s", message)}
 	err.SetLocation(1)
 	return err
 }

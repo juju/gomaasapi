@@ -38,7 +38,7 @@ func (suite *JSONObjectSuite) TestMaasifyConvertsNumber(c *C) {
 
 // maasify() converts array slices.
 func (suite *JSONObjectSuite) TestMaasifyConvertsArray(c *C) {
-	original := []interface{}{3.0, 2.0, 1.0}
+	original := []any{3.0, 2.0, 1.0}
 	output, err := maasify(Client{}, original).GetArray()
 	c.Assert(err, IsNil)
 	c.Check(len(output), Equals, len(original))
@@ -46,7 +46,7 @@ func (suite *JSONObjectSuite) TestMaasifyConvertsArray(c *C) {
 
 // When maasify() converts an array slice, the result contains JSONObjects.
 func (suite *JSONObjectSuite) TestMaasifyArrayContainsJSONObjects(c *C) {
-	arr, err := maasify(Client{}, []interface{}{9.9}).GetArray()
+	arr, err := maasify(Client{}, []any{9.9}).GetArray()
 	c.Assert(err, IsNil)
 	var _ JSONObject = arr[0]
 	entry, err := arr[0].GetFloat64()
@@ -56,7 +56,7 @@ func (suite *JSONObjectSuite) TestMaasifyArrayContainsJSONObjects(c *C) {
 
 // maasify() converts maps.
 func (suite *JSONObjectSuite) TestMaasifyConvertsMap(c *C) {
-	original := map[string]interface{}{"1": "one", "2": "two", "3": "three"}
+	original := map[string]any{"1": "one", "2": "two", "3": "three"}
 	output, err := maasify(Client{}, original).GetMap()
 	c.Assert(err, IsNil)
 	c.Check(len(output), Equals, len(original))
@@ -64,7 +64,7 @@ func (suite *JSONObjectSuite) TestMaasifyConvertsMap(c *C) {
 
 // When maasify() converts a map, the result contains JSONObjects.
 func (suite *JSONObjectSuite) TestMaasifyMapContainsJSONObjects(c *C) {
-	jsonobj := maasify(Client{}, map[string]interface{}{"key": "value"})
+	jsonobj := maasify(Client{}, map[string]any{"key": "value"})
 	mp, err := jsonobj.GetMap()
 	var _ JSONObject = mp["key"]
 	c.Assert(err, IsNil)
@@ -74,7 +74,7 @@ func (suite *JSONObjectSuite) TestMaasifyMapContainsJSONObjects(c *C) {
 
 // maasify() converts MAAS objects.
 func (suite *JSONObjectSuite) TestMaasifyConvertsMAASObject(c *C) {
-	original := map[string]interface{}{
+	original := map[string]any{
 		"resource_uri": "http://example.com/foo",
 		"size":         "3",
 	}
@@ -89,7 +89,7 @@ func (suite *JSONObjectSuite) TestMaasifyConvertsMAASObject(c *C) {
 // maasify() passes its client to a MAASObject it creates.
 func (suite *JSONObjectSuite) TestMaasifyPassesClientToMAASObject(c *C) {
 	client := Client{}
-	original := map[string]interface{}{"resource_uri": "/foo"}
+	original := map[string]any{"resource_uri": "/foo"}
 	output, err := maasify(client, original).GetMAASObject()
 	c.Assert(err, IsNil)
 	c.Check(output.client, Equals, client)
@@ -98,8 +98,8 @@ func (suite *JSONObjectSuite) TestMaasifyPassesClientToMAASObject(c *C) {
 // maasify() passes its client into an array of MAASObjects it creates.
 func (suite *JSONObjectSuite) TestMaasifyPassesClientIntoArray(c *C) {
 	client := Client{}
-	obj := map[string]interface{}{"resource_uri": "/foo"}
-	list := []interface{}{obj}
+	obj := map[string]any{"resource_uri": "/foo"}
+	list := []any{obj}
 	jsonobj, err := maasify(client, list).GetArray()
 	c.Assert(err, IsNil)
 	out, err := jsonobj[0].GetMAASObject()
@@ -110,8 +110,8 @@ func (suite *JSONObjectSuite) TestMaasifyPassesClientIntoArray(c *C) {
 // maasify() passes its client into a map of MAASObjects it creates.
 func (suite *JSONObjectSuite) TestMaasifyPassesClientIntoMap(c *C) {
 	client := Client{}
-	obj := map[string]interface{}{"resource_uri": "/foo"}
-	mp := map[string]interface{}{"key": obj}
+	obj := map[string]any{"resource_uri": "/foo"}
+	mp := map[string]any{"key": obj}
 	jsonobj, err := maasify(client, mp).GetMap()
 	c.Assert(err, IsNil)
 	out, err := jsonobj["key"].GetMAASObject()
@@ -123,9 +123,9 @@ func (suite *JSONObjectSuite) TestMaasifyPassesClientIntoMap(c *C) {
 // object structure it creates.
 func (suite *JSONObjectSuite) TestMaasifyPassesClientAllTheWay(c *C) {
 	client := Client{}
-	obj := map[string]interface{}{"resource_uri": "/foo"}
-	mp := map[string]interface{}{"key": obj}
-	list := []interface{}{mp}
+	obj := map[string]any{"resource_uri": "/foo"}
+	mp := map[string]any{"key": obj}
+	list := []any{mp}
 	jsonobj, err := maasify(client, list).GetArray()
 	c.Assert(err, IsNil)
 	outerMap, err := jsonobj[0].GetMap()
@@ -283,7 +283,7 @@ func (suite *JSONObjectSuite) TestConversionsFloat64(c *C) {
 
 // Map-type JSONObjects convert only to map.
 func (suite *JSONObjectSuite) TestConversionsMap(c *C) {
-	obj := maasify(Client{}, map[string]interface{}{"x": "y"})
+	obj := maasify(Client{}, map[string]any{"x": "y"})
 
 	value, err := obj.GetMap()
 	c.Check(err, IsNil)
@@ -305,7 +305,7 @@ func (suite *JSONObjectSuite) TestConversionsMap(c *C) {
 
 // Array-type JSONObjects convert only to array.
 func (suite *JSONObjectSuite) TestConversionsArray(c *C) {
-	obj := maasify(Client{}, []interface{}{"item"})
+	obj := maasify(Client{}, []any{"item"})
 
 	value, err := obj.GetArray()
 	c.Check(err, IsNil)
@@ -385,31 +385,31 @@ func (suite *JSONObjectSuite) TestFloat64SerializesToJSON(c *C) {
 }
 
 func (suite *JSONObjectSuite) TestEmptyMapSerializesToJSON(c *C) {
-	mp := map[string]interface{}{}
+	mp := map[string]any{}
 	output, err := json.Marshal(maasify(Client{}, mp))
 	c.Assert(err, IsNil)
-	var deserialized interface{}
+	var deserialized any
 	err = json.Unmarshal(output, &deserialized)
 	c.Assert(err, IsNil)
-	c.Check(deserialized.(map[string]interface{}), DeepEquals, mp)
+	c.Check(deserialized.(map[string]any), DeepEquals, mp)
 }
 
 func (suite *JSONObjectSuite) TestMapSerializesToJSON(c *C) {
 	// Sample data: counting in Japanese.
-	mp := map[string]interface{}{"one": "ichi", "two": "nii", "three": "san"}
+	mp := map[string]any{"one": "ichi", "two": "nii", "three": "san"}
 	output, err := json.Marshal(maasify(Client{}, mp))
 	c.Assert(err, IsNil)
-	var deserialized interface{}
+	var deserialized any
 	err = json.Unmarshal(output, &deserialized)
 	c.Assert(err, IsNil)
-	c.Check(deserialized.(map[string]interface{}), DeepEquals, mp)
+	c.Check(deserialized.(map[string]any), DeepEquals, mp)
 }
 
 func (suite *JSONObjectSuite) TestEmptyArraySerializesToJSON(c *C) {
-	arr := []interface{}{}
+	arr := []any{}
 	output, err := json.Marshal(maasify(Client{}, arr))
 	c.Assert(err, IsNil)
-	var deserialized interface{}
+	var deserialized any
 	err = json.Unmarshal(output, &deserialized)
 	c.Assert(err, IsNil)
 	// The deserialized value is a slice, and it contains no elements.
@@ -417,12 +417,12 @@ func (suite *JSONObjectSuite) TestEmptyArraySerializesToJSON(c *C) {
 	// json implementation, an empty list deserializes as a nil slice,
 	// not as an empty slice!
 	// (It doesn't work that way for maps though, for some reason).
-	c.Check(len(deserialized.([]interface{})), Equals, len(arr))
+	c.Check(len(deserialized.([]any)), Equals, len(arr))
 }
 
 func (suite *JSONObjectSuite) TestArrayOfStringsSerializesToJSON(c *C) {
 	value := "item"
-	output, err := json.Marshal(maasify(Client{}, []interface{}{value}))
+	output, err := json.Marshal(maasify(Client{}, []any{value}))
 	c.Assert(err, IsNil)
 	var deserialized []string
 	err = json.Unmarshal(output, &deserialized)
@@ -432,7 +432,7 @@ func (suite *JSONObjectSuite) TestArrayOfStringsSerializesToJSON(c *C) {
 
 func (suite *JSONObjectSuite) TestArrayOfNumbersSerializesToJSON(c *C) {
 	value := 9.0
-	output, err := json.Marshal(maasify(Client{}, []interface{}{value}))
+	output, err := json.Marshal(maasify(Client{}, []any{value}))
 	c.Assert(err, IsNil)
 	var deserialized []float64
 	err = json.Unmarshal(output, &deserialized)
@@ -442,11 +442,11 @@ func (suite *JSONObjectSuite) TestArrayOfNumbersSerializesToJSON(c *C) {
 
 func (suite *JSONObjectSuite) TestArrayPreservesOrderInJSON(c *C) {
 	// Sample data: counting in Korean.
-	arr := []interface{}{"jong", "il", "ee", "sam"}
+	arr := []any{"jong", "il", "ee", "sam"}
 	output, err := json.Marshal(maasify(Client{}, arr))
 	c.Assert(err, IsNil)
 
-	var deserialized []interface{}
+	var deserialized []any
 	err = json.Unmarshal(output, &deserialized)
 	c.Assert(err, IsNil)
 	c.Check(deserialized, DeepEquals, arr)

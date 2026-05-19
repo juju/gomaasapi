@@ -308,7 +308,7 @@ func (i *interface_) UnlinkSubnet(subnet Subnet) error {
 	return nil
 }
 
-func readInterface(controllerVersion version.Number, source interface{}) (*interface_, error) {
+func readInterface(controllerVersion version.Number, source any) (*interface_, error) {
 	readFunc, err := getInterfaceDeserializationFunc(controllerVersion)
 	if err != nil {
 		return nil, errors.Trace(err)
@@ -319,11 +319,11 @@ func readInterface(controllerVersion version.Number, source interface{}) (*inter
 	if err != nil {
 		return nil, WrapWithDeserializationError(err, "interface base schema check failed")
 	}
-	valid := coerced.(map[string]interface{})
+	valid := coerced.(map[string]any)
 	return readFunc(valid)
 }
 
-func readInterfaces(controllerVersion version.Number, source interface{}) ([]*interface_, error) {
+func readInterfaces(controllerVersion version.Number, source any) ([]*interface_, error) {
 	readFunc, err := getInterfaceDeserializationFunc(controllerVersion)
 	if err != nil {
 		return nil, errors.Trace(err)
@@ -334,7 +334,7 @@ func readInterfaces(controllerVersion version.Number, source interface{}) ([]*in
 	if err != nil {
 		return nil, WrapWithDeserializationError(err, "interface base schema check failed")
 	}
-	valid := coerced.([]interface{})
+	valid := coerced.([]any)
 	return readInterfaceList(valid, readFunc)
 }
 
@@ -351,10 +351,10 @@ func getInterfaceDeserializationFunc(controllerVersion version.Number) (interfac
 	return interfaceDeserializationFuncs[deserialisationVersion], nil
 }
 
-func readInterfaceList(sourceList []interface{}, readFunc interfaceDeserializationFunc) ([]*interface_, error) {
+func readInterfaceList(sourceList []any, readFunc interfaceDeserializationFunc) ([]*interface_, error) {
 	result := make([]*interface_, 0, len(sourceList))
 	for i, value := range sourceList {
-		source, ok := value.(map[string]interface{})
+		source, ok := value.(map[string]any)
 		if !ok {
 			return nil, NewDeserializationError("unexpected value for interface %d, %T", i, value)
 		}
@@ -367,13 +367,13 @@ func readInterfaceList(sourceList []interface{}, readFunc interfaceDeserializati
 	return result, nil
 }
 
-type interfaceDeserializationFunc func(map[string]interface{}) (*interface_, error)
+type interfaceDeserializationFunc func(map[string]any) (*interface_, error)
 
 var interfaceDeserializationFuncs = map[version.Number]interfaceDeserializationFunc{
 	twoDotOh: interface_2_0,
 }
 
-func interface_2_0(source map[string]interface{}) (*interface_, error) {
+func interface_2_0(source map[string]any) (*interface_, error) {
 	fields := schema.Fields{
 		"resource_uri": schema.String(),
 
@@ -400,20 +400,20 @@ func interface_2_0(source map[string]interface{}) (*interface_, error) {
 	if err != nil {
 		return nil, WrapWithDeserializationError(err, "interface 2.0 schema check failed")
 	}
-	valid := coerced.(map[string]interface{})
+	valid := coerced.(map[string]any)
 	// From here we know that the map returned from the schema coercion
 	// contains fields of the right type.
 
 	var vlan *vlan
 	// If it's not an attribute map then we know it's nil from the schema check.
-	if vlanMap, ok := valid["vlan"].(map[string]interface{}); ok {
+	if vlanMap, ok := valid["vlan"].(map[string]any); ok {
 		vlan, err = vlan_2_0(vlanMap)
 		if err != nil {
 			return nil, errors.Trace(err)
 		}
 	}
 
-	links, err := readLinkList(valid["links"].([]interface{}), link_2_0)
+	links, err := readLinkList(valid["links"].([]any), link_2_0)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}

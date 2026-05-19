@@ -55,6 +55,9 @@ type Controller interface {
 	// from the user making them available to be allocated again.
 	ReleaseMachines(ReleaseMachinesArgs) error
 
+	// DeleteMachine removes a machine from MAAS by system ID.
+	DeleteMachine(systemID string) error
+
 	// Devices returns a list of devices that match the params.
 	Devices(DevicesArgs) ([]Device, error)
 
@@ -64,7 +67,7 @@ type Controller interface {
 	// Files returns all the files that match the specified prefix.
 	Files(prefix string) ([]File, error)
 
-	// Return a single file by its filename.
+	// GetFile returns a single file by its filename.
 	GetFile(filename string) (File, error)
 
 	// AddFile adds or replaces the content of the specified filename.
@@ -73,11 +76,39 @@ type Controller interface {
 	// instance here too.
 	AddFile(AddFileArgs) error
 
-	// Returns the DNS Domain Managed By MAAS
+	// Domains returns the DNS Domain Managed By MAAS
 	Domains() ([]Domain, error)
 
-	// Returns the list of MAAS tags
+	// Tags returns the list of MAAS tags
 	Tags() ([]Tag, error)
+
+	// Pods returns the list of pods (VM hosts) known to the MAAS controller.
+	Pods() ([]Pod, error)
+
+	// ComposeMachine composes (creates) a new machine in a pod.
+	// Returns the composed machine and constraint matches.
+	ComposeMachine(podID int, args ComposeMachineArgs) (Machine, error)
+}
+
+// Pod represents a VM host (KVM or LXD) in MAAS that can compose machines.
+type Pod interface {
+	// ID is the unique identifier of the pod.
+	ID() int
+
+	// Name is the name of the pod.
+	Name() string
+
+	// Type returns the pod type (e.g. "lxd", "virsh").
+	Type() string
+
+	// Zone returns the zone the pod is in.
+	Zone() Zone
+
+	// Pool returns the pool the pod is in.
+	Pool() Pool
+
+	// ComposeMachine composes a new machine in this pod.
+	ComposeMachine(ComposeMachineArgs) (Machine, error)
 }
 
 // File represents a file stored in the MAAS controller.
@@ -208,6 +239,7 @@ type Machine interface {
 	OwnerDataHolder
 
 	SystemID() string
+	Pod() Pod
 	Hostname() string
 	FQDN() string
 	Tags() []string
@@ -221,6 +253,7 @@ type Machine interface {
 
 	IPAddresses() []string
 	PowerState() string
+	PowerType() string
 
 	// Devices returns a list of devices that match the params and have
 	// this Machine as the parent.

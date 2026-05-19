@@ -81,7 +81,7 @@ func (f *file) readFromServer() ([]byte, error) {
 	return bytes, nil
 }
 
-func readFiles(controllerVersion version.Number, source interface{}) ([]*file, error) {
+func readFiles(controllerVersion version.Number, source any) ([]*file, error) {
 	readFunc, err := getFileDeserializationFunc(controllerVersion)
 	if err != nil {
 		return nil, errors.Trace(err)
@@ -92,11 +92,11 @@ func readFiles(controllerVersion version.Number, source interface{}) ([]*file, e
 	if err != nil {
 		return nil, WrapWithDeserializationError(err, "file base schema check failed")
 	}
-	valid := coerced.([]interface{})
+	valid := coerced.([]any)
 	return readFileList(valid, readFunc)
 }
 
-func readFile(controllerVersion version.Number, source interface{}) (*file, error) {
+func readFile(controllerVersion version.Number, source any) (*file, error) {
 	readFunc, err := getFileDeserializationFunc(controllerVersion)
 	if err != nil {
 		return nil, errors.Trace(err)
@@ -107,7 +107,7 @@ func readFile(controllerVersion version.Number, source interface{}) (*file, erro
 	if err != nil {
 		return nil, WrapWithDeserializationError(err, "file base schema check failed")
 	}
-	valid := coerced.(map[string]interface{})
+	valid := coerced.(map[string]any)
 	return readFunc(valid)
 }
 
@@ -125,10 +125,10 @@ func getFileDeserializationFunc(controllerVersion version.Number) (fileDeseriali
 }
 
 // readFileList expects the values of the sourceList to be string maps.
-func readFileList(sourceList []interface{}, readFunc fileDeserializationFunc) ([]*file, error) {
+func readFileList(sourceList []any, readFunc fileDeserializationFunc) ([]*file, error) {
 	result := make([]*file, 0, len(sourceList))
 	for i, value := range sourceList {
-		source, ok := value.(map[string]interface{})
+		source, ok := value.(map[string]any)
 		if !ok {
 			return nil, NewDeserializationError("unexpected value for file %d, %T", i, value)
 		}
@@ -141,13 +141,13 @@ func readFileList(sourceList []interface{}, readFunc fileDeserializationFunc) ([
 	return result, nil
 }
 
-type fileDeserializationFunc func(map[string]interface{}) (*file, error)
+type fileDeserializationFunc func(map[string]any) (*file, error)
 
 var fileDeserializationFuncs = map[version.Number]fileDeserializationFunc{
 	twoDotOh: file_2_0,
 }
 
-func file_2_0(source map[string]interface{}) (*file, error) {
+func file_2_0(source map[string]any) (*file, error) {
 	fields := schema.Fields{
 		"resource_uri":      schema.String(),
 		"filename":          schema.String(),
@@ -162,7 +162,7 @@ func file_2_0(source map[string]interface{}) (*file, error) {
 	if err != nil {
 		return nil, WrapWithDeserializationError(err, "file 2.0 schema check failed")
 	}
-	valid := coerced.(map[string]interface{})
+	valid := coerced.(map[string]any)
 	// From here we know that the map returned from the schema coercion
 	// contains fields of the right type.
 
