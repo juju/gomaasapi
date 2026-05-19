@@ -30,13 +30,13 @@ func (z *zone) Description() string {
 	return z.description
 }
 
-func readZone(controllerVersion version.Number, source interface{}) (*zone, error) {
+func readZone(controllerVersion version.Number, source any) (*zone, error) {
 	checker := schema.StringMap(schema.Any())
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
 		return nil, errors.Annotatef(err, "zone base schema check failed")
 	}
-	valid := coerced.(map[string]interface{})
+	valid := coerced.(map[string]any)
 
 	readFunc, err := zoneReadFuncForVersion(controllerVersion)
 	if err != nil {
@@ -49,13 +49,13 @@ func readZone(controllerVersion version.Number, source interface{}) (*zone, erro
 	return zone, nil
 }
 
-func readZones(controllerVersion version.Number, source interface{}) ([]*zone, error) {
+func readZones(controllerVersion version.Number, source any) ([]*zone, error) {
 	checker := schema.List(schema.StringMap(schema.Any()))
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
 		return nil, errors.Annotatef(err, "zone base schema check failed")
 	}
-	valid := coerced.([]interface{})
+	valid := coerced.([]any)
 
 	readFunc, err := zoneReadFuncForVersion(controllerVersion)
 	if err != nil {
@@ -78,10 +78,10 @@ func zoneReadFuncForVersion(controllerVersion version.Number) (zoneDeserializati
 }
 
 // readZoneList expects the values of the sourceList to be string maps.
-func readZoneList(sourceList []interface{}, readFunc zoneDeserializationFunc) ([]*zone, error) {
+func readZoneList(sourceList []any, readFunc zoneDeserializationFunc) ([]*zone, error) {
 	result := make([]*zone, 0, len(sourceList))
 	for i, value := range sourceList {
-		source, ok := value.(map[string]interface{})
+		source, ok := value.(map[string]any)
 		if !ok {
 			return nil, errors.Errorf("unexpected value for zone %d, %T", i, value)
 		}
@@ -94,13 +94,13 @@ func readZoneList(sourceList []interface{}, readFunc zoneDeserializationFunc) ([
 	return result, nil
 }
 
-type zoneDeserializationFunc func(map[string]interface{}) (*zone, error)
+type zoneDeserializationFunc func(map[string]any) (*zone, error)
 
 var zoneDeserializationFuncs = map[version.Number]zoneDeserializationFunc{
 	twoDotOh: zone_2_0,
 }
 
-func zone_2_0(source map[string]interface{}) (*zone, error) {
+func zone_2_0(source map[string]any) (*zone, error) {
 	fields := schema.Fields{
 		"id":           schema.ForceInt(),
 		"name":         schema.String(),
@@ -112,7 +112,7 @@ func zone_2_0(source map[string]interface{}) (*zone, error) {
 	if err != nil {
 		return nil, errors.Annotatef(err, "zone 2.0 schema check failed")
 	}
-	valid := coerced.(map[string]interface{})
+	valid := coerced.(map[string]any)
 	// From here we know that the map returned from the schema coercion
 	// contains fields of the right type.
 

@@ -103,13 +103,13 @@ func (a *ComposeMachineArgs) interfaces() string {
 	return strings.Join(values, ";")
 }
 
-func readPods(apiVersion version.Number, source interface{}) ([]*pod, error) {
+func readPods(apiVersion version.Number, source any) ([]*pod, error) {
 	checker := schema.List(schema.StringMap(schema.Any()))
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
 		return nil, WrapWithDeserializationError(err, "pod schema check failed")
 	}
-	valid := coerced.([]interface{})
+	valid := coerced.([]any)
 
 	var deserialisationVersion version.Number
 	for v := range podDeserializationFuncs {
@@ -124,7 +124,7 @@ func readPods(apiVersion version.Number, source interface{}) ([]*pod, error) {
 
 	var result []*pod
 	for i, value := range valid {
-		src, ok := value.(map[string]interface{})
+		src, ok := value.(map[string]any)
 		if !ok {
 			return nil, errors.Errorf("unexpected value for pod %d, %T", i, value)
 		}
@@ -137,13 +137,13 @@ func readPods(apiVersion version.Number, source interface{}) ([]*pod, error) {
 	return result, nil
 }
 
-type podDeserializationFunc func(map[string]interface{}) (*pod, error)
+type podDeserializationFunc func(map[string]any) (*pod, error)
 
 var podDeserializationFuncs = map[version.Number]podDeserializationFunc{
 	twoDotOh: pod_2_0,
 }
 
-func pod_2_0(source map[string]interface{}) (*pod, error) {
+func pod_2_0(source map[string]any) (*pod, error) {
 	fields := schema.Fields{
 		"resource_uri": schema.String(),
 		"id":           schema.ForceInt(),
@@ -163,7 +163,7 @@ func pod_2_0(source map[string]interface{}) (*pod, error) {
 	if err != nil {
 		return nil, WrapWithDeserializationError(err, "pod 2.0 schema check failed")
 	}
-	valid := coerced.(map[string]interface{})
+	valid := coerced.(map[string]any)
 
 	id, err := toIntValue(valid["id"])
 	if err != nil {
@@ -177,7 +177,7 @@ func pod_2_0(source map[string]interface{}) (*pod, error) {
 		type_:       valid["type"].(string),
 	}
 
-	if zoneMap, ok := valid["zone"].(map[string]interface{}); ok {
+	if zoneMap, ok := valid["zone"].(map[string]any); ok {
 		z, err := zone_2_0(zoneMap)
 		if err != nil {
 			return nil, errors.Annotate(err, "pod zone")
@@ -185,7 +185,7 @@ func pod_2_0(source map[string]interface{}) (*pod, error) {
 		result.zone = z
 	}
 
-	if poolMap, ok := valid["pool"].(map[string]interface{}); ok {
+	if poolMap, ok := valid["pool"].(map[string]any); ok {
 		p, err := pool_2_0(poolMap)
 		if err != nil {
 			return nil, errors.Annotate(err, "pod pool")
@@ -196,7 +196,7 @@ func pod_2_0(source map[string]interface{}) (*pod, error) {
 	return result, nil
 }
 
-func toIntValue(v interface{}) (int, error) {
+func toIntValue(v any) (int, error) {
 	switch val := v.(type) {
 	case int:
 		return val, nil
@@ -272,10 +272,10 @@ func (c *controller) ComposeMachine(podID int, args ComposeMachineArgs) (Machine
 	// system_id to hand back to the caller so they can allocate it.
 	// Avoid using readMachine here because the compose response may omit fields
 	// like "hostname" that the strict schema checker requires.
-	var rawMachine map[string]interface{}
+	var rawMachine map[string]any
 	switch v := result.(type) {
-	case map[string]interface{}:
-		if m, ok := v["machine"].(map[string]interface{}); ok {
+	case map[string]any:
+		if m, ok := v["machine"].(map[string]any); ok {
 			// MAAS 3.x wrapped response.
 			rawMachine = m
 		} else {
@@ -301,7 +301,7 @@ func (c *controller) ComposeMachine(podID int, args ComposeMachineArgs) (Machine
 // this stage.
 type composedMachine struct {
 	systemID string
-	raw      map[string]interface{}
+	raw      map[string]any
 }
 
 func (m *composedMachine) Pod() Pod                                { return nil }
@@ -347,7 +347,7 @@ func (m *composedMachine) BlockDevices() []BlockDevice {
 	if m.raw == nil {
 		return nil
 	}
-	vals, ok := m.raw["blockdevice_set"].([]interface{})
+	vals, ok := m.raw["blockdevice_set"].([]any)
 	if !ok {
 		return nil
 	}
@@ -384,13 +384,13 @@ func (m *composedMachine) InterfaceSet() []Interface {
 	if m.raw == nil {
 		return nil
 	}
-	vals, ok := m.raw["interface_set"].([]interface{})
+	vals, ok := m.raw["interface_set"].([]any)
 	if !ok {
 		return nil
 	}
 	var out []Interface
 	for _, v := range vals {
-		if ifaceMap, ok := v.(map[string]interface{}); ok {
+		if ifaceMap, ok := v.(map[string]any); ok {
 			if iface, err := readInterface(twoDotOh, ifaceMap); err == nil {
 				out = append(out, iface)
 			}

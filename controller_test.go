@@ -581,14 +581,14 @@ func (s *controllerSuite) TestAllocateMachineArgs(c *gc.C) {
 type constraintMatchInfo map[string][]int
 
 func (s *controllerSuite) addAllocateResponse(c *gc.C, status int, interfaceMatches, storageMatches constraintMatchInfo) {
-	constraints := make(map[string]interface{})
+	constraints := make(map[string]any)
 	if interfaceMatches != nil {
 		constraints["interfaces"] = interfaceMatches
 	}
 	if storageMatches != nil {
 		constraints["storage"] = storageMatches
 	}
-	allocateJSON := updateJSONMap(c, machineResponse, map[string]interface{}{
+	allocateJSON := updateJSONMap(c, machineResponse, map[string]any{
 		"constraints_by_type": constraints,
 	})
 	s.server.AddPostResponse("/api/2.0/machines/?op=allocate", status, allocateJSON)

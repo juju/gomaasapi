@@ -53,7 +53,7 @@ type UnsupportedVersionError struct {
 }
 
 // NewUnsupportedVersionError constructs a new UnsupportedVersionError and sets the location.
-func NewUnsupportedVersionError(format string, args ...interface{}) error {
+func NewUnsupportedVersionError(format string, args ...any) error {
 	err := &UnsupportedVersionError{Err: errors.NewErr(format, args...)}
 	err.SetLocation(1)
 	return err
@@ -80,7 +80,7 @@ type DeserializationError struct {
 }
 
 // NewDeserializationError constructs a new DeserializationError and sets the location.
-func NewDeserializationError(format string, args ...interface{}) error {
+func NewDeserializationError(format string, args ...any) error {
 	err := &DeserializationError{Err: errors.NewErr(format, args...)}
 	err.SetLocation(1)
 	return err
@@ -89,7 +89,7 @@ func NewDeserializationError(format string, args ...interface{}) error {
 // WrapWithDeserializationError constructs a new DeserializationError with the
 // specified message, and sets the location and returns a new error with the
 // full error stack set including the error passed in.
-func WrapWithDeserializationError(err error, format string, args ...interface{}) error {
+func WrapWithDeserializationError(err error, format string, args ...any) error {
 	message := fmt.Sprintf(format, args...)
 	// We want the deserialization error message to include the error text of the
 	// previous error, but wrap it in the new type.

@@ -50,7 +50,7 @@ func (*deviceSuite) TestReadDevices(c *gc.C) {
 
 func (*deviceSuite) TestReadDevicesNils(c *gc.C) {
 	json := parseJSON(c, devicesResponse)
-	deviceMap := json.([]interface{})[0].(map[string]interface{})
+	deviceMap := json.([]any)[0].(map[string]any)
 	deviceMap["owner"] = nil
 	deviceMap["parent"] = nil
 	deviceMap["pool"] = nil

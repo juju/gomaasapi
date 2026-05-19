@@ -33,7 +33,7 @@ func (*machineSuite) TestReadMachinesBadSchema(c *gc.C) {
 	c.Check(err, jc.Satisfies, IsDeserializationError)
 	c.Assert(err.Error(), gc.Equals, `machine base schema check failed: expected list, got string("wat?")`)
 
-	_, err = readMachines(twoDotOh, []map[string]interface{}{
+	_, err = readMachines(twoDotOh, []map[string]any{
 		{
 			"wat": "?",
 		},
@@ -125,7 +125,7 @@ func (*machineSuite) checkMachine(c *gc.C, machine Machine) {
 
 func (*machineSuite) TestReadMachinesNilValues(c *gc.C) {
 	json := parseJSON(c, machinesResponse)
-	data := json.([]interface{})[0].(map[string]interface{})
+	data := json.([]any)[0].(map[string]any)
 	data["architecture"] = nil
 	data["status_message"] = nil
 	data["boot_interface"] = nil
@@ -168,7 +168,7 @@ func (s *machineSuite) getServerAndMachine(c *gc.C) (*SimpleTestServer, *machine
 
 func (s *machineSuite) TestStart(c *gc.C) {
 	server, machine := s.getServerAndMachine(c)
-	response := updateJSONMap(c, machineResponse, map[string]interface{}{
+	response := updateJSONMap(c, machineResponse, map[string]any{
 		"status_name":    "Deploying",
 		"status_message": "for testing",
 	})
@@ -245,7 +245,7 @@ func (s *machineSuite) TestDevices(c *gc.C) {
 
 func (s *machineSuite) TestDevicesNone(c *gc.C) {
 	server, machine := s.getServerAndMachine(c)
-	response := updateJSONMap(c, deviceResponse, map[string]interface{}{
+	response := updateJSONMap(c, deviceResponse, map[string]any{
 		"parent": "other",
 	})
 	server.AddGetResponse("/api/2.0/devices/", http.StatusOK, "["+response+"]")
@@ -321,13 +321,13 @@ func (s *machineSuite) TestCreateDevice(c *gc.C) {
 	server, machine := s.getServerAndMachine(c)
 	// The createDeviceResponse returns a single interface with the name "eth0".
 	server.AddPostResponse("/api/2.0/devices/?op=", http.StatusOK, createDeviceResponse)
-	updateInterfaceResponse := updateJSONMap(c, interfaceResponse, map[string]interface{}{
+	updateInterfaceResponse := updateJSONMap(c, interfaceResponse, map[string]any{
 		"name":         "eth4",
-		"links":        []interface{}{},
+		"links":        []any{},
 		"resource_uri": "/MAAS/api/2.0/nodes/4y3haf/interfaces/48/",
 	})
 	server.AddPutResponse("/MAAS/api/2.0/nodes/4y3haf/interfaces/48/", http.StatusOK, updateInterfaceResponse)
-	linkSubnetResponse := updateJSONMap(c, interfaceResponse, map[string]interface{}{
+	linkSubnetResponse := updateJSONMap(c, interfaceResponse, map[string]any{
 		"name":         "eth4",
 		"resource_uri": "/MAAS/api/2.0/nodes/4y3haf/interfaces/48/",
 	})
@@ -348,9 +348,9 @@ func (s *machineSuite) TestCreateDeviceWithoutSubnetOrVLAN(c *gc.C) {
 	server, machine := s.getServerAndMachine(c)
 	// The createDeviceResponse returns a single interface with the name "eth0".
 	server.AddPostResponse("/api/2.0/devices/?op=", http.StatusOK, createDeviceResponse)
-	updateInterfaceResponse := updateJSONMap(c, interfaceResponse, map[string]interface{}{
+	updateInterfaceResponse := updateJSONMap(c, interfaceResponse, map[string]any{
 		"name":         "eth4",
-		"links":        []interface{}{},
+		"links":        []any{},
 		"resource_uri": "/MAAS/api/2.0/nodes/4y3haf/interfaces/48/",
 	})
 	server.AddPutResponse("/MAAS/api/2.0/nodes/4y3haf/interfaces/48/", http.StatusOK, updateInterfaceResponse)
@@ -371,9 +371,9 @@ func (s *machineSuite) TestCreateDeviceWithVLANOnly(c *gc.C) {
 	server, machine := s.getServerAndMachine(c)
 	// The createDeviceResponse returns a single interface with the name "eth0".
 	server.AddPostResponse("/api/2.0/devices/?op=", http.StatusOK, createDeviceResponse)
-	updateInterfaceResponse := updateJSONMap(c, interfaceResponse, map[string]interface{}{
+	updateInterfaceResponse := updateJSONMap(c, interfaceResponse, map[string]any{
 		"name": "eth4",
-		"vlan": map[string]interface{}{
+		"vlan": map[string]any{
 			"id":           42,
 			"resource_uri": "/MAAS/api/2.0/vlans/42/",
 			"vid":          1234,
@@ -381,7 +381,7 @@ func (s *machineSuite) TestCreateDeviceWithVLANOnly(c *gc.C) {
 			"dhcp_on":      false,
 			"mtu":          9001,
 		},
-		"links":        []interface{}{},
+		"links":        []any{},
 		"resource_uri": "/MAAS/api/2.0/nodes/4y3haf/interfaces/48/",
 	})
 	server.AddPutResponse("/MAAS/api/2.0/nodes/4y3haf/interfaces/48/", http.StatusOK, updateInterfaceResponse)
@@ -401,9 +401,9 @@ func (s *machineSuite) TestCreateDeviceTriesToDeleteDeviceOnError(c *gc.C) {
 	server, machine := s.getServerAndMachine(c)
 	// The createDeviceResponse returns a single interface with the name "eth0".
 	server.AddPostResponse("/api/2.0/devices/?op=", http.StatusOK, createDeviceResponse)
-	updateInterfaceResponse := updateJSONMap(c, interfaceResponse, map[string]interface{}{
+	updateInterfaceResponse := updateJSONMap(c, interfaceResponse, map[string]any{
 		"name":         "eth4",
-		"links":        []interface{}{},
+		"links":        []any{},
 		"resource_uri": "/MAAS/api/2.0/nodes/4y3haf/interfaces/48/",
 	})
 	server.AddPutResponse("/MAAS/api/2.0/nodes/4y3haf/interfaces/48/", http.StatusOK, updateInterfaceResponse)

@@ -26,7 +26,7 @@ type MAASObject struct {
 
 // newJSONMAASObject creates a new MAAS object.  It will panic if the given map
 // does not contain a valid URL for the 'resource_uri' key.
-func newJSONMAASObject(jmap map[string]interface{}, client Client) MAASObject {
+func newJSONMAASObject(jmap map[string]any, client Client) MAASObject {
 	obj, err := maasify(client, jmap).GetMAASObject()
 	if err != nil {
 		panic(err)
@@ -117,7 +117,7 @@ func (obj MAASObject) GetSubObject(name string) MAASObject {
 	newURL := url.URL{Path: name}
 	resUrl := uri.ResolveReference(&newURL)
 	resUrl.Path = EnsureTrailingSlash(resUrl.Path)
-	input := map[string]interface{}{resourceURI: resUrl.String()}
+	input := map[string]any{resourceURI: resUrl.String()}
 	return newJSONMAASObject(input, obj.client)
 }
 

@@ -34,7 +34,7 @@ func (tag tag) KernelOpts() string {
 	return tag.kernelOpts
 }
 
-func readTags(controllerVersion version.Number, source interface{}) ([]*tag, error) {
+func readTags(controllerVersion version.Number, source any) ([]*tag, error) {
 	readFunc, err := getTagDeserializationFunc(controllerVersion)
 	if err != nil {
 		return nil, errors.Trace(err)
@@ -47,14 +47,14 @@ func readTags(controllerVersion version.Number, source interface{}) ([]*tag, err
 	}
 
 	// OK to do a direct cast here because we just coerced the interface.
-	valid := coerced.([]interface{})
+	valid := coerced.([]any)
 	return readTagList(valid, readFunc)
 }
 
-func readTagList(sourceList []interface{}, readFunc tagDeserializationFunc) ([]*tag, error) {
+func readTagList(sourceList []any, readFunc tagDeserializationFunc) ([]*tag, error) {
 	result := make([]*tag, 0, len(sourceList))
 	for i, value := range sourceList {
-		source, ok := value.(map[string]interface{})
+		source, ok := value.(map[string]any)
 		if !ok {
 			return nil, NewDeserializationError("unexpected value for tag %d, %T", i, value)
 		}
@@ -85,13 +85,13 @@ func getTagDeserializationFunc(controllerVersion version.Number) (tagDeserializa
 	return tagDeserializationFuncs[deserialisationVersion], nil
 }
 
-type tagDeserializationFunc func(map[string]interface{}) (*tag, error)
+type tagDeserializationFunc func(map[string]any) (*tag, error)
 
 var tagDeserializationFuncs = map[version.Number]tagDeserializationFunc{
 	twoDotOh: tag_2_0,
 }
 
-func tag_2_0(source map[string]interface{}) (*tag, error) {
+func tag_2_0(source map[string]any) (*tag, error) {
 	fields := schema.Fields{
 		"resource_uri": schema.String(),
 		"name":         schema.String(),
@@ -113,7 +113,7 @@ func tag_2_0(source map[string]interface{}) (*tag, error) {
 		return nil, WrapWithDeserializationError(err, "tag 2.0 schema check failed")
 	}
 
-	valid := coerced.(map[string]interface{})
+	valid := coerced.(map[string]any)
 
 	return &tag{
 		resourceURI: valid["resource_uri"].(string),

@@ -56,13 +56,13 @@ func (b *bootResource) KernelFlavor() string {
 	return b.kernelFlavor
 }
 
-func readBootResources(controllerVersion version.Number, source interface{}) ([]*bootResource, error) {
+func readBootResources(controllerVersion version.Number, source any) ([]*bootResource, error) {
 	checker := schema.List(schema.StringMap(schema.Any()))
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
 		return nil, WrapWithDeserializationError(err, "boot resource base schema check failed")
 	}
-	valid := coerced.([]interface{})
+	valid := coerced.([]any)
 
 	var deserialisationVersion version.Number
 	for v := range bootResourceDeserializationFuncs {
@@ -78,10 +78,10 @@ func readBootResources(controllerVersion version.Number, source interface{}) ([]
 }
 
 // readBootResourceList expects the values of the sourceList to be string maps.
-func readBootResourceList(sourceList []interface{}, readFunc bootResourceDeserializationFunc) ([]*bootResource, error) {
+func readBootResourceList(sourceList []any, readFunc bootResourceDeserializationFunc) ([]*bootResource, error) {
 	result := make([]*bootResource, 0, len(sourceList))
 	for i, value := range sourceList {
-		source, ok := value.(map[string]interface{})
+		source, ok := value.(map[string]any)
 		if !ok {
 			return nil, NewDeserializationError("unexpected value for boot resource %d, %T", i, value)
 		}
@@ -94,13 +94,13 @@ func readBootResourceList(sourceList []interface{}, readFunc bootResourceDeseria
 	return result, nil
 }
 
-type bootResourceDeserializationFunc func(map[string]interface{}) (*bootResource, error)
+type bootResourceDeserializationFunc func(map[string]any) (*bootResource, error)
 
 var bootResourceDeserializationFuncs = map[version.Number]bootResourceDeserializationFunc{
 	twoDotOh: bootResource_2_0,
 }
 
-func bootResource_2_0(source map[string]interface{}) (*bootResource, error) {
+func bootResource_2_0(source map[string]any) (*bootResource, error) {
 	fields := schema.Fields{
 		"resource_uri": schema.String(),
 		"id":           schema.ForceInt(),
@@ -119,7 +119,7 @@ func bootResource_2_0(source map[string]interface{}) (*bootResource, error) {
 	if err != nil {
 		return nil, WrapWithDeserializationError(err, "boot resource 2.0 schema check failed")
 	}
-	valid := coerced.(map[string]interface{})
+	valid := coerced.(map[string]any)
 	// From here we know that the map returned from the schema coercion
 	// contains fields of the right type.
 

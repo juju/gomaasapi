@@ -28,7 +28,7 @@ type JSONObject struct {
 	// Parsed value.  May actually be any of the types a JSONObject can
 	// wrap, except raw bytes.  If the object can only be interpreted
 	// as raw bytes, this will be nil.
-	value interface{}
+	value any
 	// Raw bytes, if this object was parsed directly from an API response.
 	// Is nil for sub-objects found within other objects.  An object that
 	// was parsed directly from a response can be both raw bytes and some
@@ -54,22 +54,22 @@ const resourceURI = "resource_uri"
 // (with the appropriate implementation of course).  This function is
 // recursive.  Maps and arrays are deep-copied, with each individual value
 // being converted to a JSONObject type.
-func maasify(client Client, value interface{}) JSONObject {
+func maasify(client Client, value any) JSONObject {
 	if value == nil {
 		return JSONObject{isNull: true}
 	}
 	switch value.(type) {
 	case string, float64, bool:
 		return JSONObject{value: value}
-	case map[string]interface{}:
-		original := value.(map[string]interface{})
+	case map[string]any:
+		original := value.(map[string]any)
 		result := make(map[string]JSONObject, len(original))
 		for key, value := range original {
 			result[key] = maasify(client, value)
 		}
 		return JSONObject{value: result, client: client}
-	case []interface{}:
-		original := value.([]interface{})
+	case []any:
+		original := value.([]any)
 		result := make([]JSONObject, len(original))
 		for index, value := range original {
 			result[index] = maasify(client, value)
@@ -86,7 +86,7 @@ func Parse(client Client, input []byte) (JSONObject, error) {
 	if input == nil {
 		panic(errors.New("Parse() called with nil input"))
 	}
-	var parsed interface{}
+	var parsed any
 	err := json.Unmarshal(input, &parsed)
 	if err == nil {
 		obj = maasify(client, parsed)
@@ -105,7 +105,7 @@ func Parse(client Client, input []byte) (JSONObject, error) {
 }
 
 // JSONObjectFromStruct takes a struct and converts it to a JSONObject
-func JSONObjectFromStruct(client Client, input interface{}) (JSONObject, error) {
+func JSONObjectFromStruct(client Client, input any) (JSONObject, error) {
 	j, err := json.MarshalIndent(input, "", "  ")
 	if err != nil {
 		return JSONObject{}, err

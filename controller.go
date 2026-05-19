@@ -826,7 +826,7 @@ func (c *controller) checkCreds() error {
 	return nil
 }
 
-func (c *controller) put(path string, params url.Values) (interface{}, error) {
+func (c *controller) put(path string, params url.Values) (any, error) {
 	path = EnsureTrailingSlash(path)
 	requestID := nextRequestID()
 	logger.Tracef("request %x: PUT %s%s, params: %s", requestID, c.client.APIURL, path, params.Encode())
@@ -838,7 +838,7 @@ func (c *controller) put(path string, params url.Values) (interface{}, error) {
 	}
 	logger.Tracef("response %x: %s", requestID, string(bytes))
 
-	var parsed interface{}
+	var parsed any
 	err = json.Unmarshal(bytes, &parsed)
 	if err != nil {
 		return nil, errors.Trace(err)
@@ -846,13 +846,13 @@ func (c *controller) put(path string, params url.Values) (interface{}, error) {
 	return parsed, nil
 }
 
-func (c *controller) post(path, op string, params url.Values) (interface{}, error) {
+func (c *controller) post(path, op string, params url.Values) (any, error) {
 	bytes, err := c._postRaw(path, op, params, nil)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
 
-	var parsed interface{}
+	var parsed any
 	err = json.Unmarshal(bytes, &parsed)
 	if err != nil {
 		return nil, errors.Trace(err)
@@ -860,7 +860,7 @@ func (c *controller) post(path, op string, params url.Values) (interface{}, erro
 	return parsed, nil
 }
 
-func (c *controller) postFile(path, op string, params url.Values, fileContent []byte) (interface{}, error) {
+func (c *controller) postFile(path, op string, params url.Values, fileContent []byte) (any, error) {
 	// Only one file is ever sent at a time.
 	files := map[string][]byte{"file": fileContent}
 	return c._postRaw(path, op, params, files)
@@ -900,24 +900,24 @@ func (c *controller) delete(path string) error {
 	return nil
 }
 
-func (c *controller) getQuery(path string, params url.Values) (interface{}, error) {
+func (c *controller) getQuery(path string, params url.Values) (any, error) {
 	return c._get(path, "", params)
 }
 
-func (c *controller) get(path string) (interface{}, error) {
+func (c *controller) get(path string) (any, error) {
 	return c._get(path, "", nil)
 }
 
-func (c *controller) getOp(path, op string) (interface{}, error) {
+func (c *controller) getOp(path, op string) (any, error) {
 	return c._get(path, op, nil)
 }
 
-func (c *controller) _get(path, op string, params url.Values) (interface{}, error) {
+func (c *controller) _get(path, op string, params url.Values) (any, error) {
 	bytes, err := c._getRaw(path, op, params)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
-	var parsed interface{}
+	var parsed any
 	err = json.Unmarshal(bytes, &parsed)
 	if err != nil {
 		return nil, errors.Trace(err)
@@ -995,11 +995,11 @@ func (c *controller) readAPIVersionInfo() (string, string, set.Strings, error) {
 	// For now, we don't append any subversion, but as it becomes used, we
 	// should parse and check.
 
-	valid := coerced.(map[string]interface{})
+	valid := coerced.(map[string]any)
 	// From here we know that the map returned from the schema coercion
 	// contains fields of the right type.
 	capabilities := set.NewStrings()
-	capabilityValues := valid["capabilities"].([]interface{})
+	capabilityValues := valid["capabilities"].([]any)
 	for _, value := range capabilityValues {
 		capabilities.Add(value.(string))
 	}
@@ -1010,7 +1010,7 @@ func (c *controller) readAPIVersionInfo() (string, string, set.Strings, error) {
 	return version, subversion, capabilities, nil
 }
 
-func parseAllocateConstraintsResponse(source interface{}, machine Machine) (ConstraintMatches, error) {
+func parseAllocateConstraintsResponse(source any, machine Machine) (ConstraintMatches, error) {
 	var empty ConstraintMatches
 	matchFields := schema.Fields{
 		"storage":    schema.StringMap(schema.List(schema.Any())),
@@ -1028,8 +1028,8 @@ func parseAllocateConstraintsResponse(source interface{}, machine Machine) (Cons
 	if err != nil {
 		return empty, WrapWithDeserializationError(err, "allocation constraints response schema check failed")
 	}
-	valid := coerced.(map[string]interface{})
-	constraintsMap := valid["constraints_by_type"].(map[string]interface{})
+	valid := coerced.(map[string]any)
+	constraintsMap := valid["constraints_by_type"].(map[string]any)
 	result := ConstraintMatches{
 		Interfaces: make(map[string][]Interface),
 		Storage:    make(map[string][]StorageDevice),
@@ -1089,12 +1089,12 @@ func parseAllocateConstraintsResponse(source interface{}, machine Machine) (Cons
 	return result, nil
 }
 
-func convertConstraintMatchesInt(source interface{}) map[string][]int {
+func convertConstraintMatchesInt(source any) map[string][]int {
 	// These casts are all safe because of the schema check.
 	result := make(map[string][]int)
-	matchMap := source.(map[string]interface{})
+	matchMap := source.(map[string]any)
 	for label, values := range matchMap {
-		items := values.([]interface{})
+		items := values.([]any)
 		result[label] = make([]int, len(items))
 		for index, value := range items {
 			result[label][index] = value.(int)
@@ -1103,13 +1103,13 @@ func convertConstraintMatchesInt(source interface{}) map[string][]int {
 	return result
 }
 
-func convertConstraintMatchesAny(source interface{}) map[string][]interface{} {
+func convertConstraintMatchesAny(source any) map[string][]any {
 	// These casts are all safe because of the schema check.
-	result := make(map[string][]interface{})
-	matchMap := source.(map[string]interface{})
+	result := make(map[string][]any)
+	matchMap := source.(map[string]any)
 	for label, values := range matchMap {
-		items := values.([]interface{})
-		result[label] = make([]interface{}, len(items))
+		items := values.([]any)
+		result[label] = make([]any, len(items))
 		for index, value := range items {
 			result[label][index] = value
 		}

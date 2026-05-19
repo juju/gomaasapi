@@ -29,7 +29,7 @@ func (p *pool) Description() string {
 	return p.description
 }
 
-func readPools(controllerVersion version.Number, source interface{}) ([]*pool, error) {
+func readPools(controllerVersion version.Number, source any) ([]*pool, error) {
 	var deserialisationVersion version.Number
 
 	checker := schema.List(schema.StringMap(schema.Any()))
@@ -39,7 +39,7 @@ func readPools(controllerVersion version.Number, source interface{}) ([]*pool, e
 		return nil, errors.Annotatef(err, "pool base schema check failed")
 	}
 
-	valid := coerced.([]interface{})
+	valid := coerced.([]any)
 
 	for v := range poolDeserializationFuncs {
 		if v.Compare(deserialisationVersion) > 0 && v.Compare(controllerVersion) <= 0 {
@@ -56,11 +56,11 @@ func readPools(controllerVersion version.Number, source interface{}) ([]*pool, e
 }
 
 // readPoolList expects the values of the sourceList to be string maps.
-func readPoolList(sourceList []interface{}, readFunc poolDeserializationFunc) ([]*pool, error) {
+func readPoolList(sourceList []any, readFunc poolDeserializationFunc) ([]*pool, error) {
 	result := make([]*pool, 0, len(sourceList))
 
 	for i, value := range sourceList {
-		source, ok := value.(map[string]interface{})
+		source, ok := value.(map[string]any)
 		if !ok {
 			return nil, errors.Errorf("unexpected value for pool %d, %T", i, value)
 		}
@@ -73,13 +73,13 @@ func readPoolList(sourceList []interface{}, readFunc poolDeserializationFunc) ([
 	return result, nil
 }
 
-type poolDeserializationFunc func(map[string]interface{}) (*pool, error)
+type poolDeserializationFunc func(map[string]any) (*pool, error)
 
 var poolDeserializationFuncs = map[version.Number]poolDeserializationFunc{
 	twoDotOh: pool_2_0,
 }
 
-func pool_2_0(source map[string]interface{}) (*pool, error) {
+func pool_2_0(source map[string]any) (*pool, error) {
 	fields := schema.Fields{
 		"name":         schema.String(),
 		"description":  schema.String(),
@@ -92,7 +92,7 @@ func pool_2_0(source map[string]interface{}) (*pool, error) {
 	if err != nil {
 		return nil, errors.Annotatef(err, "pool 2.0 schema check failed")
 	}
-	valid := coerced.(map[string]interface{})
+	valid := coerced.(map[string]any)
 	// From here we know that the map returned from the schema coercion
 	// contains fields of the right type.
 

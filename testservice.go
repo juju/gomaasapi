@@ -332,7 +332,7 @@ func (server *TestServer) addNodeOperation(systemId, operation string, request *
 // 'system_id'.  e.g. `{"system_id": "mysystemid"}`.
 // If one of these conditions is not met, NewNode panics.
 func (server *TestServer) NewNode(jsonText string) MAASObject {
-	var attrs map[string]interface{}
+	var attrs map[string]any
 	err := json.Unmarshal([]byte(jsonText), &attrs)
 	checkError(err)
 	systemIdEntry, hasSystemId := attrs["system_id"]
@@ -363,7 +363,7 @@ func (server *TestServer) OwnedNodes() map[string]bool {
 
 // NewFile creates a file in the test MAAS server.
 func (server *TestServer) NewFile(filename string, filecontent []byte) MAASObject {
-	attrs := make(map[string]interface{})
+	attrs := make(map[string]any)
 	attrs[resourceURI] = getFileURL(server.version, filename)
 	base64Content := base64.StdEncoding.EncodeToString(filecontent)
 	attrs["content"] = base64Content
@@ -455,7 +455,7 @@ func (server *TestServer) IPAddresses() map[string][]string {
 
 // NewNetwork creates a network in the test MAAS server
 func (server *TestServer) NewNetwork(jsonText string) MAASObject {
-	var attrs map[string]interface{}
+	var attrs map[string]any
 	err := json.Unmarshal([]byte(jsonText), &attrs)
 	checkError(err)
 	nameEntry, hasName := attrs["name"]
@@ -479,7 +479,7 @@ func (server *TestServer) NewNodegroupInterface(uuid, jsonText string) JSONObjec
 	if !ok {
 		panic("no nodegroup with the given UUID")
 	}
-	var attrs map[string]interface{}
+	var attrs map[string]any
 	err := json.Unmarshal([]byte(jsonText), &attrs)
 	checkError(err)
 	requiredMembers := []string{"ip_range_high", "ip_range_low", "broadcast_ip", "static_ip_range_low", "static_ip_range_high", "name", "ip", "subnet_mask", "management", "interface"}
@@ -517,7 +517,7 @@ func (server *TestServer) ConnectNodeToNetworkWithMACAddress(systemId, networkNa
 	}
 	networkNames, _ := server.networksPerNode[systemId]
 	server.networksPerNode[systemId] = append(networkNames, networkName)
-	attrs := make(map[string]interface{})
+	attrs := make(map[string]any)
 	attrs[resourceURI] = getMACAddressURL(server.version, systemId, macAddress)
 	attrs["mac_address"] = macAddress
 	array := []JSONObject{}
@@ -538,7 +538,7 @@ func (server *TestServer) ConnectNodeToNetworkWithMACAddress(systemId, networkNa
 
 // AddBootImage adds a boot-image object to the specified nodegroup.
 func (server *TestServer) AddBootImage(nodegroupUUID string, jsonText string) {
-	var attrs map[string]interface{}
+	var attrs map[string]any
 	err := json.Unmarshal([]byte(jsonText), &attrs)
 	checkError(err)
 	if _, ok := attrs["architecture"]; !ok {
@@ -553,7 +553,7 @@ func (server *TestServer) AddBootImage(nodegroupUUID string, jsonText string) {
 
 // AddZone adds a physical zone to the server.
 func (server *TestServer) AddZone(name, description string) {
-	attrs := map[string]interface{}{
+	attrs := map[string]any{
 		"name":        name,
 		"description": description,
 	}
@@ -563,7 +563,7 @@ func (server *TestServer) AddZone(name, description string) {
 
 // AddTah adds a tag to the server.
 func (server *TestServer) AddTag(name, comment string) {
-	attrs := map[string]interface{}{
+	attrs := map[string]any{
 		"name":      name,
 		"comment":   comment,
 		resourceURI: getTagURL(server.version, name),
@@ -1019,7 +1019,7 @@ func nodeDeploymentStatusHandler(server *TestServer, w http.ResponseWriter, r *h
 	values, err := url.ParseQuery(r.URL.RawQuery)
 	checkError(err)
 	nodes, _ := values["nodes"]
-	var nodeStatus = make(map[string]interface{})
+	var nodeStatus = make(map[string]any)
 	for _, systemId := range nodes {
 		node := server.nodes[systemId]
 		field, err := node.GetField("status")
@@ -1214,7 +1214,7 @@ const lldpXML = `
 
 // nodeDetailesHandler handles requests for '/api/<version>/nodes/<system_id>/?op=details'.
 func nodeDetailsHandler(server *TestServer, w http.ResponseWriter, r *http.Request, systemId string) {
-	attrs := make(map[string]interface{})
+	attrs := make(map[string]any)
 	attrs["lldp"] = lldpXML
 	xmlText, _ := server.nodeDetails[systemId]
 	attrs["lshw"] = []byte(xmlText)
@@ -1637,7 +1637,7 @@ func nodegroupsTopLevelHandler(server *TestServer, w http.ResponseWriter, r *htt
 
 	nodegroups := []JSONObject{}
 	for uuid := range server.bootImages {
-		attrs := map[string]interface{}{
+		attrs := map[string]any{
 			"uuid":      uuid,
 			resourceURI: getNodegroupURL(server.version, uuid),
 		}
@@ -1762,15 +1762,15 @@ func tagsHandler(server *TestServer, w http.ResponseWriter, r *http.Request) {
 // newTagHandler creates, stores and returns new tag.
 func newTagHandler(server *TestServer, w http.ResponseWriter, r *http.Request, name string, values url.Values) {
 	comment, hascomment := getValue(values, "comment")
-	var attrs map[string]interface{}
+	var attrs map[string]any
 	if hascomment {
-		attrs = map[string]interface{}{
+		attrs = map[string]any{
 			"name":      name,
 			"comment":   comment,
 			resourceURI: getTagURL(server.version, name),
 		}
 	} else {
-		attrs = map[string]interface{}{
+		attrs = map[string]any{
 			"name":      name,
 			resourceURI: getTagURL(server.version, name),
 		}

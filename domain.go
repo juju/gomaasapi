@@ -23,17 +23,17 @@ func (domain *domain) Name() string {
 	return domain.name
 }
 
-func readDomains(controllerVersion version.Number, source interface{}) ([]*domain, error) {
+func readDomains(controllerVersion version.Number, source any) ([]*domain, error) {
 	checker := schema.List(schema.StringMap(schema.Any()))
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
 		return nil, errors.Annotatef(err, "domain base schema check failed")
 	}
-	valid := coerced.([]interface{})
+	valid := coerced.([]any)
 	return readDomainList(valid)
 }
 
-func domain_(source map[string]interface{}) (*domain, error) {
+func domain_(source map[string]any) (*domain, error) {
 	fields := schema.Fields{
 		"authoritative":         schema.Bool(),
 		"resource_record_count": schema.ForceInt(),
@@ -47,7 +47,7 @@ func domain_(source map[string]interface{}) (*domain, error) {
 	if err != nil {
 		return nil, errors.Annotatef(err, "domain schema check failed")
 	}
-	valid := coerced.(map[string]interface{})
+	valid := coerced.(map[string]any)
 
 	var ttl *int = nil
 	if valid["ttl"] != nil {
@@ -68,10 +68,10 @@ func domain_(source map[string]interface{}) (*domain, error) {
 }
 
 // readDomainList expects the values of the sourceList to be string maps.
-func readDomainList(sourceList []interface{}) ([]*domain, error) {
+func readDomainList(sourceList []any) ([]*domain, error) {
 	result := make([]*domain, 0, len(sourceList))
 	for i, value := range sourceList {
-		source, ok := value.(map[string]interface{})
+		source, ok := value.(map[string]any)
 		if !ok {
 			return nil, errors.Errorf("unexpected value for domain %d, %T", i, value)
 		}

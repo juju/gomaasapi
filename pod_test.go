@@ -15,7 +15,7 @@ var _ = Suite(&podSuite{})
 
 func (s *podSuite) TestPod20Read(c *C) {
 	sourceJSON := `{"id": 42, "name": "test-pod", "type": "lxd", "resource_uri": "/MAAS/api/2.0/pods/42/", "zone": {"id": 1, "name": "zone1", "description": "", "resource_uri": "/MAAS/api/2.0/zones/zone1/"}, "pool": {"name": "pool1", "description": "", "resource_uri": "/MAAS/api/2.0/resourcepool/pool1/"}}`
-	var source map[string]interface{}
+	var source map[string]any
 	err := json.Unmarshal([]byte(sourceJSON), &source)
 	c.Assert(err, IsNil)
 	p, err := pod_2_0(source)
@@ -30,7 +30,7 @@ func (s *podSuite) TestPod20Read(c *C) {
 }
 func (s *podSuite) TestPod20ReadMissingOptional(c *C) {
 	sourceJSON := `{"id": 42, "name": "test-pod", "resource_uri": "/MAAS/api/2.0/pods/42/"}`
-	var source map[string]interface{}
+	var source map[string]any
 	err := json.Unmarshal([]byte(sourceJSON), &source)
 	c.Assert(err, IsNil)
 	p, err := pod_2_0(source)
@@ -43,7 +43,7 @@ func (s *podSuite) TestPod20ReadMissingOptional(c *C) {
 }
 func (s *podSuite) TestReadPods(c *C) {
 	sourceJSON := `[{"id": 1, "name": "pod1", "resource_uri": "/MAAS/api/2.0/pods/1/"},{"id": 2, "name": "pod2", "resource_uri": "/MAAS/api/2.0/pods/2/"}]`
-	var source interface{}
+	var source any
 	err := json.Unmarshal([]byte(sourceJSON), &source)
 	c.Assert(err, IsNil)
 	pods, err := readPods(twoDotOh, source)

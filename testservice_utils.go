@@ -110,7 +110,7 @@ func (ip *IP) SetUInt64(v uint64) {
 	copy(ip.netIP[first:], bb.Bytes())
 }
 
-func PrettyJsonWriter(thing interface{}, w http.ResponseWriter) {
+func PrettyJsonWriter(thing any, w http.ResponseWriter) {
 	var out bytes.Buffer
 	b, err := json.MarshalIndent(thing, "", "  ")
 	checkError(err)

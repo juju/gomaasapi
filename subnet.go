@@ -64,13 +64,13 @@ func (s *subnet) DNSServers() []string {
 	return s.dnsServers
 }
 
-func readSubnets(controllerVersion version.Number, source interface{}) ([]*subnet, error) {
+func readSubnets(controllerVersion version.Number, source any) ([]*subnet, error) {
 	checker := schema.List(schema.StringMap(schema.Any()))
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
 		return nil, errors.Annotatef(err, "subnet base schema check failed")
 	}
-	valid := coerced.([]interface{})
+	valid := coerced.([]any)
 
 	var deserialisationVersion version.Number
 	for v := range subnetDeserializationFuncs {
@@ -86,10 +86,10 @@ func readSubnets(controllerVersion version.Number, source interface{}) ([]*subne
 }
 
 // readSubnetList expects the values of the sourceList to be string maps.
-func readSubnetList(sourceList []interface{}, readFunc subnetDeserializationFunc) ([]*subnet, error) {
+func readSubnetList(sourceList []any, readFunc subnetDeserializationFunc) ([]*subnet, error) {
 	result := make([]*subnet, 0, len(sourceList))
 	for i, value := range sourceList {
-		source, ok := value.(map[string]interface{})
+		source, ok := value.(map[string]any)
 		if !ok {
 			return nil, errors.Errorf("unexpected value for subnet %d, %T", i, value)
 		}
@@ -102,13 +102,13 @@ func readSubnetList(sourceList []interface{}, readFunc subnetDeserializationFunc
 	return result, nil
 }
 
-type subnetDeserializationFunc func(map[string]interface{}) (*subnet, error)
+type subnetDeserializationFunc func(map[string]any) (*subnet, error)
 
 var subnetDeserializationFuncs = map[version.Number]subnetDeserializationFunc{
 	twoDotOh: subnet_2_0,
 }
 
-func subnet_2_0(source map[string]interface{}) (*subnet, error) {
+func subnet_2_0(source map[string]any) (*subnet, error) {
 	fields := schema.Fields{
 		"resource_uri": schema.String(),
 		"id":           schema.ForceInt(),
@@ -124,11 +124,11 @@ func subnet_2_0(source map[string]interface{}) (*subnet, error) {
 	if err != nil {
 		return nil, errors.Annotatef(err, "subnet 2.0 schema check failed")
 	}
-	valid := coerced.(map[string]interface{})
+	valid := coerced.(map[string]any)
 	// From here we know that the map returned from the schema coercion
 	// contains fields of the right type.
 
-	vlan, err := vlan_2_0(valid["vlan"].(map[string]interface{}))
+	vlan, err := vlan_2_0(valid["vlan"].(map[string]any))
 	if err != nil {
 		return nil, errors.Trace(err)
 	}

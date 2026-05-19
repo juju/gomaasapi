@@ -42,13 +42,13 @@ func (k *link) IPAddress() string {
 	return k.ipAddress
 }
 
-func readLinks(controllerVersion version.Number, source interface{}) ([]*link, error) {
+func readLinks(controllerVersion version.Number, source any) ([]*link, error) {
 	checker := schema.List(schema.StringMap(schema.Any()))
 	coerced, err := checker.Coerce(source, nil)
 	if err != nil {
 		return nil, WrapWithDeserializationError(err, "link base schema check failed")
 	}
-	valid := coerced.([]interface{})
+	valid := coerced.([]any)
 
 	var deserialisationVersion version.Number
 	for v := range linkDeserializationFuncs {
@@ -64,10 +64,10 @@ func readLinks(controllerVersion version.Number, source interface{}) ([]*link, e
 }
 
 // readLinkList expects the values of the sourceList to be string maps.
-func readLinkList(sourceList []interface{}, readFunc linkDeserializationFunc) ([]*link, error) {
+func readLinkList(sourceList []any, readFunc linkDeserializationFunc) ([]*link, error) {
 	result := make([]*link, 0, len(sourceList))
 	for i, value := range sourceList {
-		source, ok := value.(map[string]interface{})
+		source, ok := value.(map[string]any)
 		if !ok {
 			return nil, NewDeserializationError("unexpected value for link %d, %T", i, value)
 		}
@@ -80,13 +80,13 @@ func readLinkList(sourceList []interface{}, readFunc linkDeserializationFunc) ([
 	return result, nil
 }
 
-type linkDeserializationFunc func(map[string]interface{}) (*link, error)
+type linkDeserializationFunc func(map[string]any) (*link, error)
 
 var linkDeserializationFuncs = map[version.Number]linkDeserializationFunc{
 	twoDotOh: link_2_0,
 }
 
-func link_2_0(source map[string]interface{}) (*link, error) {
+func link_2_0(source map[string]any) (*link, error) {
 	fields := schema.Fields{
 		"id":         schema.ForceInt(),
 		"mode":       schema.String(),
@@ -102,13 +102,13 @@ func link_2_0(source map[string]interface{}) (*link, error) {
 	if err != nil {
 		return nil, WrapWithDeserializationError(err, "link 2.0 schema check failed")
 	}
-	valid := coerced.(map[string]interface{})
+	valid := coerced.(map[string]any)
 	// From here we know that the map returned from the schema coercion
 	// contains fields of the right type.
 
 	var subnet *subnet
 	if value, ok := valid["subnet"]; ok {
-		subnet, err = subnet_2_0(value.(map[string]interface{}))
+		subnet, err = subnet_2_0(value.(map[string]any))
 		if err != nil {
 			return nil, errors.Trace(err)
 		}

@@ -51,7 +51,7 @@ func (*partitionSuite) TestReadPartitions(c *gc.C) {
 
 func (*partitionSuite) TestReadPartitionsNilUUID(c *gc.C) {
 	json := parseJSON(c, partitionsResponse)
-	json.([]interface{})[0].(map[string]interface{})["uuid"] = nil
+	json.([]any)[0].(map[string]any)["uuid"] = nil
 	partitions, err := readPartitions(twoDotOh, json)
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(partitions, gc.HasLen, 1)

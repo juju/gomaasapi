@@ -537,7 +537,7 @@ func (suite *TestServerSuite) TestHandlesFile(c *C) {
 
 	content, err := readAndClose(resp.Body)
 	c.Assert(err, IsNil)
-	var obj map[string]interface{}
+	var obj map[string]any
 	err = json.Unmarshal(content, &obj)
 	c.Assert(err, IsNil)
 	anon_url, ok := obj["anon_resource_uri"]
@@ -1756,7 +1756,7 @@ func (suite *TestMAASObjectSuite) TestNodeDetails(c *C) {
 	result, err := obj.client.Get(uri, "details", nil)
 	c.Assert(err, IsNil)
 
-	jsonObj := map[string]interface{}{}
+	jsonObj := map[string]any{}
 	err = json.Unmarshal(result, &jsonObj)
 	c.Assert(err, IsNil)
 

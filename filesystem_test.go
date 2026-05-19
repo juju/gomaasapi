@@ -13,7 +13,7 @@ type filesystemSuite struct{}
 var _ = gc.Suite(&filesystemSuite{})
 
 func (*filesystemSuite) TestParse2_0(c *gc.C) {
-	source := map[string]interface{}{
+	source := map[string]any{
 		"fstype":      "ext4",
 		"mount_point": "/",
 		"label":       "root",
@@ -28,7 +28,7 @@ func (*filesystemSuite) TestParse2_0(c *gc.C) {
 }
 
 func (*filesystemSuite) TestParse2_Defaults(c *gc.C) {
-	source := map[string]interface{}{
+	source := map[string]any{
 		"fstype":      "ext4",
 		"mount_point": nil,
 		"label":       nil,
@@ -43,7 +43,7 @@ func (*filesystemSuite) TestParse2_Defaults(c *gc.C) {
 }
 
 func (*filesystemSuite) TestParse2_0BadSchema(c *gc.C) {
-	source := map[string]interface{}{
+	source := map[string]any{
 		"mount_point": "/",
 		"label":       "root",
 		"uuid":        "fake-uuid",

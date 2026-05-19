@@ -36,7 +36,7 @@ func (f *filesystem) UUID() string {
 // There is no need for controller based parsing of filesystems until we need it.
 // Currently the filesystem reading is only called by the Partition parsing.
 
-func filesystem2_0(source map[string]interface{}) (*filesystem, error) {
+func filesystem2_0(source map[string]any) (*filesystem, error) {
 	fields := schema.Fields{
 		"fstype":      schema.String(),
 		"mount_point": schema.OneOf(schema.Nil(""), schema.String()),
@@ -54,7 +54,7 @@ func filesystem2_0(source map[string]interface{}) (*filesystem, error) {
 	if err != nil {
 		return nil, WrapWithDeserializationError(err, "filesystem 2.0 schema check failed")
 	}
-	valid := coerced.(map[string]interface{})
+	valid := coerced.(map[string]any)
 	// From here we know that the map returned from the schema coercion
 	// contains fields of the right type.
 	mount_point, _ := valid["mount_point"].(string)

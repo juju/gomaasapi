@@ -462,7 +462,7 @@ func (m *machine) SetOwnerData(ownerData map[string]string) error {
 	return nil
 }
 
-func readMachine(controllerVersion version.Number, source interface{}) (*machine, error) {
+func readMachine(controllerVersion version.Number, source any) (*machine, error) {
 	readFunc, err := getMachineDeserializationFunc(controllerVersion)
 	if err != nil {
 		return nil, errors.Trace(err)
@@ -473,11 +473,11 @@ func readMachine(controllerVersion version.Number, source interface{}) (*machine
 	if err != nil {
 		return nil, WrapWithDeserializationError(err, "machine base schema check failed")
 	}
-	valid := coerced.(map[string]interface{})
+	valid := coerced.(map[string]any)
 	return readFunc(valid)
 }
 
-func readMachines(controllerVersion version.Number, source interface{}) ([]*machine, error) {
+func readMachines(controllerVersion version.Number, source any) ([]*machine, error) {
 	readFunc, err := getMachineDeserializationFunc(controllerVersion)
 	if err != nil {
 		return nil, errors.Trace(err)
@@ -488,7 +488,7 @@ func readMachines(controllerVersion version.Number, source interface{}) ([]*mach
 	if err != nil {
 		return nil, WrapWithDeserializationError(err, "machine base schema check failed")
 	}
-	valid := coerced.([]interface{})
+	valid := coerced.([]any)
 	return readMachineList(valid, readFunc)
 }
 
@@ -505,10 +505,10 @@ func getMachineDeserializationFunc(controllerVersion version.Number) (machineDes
 	return machineDeserializationFuncs[deserialisationVersion], nil
 }
 
-func readMachineList(sourceList []interface{}, readFunc machineDeserializationFunc) ([]*machine, error) {
+func readMachineList(sourceList []any, readFunc machineDeserializationFunc) ([]*machine, error) {
 	result := make([]*machine, 0, len(sourceList))
 	for i, value := range sourceList {
-		source, ok := value.(map[string]interface{})
+		source, ok := value.(map[string]any)
 		if !ok {
 			return nil, NewDeserializationError("unexpected value for machine %d, %T", i, value)
 		}
@@ -521,13 +521,13 @@ func readMachineList(sourceList []interface{}, readFunc machineDeserializationFu
 	return result, nil
 }
 
-type machineDeserializationFunc func(map[string]interface{}) (*machine, error)
+type machineDeserializationFunc func(map[string]any) (*machine, error)
 
 var machineDeserializationFuncs = map[version.Number]machineDeserializationFunc{
 	twoDotOh: machine_2_0,
 }
 
-func machine_2_0(source map[string]interface{}) (*machine, error) {
+func machine_2_0(source map[string]any) (*machine, error) {
 	fields := schema.Fields{
 		"resource_uri": schema.String(),
 
@@ -568,54 +568,54 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 	if err != nil {
 		return nil, WrapWithDeserializationError(err, "machine 2.0 schema check failed")
 	}
-	valid := coerced.(map[string]interface{})
+	valid := coerced.(map[string]any)
 	// From here we know that the map returned from the schema coercion
 	// contains fields of the right type.
 
 	var bootInterface *interface_
-	if ifaceMap, ok := valid["boot_interface"].(map[string]interface{}); ok {
+	if ifaceMap, ok := valid["boot_interface"].(map[string]any); ok {
 		bootInterface, err = interface_2_0(ifaceMap)
 		if err != nil {
 			return nil, errors.Trace(err)
 		}
 	}
 
-	interfaceSet, err := readInterfaceList(valid["interface_set"].([]interface{}), interface_2_0)
+	interfaceSet, err := readInterfaceList(valid["interface_set"].([]any), interface_2_0)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
 
-	zone, err := zone_2_0(valid["zone"].(map[string]interface{}))
+	zone, err := zone_2_0(valid["zone"].(map[string]any))
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
 
 	var pool *pool
 	if valid["pool"] != nil {
-		if pool, err = pool_2_0(valid["pool"].(map[string]interface{})); err != nil {
+		if pool, err = pool_2_0(valid["pool"].(map[string]any)); err != nil {
 			return nil, errors.Trace(err)
 		}
 	}
 
 	var pod *pod
 	if valid["pod"] != nil {
-		if pod, err = pod_2_0(valid["pod"].(map[string]interface{})); err != nil {
+		if pod, err = pod_2_0(valid["pod"].(map[string]any)); err != nil {
 			return nil, errors.Trace(err)
 		}
 	}
 
-	physicalBlockDevices, err := readBlockDeviceList(valid["physicalblockdevice_set"].([]interface{}), blockdevice_2_0)
+	physicalBlockDevices, err := readBlockDeviceList(valid["physicalblockdevice_set"].([]any), blockdevice_2_0)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
 
-	blockDevices, err := readBlockDeviceList(valid["blockdevice_set"].([]interface{}), blockdevice_2_0)
+	blockDevices, err := readBlockDeviceList(valid["blockdevice_set"].([]any), blockdevice_2_0)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
 
 	var hardwareInfo map[string]string
-	if validHardwareInfo, ok := valid["hardware_info"].(map[string]interface{}); ok {
+	if validHardwareInfo, ok := valid["hardware_info"].(map[string]any); ok {
 		hardwareInfo = make(map[string]string, len(validHardwareInfo))
 		for key, value := range validHardwareInfo {
 			v, ok := value.(string)
@@ -662,11 +662,11 @@ func machine_2_0(source map[string]interface{}) (*machine, error) {
 	return result, nil
 }
 
-func convertToStringSlice(field interface{}) []string {
+func convertToStringSlice(field any) []string {
 	if field == nil {
 		return nil
 	}
-	fieldSlice := field.([]interface{})
+	fieldSlice := field.([]any)
 	result := make([]string, len(fieldSlice))
 	for i, value := range fieldSlice {
 		result[i] = value.(string)
@@ -674,13 +674,13 @@ func convertToStringSlice(field interface{}) []string {
 	return result
 }
 
-func convertToStringMap(field interface{}) map[string]string {
+func convertToStringMap(field any) map[string]string {
 	if field == nil {
 		return nil
 	}
 	// This function is only called after a schema Coerce, so it's
 	// safe.
-	fieldMap := field.(map[string]interface{})
+	fieldMap := field.(map[string]any)
 	result := make(map[string]string)
 	for key, value := range fieldMap {
 		result[key] = value.(string)
