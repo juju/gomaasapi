@@ -140,6 +140,10 @@ func (m *machine) PowerType() string {
 
 // VmHost implements Machine.
 func (m *machine) VmHost() VmHost {
+	if m.vmHost == nil {
+		return nil
+	}
+	m.vmHost.controller = m.controller
 	return m.vmHost
 }
 

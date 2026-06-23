@@ -888,7 +888,6 @@ func (s *controllerSuite) TestComposeMachine(c *gc.C) {
 		},
 	})
 	s.server.AddPostResponse("/api/2.0/vm-hosts/42/?op=compose", http.StatusOK, `{"machine": {"system_id": "sys-id-2x", "resource_uri": "/MAAS/api/2.0/machines/sys-id-2x/"}}`)
-	s.server.AddGetResponse("/api/2.0/machines/sys-id-2x/", http.StatusOK, composeMachine)
 	s.server.AddPostResponse("/MAAS/api/2.0/machines/sys-id-2x/?op=set_owner_data", http.StatusOK, updatedMachine)
 	controller := s.getController(c)
 	machine, err := controller.ComposeMachine(42, ComposeMachineArgs{})
@@ -903,13 +902,8 @@ func (s *controllerSuite) TestComposeMachine(c *gc.C) {
 }
 
 func (s *controllerSuite) TestComposeMachineFallsBackToPods(c *gc.C) {
-	composeMachine := updateJSONMap(c, machineResponse, map[string]any{
-		"system_id":    "sys-id-pod",
-		"resource_uri": "/MAAS/api/2.0/machines/sys-id-pod/",
-	})
 	s.server.AddPostResponse("/api/2.0/vm-hosts/42/?op=compose", http.StatusNotFound, `"Not Found"`)
 	s.server.AddPostResponse("/api/2.0/pods/42/?op=compose", http.StatusOK, `{"system_id": "sys-id-pod", "resource_uri": "/MAAS/api/2.0/machines/sys-id-pod/"}`)
-	s.server.AddGetResponse("/api/2.0/machines/sys-id-pod/", http.StatusOK, composeMachine)
 
 	controller := s.getController(c)
 	machine, err := controller.ComposeMachine(42, ComposeMachineArgs{})
@@ -935,22 +929,30 @@ func (s *controllerSuite) TestComposeMachineUnavailable(c *gc.C) {
 	c.Assert(err.Error(), gc.Equals, "vm-hosts/pods API not available on this MAAS controller")
 }
 
+func (s *controllerSuite) TestComposeMachineDeletesComposedMachineWhenReadFails(c *gc.C) {
+	s.server.AddPostResponse("/api/2.0/vm-hosts/42/?op=compose", http.StatusOK, `{"machine": {"system_id": "sys-id-cleanup"}}`)
+	s.server.AddDeleteResponse("/api/2.0/machines/sys-id-cleanup/", http.StatusOK, `{}`)
+
+	controller := s.getController(c)
+	_, err := controller.ComposeMachine(42, ComposeMachineArgs{})
+	c.Assert(err, jc.Satisfies, IsDeserializationError)
+
+	request := s.server.LastRequest()
+	c.Assert(request.Method, gc.Equals, "DELETE")
+	c.Assert(request.URL.Path, gc.Equals, "/api/2.0/machines/sys-id-cleanup/")
+}
+
 func (s *controllerSuite) TestComposeMachineResolvesZoneNameToID(c *gc.C) {
 	s.server.AddGetResponse("/api/2.0/zones/test/", http.StatusOK, `{"id": 7, "name": "test", "description": "", "resource_uri": "/MAAS/api/2.0/zones/test/"}`)
 	s.server.AddPostResponse("/api/2.0/vm-hosts/42/?op=compose", http.StatusOK, `{"system_id": "sys-id-zone", "resource_uri": "/MAAS/api/2.0/machines/sys-id-zone/"}`)
-	s.server.AddGetResponse("/api/2.0/machines/sys-id-zone/", http.StatusOK, updateJSONMap(c, machineResponse, map[string]any{
-		"system_id":    "sys-id-zone",
-		"resource_uri": "/MAAS/api/2.0/machines/sys-id-zone/",
-	}))
 
 	controller := s.getController(c)
 	machine, err := controller.ComposeMachine(42, ComposeMachineArgs{Zone: "test"})
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(machine.SystemID(), gc.Equals, "sys-id-zone")
 
-	requests := s.server.LastNRequests(2)
-	c.Assert(requests, gc.HasLen, 2)
-	c.Assert(requests[0].Form.Get("zone"), gc.Equals, "7")
+	request := s.server.LastRequest()
+	c.Assert(request.Form.Get("zone"), gc.Equals, "7")
 }
 
 func (s *controllerSuite) TestComposeMachineZoneLookupNotFound(c *gc.C) {

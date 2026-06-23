@@ -281,7 +281,7 @@ func (c *controller) maybeGetVmHosts(path string) (any, error) {
 // It composes (creates) a new machine in the VM host specified by vmHostID.
 // Returns an error that satisfies IsNoMatchError if the VM host cannot satisfy
 // the requested constraints.
-func (c *controller) ComposeMachine(vmHostID int, args ComposeMachineArgs) (Machine, error) {
+func (c *controller) ComposeMachine(vmHostID int, args ComposeMachineArgs) (result Machine, err error) {
 	params := NewURLParams()
 	params.MaybeAdd("hostname", args.Hostname)
 	params.MaybeAddInt("cores", args.MinCPUCount)
@@ -297,11 +297,45 @@ func (c *controller) ComposeMachine(vmHostID int, args ComposeMachineArgs) (Mach
 	}
 	params.MaybeAdd("pool", args.Pool)
 
-	result, err := c.composeMachine(vmHostID, params.Values)
+	composeResult, err := c.composeMachine(vmHostID, params.Values)
 	if err != nil {
 		return nil, err
 	}
 
+	systemID, hasSystemID := composedMachineSystemID(composeResult)
+	defer func() {
+		if err == nil || !hasSystemID {
+			return
+		}
+		if deleteErr := c.DeleteMachine(systemID); deleteErr != nil {
+			logger.Warningf("failed deleting composed machine %q after compose response parse error: %v", systemID, deleteErr)
+		}
+	}()
+
+	machine, err := c.readComposedMachine(composeResult)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	machine.controller = c
+	return machine, nil
+}
+
+func composedMachineSystemID(result any) (string, bool) {
+	rawMachine, ok := result.(map[string]any)
+	if !ok {
+		return "", false
+	}
+	if wrappedMachine, ok := rawMachine["machine"].(map[string]any); ok {
+		rawMachine = wrappedMachine
+	}
+	systemID, ok := rawMachine["system_id"].(string)
+	if !ok || systemID == "" {
+		return "", false
+	}
+	return systemID, true
+}
+
+func (c *controller) readComposedMachine(result any) (*machine, error) {
 	rawMachine, ok := result.(map[string]any)
 	if !ok {
 		return nil, errors.Errorf("unexpected compose response type %T", result)
@@ -310,20 +344,25 @@ func (c *controller) ComposeMachine(vmHostID int, args ComposeMachineArgs) (Mach
 		rawMachine = wrappedMachine
 	}
 
-	systemID, ok := rawMachine["system_id"].(string)
-	if !ok || systemID == "" {
-		return nil, errors.New("compose response missing system_id")
+	// MAAS could return a full machine object or only machine identity fields.
+	// We can use "hostname" as the sentinel.
+	if _, hasHostname := rawMachine["hostname"]; hasHostname {
+		return readMachine(c.apiVersion, rawMachine)
 	}
-	machineSource, err := c.get(fmt.Sprintf("machines/%s", systemID))
+
+	checker := schema.FieldMap(schema.Fields{
+		"system_id":    schema.String(),
+		"resource_uri": schema.String(),
+	}, nil)
+	coerced, err := checker.Coerce(rawMachine, nil)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, WrapWithDeserializationError(err, "compose response schema check failed")
 	}
-	machine, err := readMachine(c.apiVersion, machineSource)
-	if err != nil {
-		return nil, errors.Trace(err)
-	}
-	machine.controller = c
-	return machine, nil
+	valid := coerced.(map[string]any)
+	return &machine{
+		systemID:    valid["system_id"].(string),
+		resourceURI: valid["resource_uri"].(string),
+	}, nil
 }
 
 func (c *controller) composeMachine(vmHostID int, params url.Values) (any, error) {
