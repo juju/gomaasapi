@@ -43,7 +43,7 @@ type machine struct {
 	interfaceSet  []*interface_
 	zone          *zone
 	pool          *pool
-	pod           *pod
+	vmHost        *vmHost
 	// Don't really know the difference between these two lists:
 	physicalBlockDevices []*blockdevice
 	blockDevices         []*blockdevice
@@ -52,7 +52,7 @@ type machine struct {
 func (m *machine) updateFrom(other *machine) {
 	m.resourceURI = other.resourceURI
 	m.systemID = other.systemID
-	m.pod = other.pod
+	m.vmHost = other.vmHost
 	m.hostname = other.hostname
 	m.fqdn = other.fqdn
 	m.operatingSystem = other.operatingSystem
@@ -138,9 +138,9 @@ func (m *machine) PowerType() string {
 	return m.powerType
 }
 
-// Pod implements Machine.
-func (m *machine) Pod() Pod {
-	return m.pod
+// VmHost implements Machine.
+func (m *machine) VmHost() VmHost {
+	return m.vmHost
 }
 
 // Zone implements Machine.
@@ -597,9 +597,9 @@ func machine_2_0(source map[string]any) (*machine, error) {
 		}
 	}
 
-	var pod *pod
-	if valid["pod"] != nil {
-		if pod, err = pod_2_0(valid["pod"].(map[string]any)); err != nil {
+	var vmHost *vmHost
+	if podMap, ok := valid["pod"].(map[string]any); ok {
+		if vmHost, err = vmHost_2_0(podMap); err != nil {
 			return nil, errors.Trace(err)
 		}
 	}
@@ -654,7 +654,7 @@ func machine_2_0(source map[string]any) (*machine, error) {
 		interfaceSet:         interfaceSet,
 		zone:                 zone,
 		pool:                 pool,
-		pod:                  pod,
+		vmHost:               vmHost,
 		physicalBlockDevices: physicalBlockDevices,
 		blockDevices:         blockDevices,
 	}

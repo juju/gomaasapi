@@ -830,41 +830,118 @@ func (s *controllerSuite) TestDeleteMachineErrors(c *gc.C) {
 	c.Assert(err.Error(), gc.Equals, "missing systemID not valid")
 }
 
-func (s *controllerSuite) TestPods(c *gc.C) {
-	s.server.AddGetResponse("/api/2.0/pods/", http.StatusOK, `[{"id": 42, "name": "test-pod", "resource_uri": "/MAAS/api/2.0/pods/42/"}]`)
+func (s *controllerSuite) TestVmHosts(c *gc.C) {
+	s.server.AddGetResponse("/api/2.0/vm-hosts/", http.StatusOK, `[{"id": 42, "name": "test-pod", "resource_uri": "/MAAS/api/2.0/vm-hosts/42/"}]`)
 	controller := s.getController(c)
-	pods, err := controller.Pods()
+	vmHosts, err := controller.VmHosts()
 	c.Assert(err, jc.ErrorIsNil)
-	c.Assert(pods, gc.HasLen, 1)
-	c.Assert(pods[0].ID(), gc.Equals, 42)
+	c.Assert(vmHosts, gc.HasLen, 1)
+	c.Assert(vmHosts[0].ID(), gc.Equals, 42)
 }
 
-func (s *controllerSuite) TestPodsNotFound(c *gc.C) {
-	s.server.AddGetResponse("/api/2.0/pods/", http.StatusNotFound, `"Not Found"`)
-	controller := s.getController(c)
-	_, err := controller.Pods()
-	c.Assert(err.Error(), gc.Equals, "pods API not available on this MAAS controller")
+func (s *controllerSuite) TestVmHostsFallsBackToPods(c *gc.C) {
+	server := NewSimpleServer()
+	server.AddGetResponse("/api/2.0/users/?op=whoami", http.StatusOK, `"captain awesome"`)
+	server.AddGetResponse("/api/2.0/version/", http.StatusOK, versionResponse)
+	server.AddGetResponse("/api/2.0/vm-hosts/", http.StatusNotFound, `"Not Found"`)
+	server.AddGetResponse("/api/2.0/pods/", http.StatusOK, `[{"id": 42, "name": "test-pod", "resource_uri": "/MAAS/api/2.0/pods/42/"}]`)
+	server.Start()
+	defer server.Close()
+
+	controller, err := NewController(ControllerArgs{
+		BaseURL: server.URL,
+		APIKey:  "fake:as:key",
+	})
+	c.Assert(err, jc.ErrorIsNil)
+	vmHosts, err := controller.VmHosts()
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(vmHosts, gc.HasLen, 1)
+	c.Assert(vmHosts[0].ID(), gc.Equals, 42)
 }
 
-func (s *controllerSuite) TestComposeMachineBare(c *gc.C) { // MAAS 2.x
-	s.server.AddPostResponse("/api/2.0/pods/42/?op=compose", http.StatusOK, `{"system_id": "sys-id-2x"}`)
+func (s *controllerSuite) TestVmHostsUnavailable(c *gc.C) {
+	server := NewSimpleServer()
+	server.AddGetResponse("/api/2.0/users/?op=whoami", http.StatusOK, `"captain awesome"`)
+	server.AddGetResponse("/api/2.0/version/", http.StatusOK, versionResponse)
+	server.AddGetResponse("/api/2.0/vm-hosts/", http.StatusGone, `"Gone"`)
+	server.AddGetResponse("/api/2.0/pods/", http.StatusNotFound, `"Not Found"`)
+	server.Start()
+	defer server.Close()
+
+	controller, err := NewController(ControllerArgs{
+		BaseURL: server.URL,
+		APIKey:  "fake:as:key",
+	})
+	c.Assert(err, jc.ErrorIsNil)
+	_, err = controller.VmHosts()
+	c.Assert(err.Error(), gc.Equals, "vm-hosts/pods API not available on this MAAS controller")
+}
+
+func (s *controllerSuite) TestComposeMachine(c *gc.C) {
+	composeMachine := updateJSONMap(c, machineResponse, map[string]any{
+		"system_id":    "sys-id-2x",
+		"resource_uri": "/MAAS/api/2.0/machines/sys-id-2x/",
+	})
+	updatedMachine := updateJSONMap(c, composeMachine, map[string]any{
+		"owner_data": map[string]any{
+			"returned": "data",
+		},
+	})
+	s.server.AddPostResponse("/api/2.0/vm-hosts/42/?op=compose", http.StatusOK, `{"machine": {"system_id": "sys-id-2x", "resource_uri": "/MAAS/api/2.0/machines/sys-id-2x/"}}`)
+	s.server.AddGetResponse("/api/2.0/machines/sys-id-2x/", http.StatusOK, composeMachine)
+	s.server.AddPostResponse("/MAAS/api/2.0/machines/sys-id-2x/?op=set_owner_data", http.StatusOK, updatedMachine)
 	controller := s.getController(c)
 	machine, err := controller.ComposeMachine(42, ComposeMachineArgs{})
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(machine.SystemID(), gc.Equals, "sys-id-2x")
+
+	err = machine.SetOwnerData(map[string]string{
+		"returned": "data",
+	})
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(machine.OwnerData(), gc.DeepEquals, map[string]string{"returned": "data"})
 }
 
-func (s *controllerSuite) TestComposeMachineWrapped(c *gc.C) { // MAAS 3.x
-	s.server.AddPostResponse("/api/2.0/pods/42/?op=compose", http.StatusOK, `{"machine": {"system_id": "sys-id-3x"}}`)
+func (s *controllerSuite) TestComposeMachineFallsBackToPods(c *gc.C) {
+	composeMachine := updateJSONMap(c, machineResponse, map[string]any{
+		"system_id":    "sys-id-pod",
+		"resource_uri": "/MAAS/api/2.0/machines/sys-id-pod/",
+	})
+	s.server.AddPostResponse("/api/2.0/vm-hosts/42/?op=compose", http.StatusNotFound, `"Not Found"`)
+	s.server.AddPostResponse("/api/2.0/pods/42/?op=compose", http.StatusOK, `{"system_id": "sys-id-pod", "resource_uri": "/MAAS/api/2.0/machines/sys-id-pod/"}`)
+	s.server.AddGetResponse("/api/2.0/machines/sys-id-pod/", http.StatusOK, composeMachine)
+
 	controller := s.getController(c)
 	machine, err := controller.ComposeMachine(42, ComposeMachineArgs{})
 	c.Assert(err, jc.ErrorIsNil)
-	c.Assert(machine.SystemID(), gc.Equals, "sys-id-3x")
+	c.Assert(machine.SystemID(), gc.Equals, "sys-id-pod")
+}
+
+func (s *controllerSuite) TestComposeMachineUnavailable(c *gc.C) {
+	server := NewSimpleServer()
+	server.AddGetResponse("/api/2.0/users/?op=whoami", http.StatusOK, `"captain awesome"`)
+	server.AddGetResponse("/api/2.0/version/", http.StatusOK, versionResponse)
+	server.AddPostResponse("/api/2.0/vm-hosts/42/?op=compose", http.StatusNotFound, `"Not Found"`)
+	server.AddPostResponse("/api/2.0/pods/42/?op=compose", http.StatusGone, `"Gone"`)
+	server.Start()
+	defer server.Close()
+
+	controller, err := NewController(ControllerArgs{
+		BaseURL: server.URL,
+		APIKey:  "fake:as:key",
+	})
+	c.Assert(err, jc.ErrorIsNil)
+	_, err = controller.ComposeMachine(42, ComposeMachineArgs{})
+	c.Assert(err.Error(), gc.Equals, "vm-hosts/pods API not available on this MAAS controller")
 }
 
 func (s *controllerSuite) TestComposeMachineResolvesZoneNameToID(c *gc.C) {
 	s.server.AddGetResponse("/api/2.0/zones/test/", http.StatusOK, `{"id": 7, "name": "test", "description": "", "resource_uri": "/MAAS/api/2.0/zones/test/"}`)
-	s.server.AddPostResponse("/api/2.0/pods/42/?op=compose", http.StatusOK, `{"system_id": "sys-id-zone"}`)
+	s.server.AddPostResponse("/api/2.0/vm-hosts/42/?op=compose", http.StatusOK, `{"system_id": "sys-id-zone", "resource_uri": "/MAAS/api/2.0/machines/sys-id-zone/"}`)
+	s.server.AddGetResponse("/api/2.0/machines/sys-id-zone/", http.StatusOK, updateJSONMap(c, machineResponse, map[string]any{
+		"system_id":    "sys-id-zone",
+		"resource_uri": "/MAAS/api/2.0/machines/sys-id-zone/",
+	}))
 
 	controller := s.getController(c)
 	machine, err := controller.ComposeMachine(42, ComposeMachineArgs{Zone: "test"})
@@ -873,7 +950,7 @@ func (s *controllerSuite) TestComposeMachineResolvesZoneNameToID(c *gc.C) {
 
 	requests := s.server.LastNRequests(2)
 	c.Assert(requests, gc.HasLen, 2)
-	c.Assert(requests[1].Form.Get("zone"), gc.Equals, "7")
+	c.Assert(requests[0].Form.Get("zone"), gc.Equals, "7")
 }
 
 func (s *controllerSuite) TestComposeMachineZoneLookupNotFound(c *gc.C) {
@@ -893,8 +970,8 @@ func (s *controllerSuite) TestComposeMachineZoneLookupBadSchema(c *gc.C) {
 }
 
 func (s *controllerSuite) TestComposeMachineErrors(c *gc.C) {
-	s.server.AddPostResponse("/api/2.0/pods/42/?op=compose", http.StatusConflict, `"conflict"`)
-	s.server.AddPostResponse("/api/2.0/pods/43/?op=compose", http.StatusBadRequest, `"bad req"`)
+	s.server.AddPostResponse("/api/2.0/vm-hosts/42/?op=compose", http.StatusConflict, `"conflict"`)
+	s.server.AddPostResponse("/api/2.0/vm-hosts/43/?op=compose", http.StatusBadRequest, `"bad req"`)
 
 	controller := s.getController(c)
 	_, err := controller.ComposeMachine(42, ComposeMachineArgs{})
