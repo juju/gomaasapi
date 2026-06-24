@@ -82,32 +82,31 @@ type Controller interface {
 	// Tags returns the list of MAAS tags
 	Tags() ([]Tag, error)
 
-	// Pods returns the list of pods (VM hosts) known to the MAAS controller.
-	Pods() ([]Pod, error)
+	// VmHosts returns the list of VM hosts known to the MAAS controller.
+	VmHosts() ([]VmHost, error)
 
-	// ComposeMachine composes (creates) a new machine in a pod.
-	// Returns the composed machine and constraint matches.
-	ComposeMachine(podID int, args ComposeMachineArgs) (Machine, error)
+	// ComposeMachine composes (creates) a new machine in a VM host.
+	ComposeMachine(vmHostID int, args ComposeMachineArgs) (Machine, error)
 }
 
-// Pod represents a VM host (KVM or LXD) in MAAS that can compose machines.
-type Pod interface {
-	// ID is the unique identifier of the pod.
+// VmHost represents a VM host (KVM or LXD) in MAAS that can compose machines.
+type VmHost interface {
+	// ID is the unique identifier of the VM host.
 	ID() int
 
-	// Name is the name of the pod.
+	// Name is the name of the VM host.
 	Name() string
 
-	// Type returns the pod type (e.g. "lxd", "virsh").
+	// Type returns the VM host type (e.g. "lxd", "virsh").
 	Type() string
 
-	// Zone returns the zone the pod is in.
+	// Zone returns the zone the VM host is in.
 	Zone() Zone
 
-	// Pool returns the pool the pod is in.
+	// Pool returns the pool the VM host is in.
 	Pool() Pool
 
-	// ComposeMachine composes a new machine in this pod.
+	// ComposeMachine composes a new machine in this VM host.
 	ComposeMachine(ComposeMachineArgs) (Machine, error)
 }
 
@@ -239,7 +238,7 @@ type Machine interface {
 	OwnerDataHolder
 
 	SystemID() string
-	Pod() Pod
+	VmHost() VmHost
 	Hostname() string
 	FQDN() string
 	Tags() []string
